@@ -1,0 +1,30 @@
+# ============================================================
+#  Vivado project boundary for GitHub hosting
+#  Only the authored sources in project_camera.srcs/ are tracked.
+#  Everything Vivado generates (.cache/.gen/.hw/.sim/.ip_user_files/.xpr ...)
+#  is intentionally ignored and stays in place for local builds.
+# ============================================================
+
+# 1) Ignore everything at the repository root by default.
+/*
+
+# 2) Re-include repository meta files.
+!/.gitignore
+!/README.md
+
+# 3) Re-include the authored Vivado sources:
+#    RTL (*.v), constraints (*.xdc), block design (*.bd), IP defs (*.xci), sim.
+!/project_camera.srcs/
+
+# ------------------------------------------------------------
+#  Safety net: drop common Vivado-generated artifacts even if
+#  they ever appear *inside* project_camera.srcs/.
+# ------------------------------------------------------------
+*.jou
+*.log
+*.str
+*.backup.jou
+*.backup.log
+.Xil/
+*_synth_*/
+*_impl_*/
