@@ -27,7 +27,7 @@ module Arbitration(
     input            released,  // AXI4 complete the sending progress
     output reg       accept,    // Grant signals
     output reg [2:0] cam_id,    // Camera ID number
-    output reg       drawback
+    output           drawback
 );
 
     reg locked;
@@ -47,19 +47,19 @@ module Arbitration(
                            
     wire any_req = (request != 8'd0);
 
+    assign drawback = locked && released;
+    
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             accept <= 1'd0;
             locked <= 1'b0;
             rr_ptr <= 3'd0;
         end else begin
-            drawback <= 1'b0;  //保证drawback仅维持一个脉冲
             if (locked) begin
                 // 解锁条件：当前锁定信道发出完成的 withdraw 脉冲，或该信道请求撤销
                 if (released) begin
                     locked   <= 1'b0;
                     accept   <= 1'd0;
-                    drawback <= 1'd1;
                 end
             end else begin
                 // 如果有请求且没有锁定，执行轮询仲裁，锁定当前选中通道，直至本行发送完成?
