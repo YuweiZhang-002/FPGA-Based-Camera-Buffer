@@ -53,6 +53,7 @@ module Arbitration(
             locked <= 1'b0;
             rr_ptr <= 3'd0;
         end else begin
+            drawback <= 1'b0;  //保证drawback仅维持一个脉冲
             if (locked) begin
                 // 解锁条件：当前锁定信道发出完成的 withdraw 脉冲，或该信道请求撤销
                 if (released) begin
