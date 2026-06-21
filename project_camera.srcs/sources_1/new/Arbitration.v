@@ -26,7 +26,7 @@ module Arbitration(
     input [7:0]      request,   // 8 channels request (level)
     input            released,  // AXI4 complete the sending progress
     output reg       accept,    // Grant signals
-    output reg [1:0] cam_id,    // Camera ID number
+    output reg [2:0] cam_id,    // Camera ID number
     output reg       drawback
 );
 
