@@ -51,12 +51,12 @@
         "Disable_Timing_Violations": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "Read_Clock_Frequency": [ { "value": "1", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "Write_Clock_Frequency": [ { "value": "1", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
-        "Programmable_Full_Type": [ { "value": "No_Programmable_Full_Threshold", "resolve_type": "user", "usage": "all" } ],
-        "Full_Threshold_Assert_Value": [ { "value": "1023", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
+        "Programmable_Full_Type": [ { "value": "Single_Programmable_Full_Threshold_Constant", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
+        "Full_Threshold_Assert_Value": [ { "value": "1023", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "Full_Threshold_Negate_Value": [ { "value": "1022", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
-        "Programmable_Empty_Type": [ { "value": "Single_Programmable_Empty_Threshold_Constant", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
-        "Empty_Threshold_Assert_Value": [ { "value": "25", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "Empty_Threshold_Negate_Value": [ { "value": "26", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
+        "Programmable_Empty_Type": [ { "value": "No_Programmable_Empty_Threshold", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
+        "Empty_Threshold_Assert_Value": [ { "value": "4", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
+        "Empty_Threshold_Negate_Value": [ { "value": "5", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "PROTOCOL": [ { "value": "AXI4", "resolve_type": "user", "enabled": false, "usage": "all" } ],
         "Clock_Type_AXI": [ { "value": "Common_Clock", "resolve_type": "user", "usage": "all" } ],
         "HAS_ACLKEN": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
@@ -214,12 +214,12 @@
         "C_PRELOAD_LATENCY": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_PRELOAD_REGS": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_PRIM_FIFO_TYPE": [ { "value": "1kx18", "resolve_type": "generated", "usage": "all" } ],
-        "C_PROG_EMPTY_THRESH_ASSERT_VAL": [ { "value": "25", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_PROG_EMPTY_THRESH_NEGATE_VAL": [ { "value": "26", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_PROG_EMPTY_TYPE": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_PROG_EMPTY_THRESH_ASSERT_VAL": [ { "value": "4", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_PROG_EMPTY_THRESH_NEGATE_VAL": [ { "value": "5", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_PROG_EMPTY_TYPE": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_PROG_FULL_THRESH_ASSERT_VAL": [ { "value": "1023", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_PROG_FULL_THRESH_NEGATE_VAL": [ { "value": "1022", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_PROG_FULL_TYPE": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_PROG_FULL_TYPE": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_RD_DATA_COUNT_WIDTH": [ { "value": "7", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_RD_DEPTH": [ { "value": "128", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_RD_FREQ": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -416,7 +416,7 @@
         "dout": [ { "direction": "out", "size_left": "127", "size_right": "0", "driver_value": "0" } ],
         "full": [ { "direction": "out", "driver_value": "0x0" } ],
         "empty": [ { "direction": "out", "driver_value": "0x1" } ],
-        "prog_empty": [ { "direction": "out", "driver_value": "0x1" } ],
+        "prog_full": [ { "direction": "out", "driver_value": "0x0" } ],
         "wr_rst_busy": [ { "direction": "out", "driver_value": "0" } ],
         "rd_rst_busy": [ { "direction": "out", "driver_value": "0" } ]
       },
@@ -480,5 +480,5 @@
       }
     }
   },
-  "checksum": "0d126476"
+  "checksum": "879e94e2"
 }

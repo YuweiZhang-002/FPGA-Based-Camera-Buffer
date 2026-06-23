@@ -1,76 +1,101 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2026/06/18 19:27:40
-// Design Name: 
-// Module Name: MUX_Machine
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 
 module MUX_Machine(
-    // 4 路摄像头的独立数据输入 (根据你的定义使用 16-bit)
     input  wire [15:0] pixel_in_0,
     input  wire [15:0] pixel_in_1,
     input  wire [15:0] pixel_in_2,
     input  wire [15:0] pixel_in_3,
-    
-    // 控制信号
-    input  wire [3:0]  grant,       // 授权信号 (理论上应为独热码 One-Hot)
+    input  wire        px_valid_0,
+    input  wire        px_valid_1,
+    input  wire        px_valid_2,
+    input  wire        px_valid_3,
+
+    input  wire [3:0]  grant,
+    input  wire        drawback,   // AXI completion pulse in this clk domain.
+    input  wire        px_ready,   // Ready from AXI4_Compiler.
     input  wire        clk,
-    input  wire        rst,         // 良好的硬件设计必须有复位
-    
-    // 输出端口 (注意修正了你原代码中漏掉的逗号)
+    input  wire        rst,
+
     output reg  [15:0] pixel_out,
     output reg  [1:0]  cam_id,
+    output reg         px_valid,
+    output wire        src_ready,  // Ready back to the selected LG.
     output wire        work
 );
 
-    // ==========================================
-    // 状态指示：只要 grant 不是全 0，说明当前有通路正在工作
-    // ==========================================
-    assign work = (grant != 4'd0) ? 1'b1 : 1'b0;
+    reg [3:0] grant_locked;
 
-    // ==========================================
-    // 核心数据路由 (Data Routing)
-    // 采用同步时序逻辑打拍输出，确保满足高速总线的时序要求
-    // ==========================================
+    wire grant_is_onehot = (grant == 4'b0001) ||
+                           (grant == 4'b0010) ||
+                           (grant == 4'b0100) ||
+                           (grant == 4'b1000);
+    wire [3:0] selected_grant = (grant_locked != 4'd0) ? grant_locked :
+                                (grant_is_onehot ? grant : 4'd0);
+
+    reg [15:0] selected_pixel;
+    reg [1:0]  selected_cam_id;
+    reg        selected_valid;
+
+    always @(*) begin
+        selected_pixel  = 16'd0;
+        selected_cam_id = 2'd0;
+        selected_valid  = 1'b0;
+
+        case (selected_grant)
+            4'b0001: begin
+                selected_pixel  = pixel_in_0;
+                selected_cam_id = 2'd0;
+                selected_valid  = px_valid_0;
+            end
+            4'b0010: begin
+                selected_pixel  = pixel_in_1;
+                selected_cam_id = 2'd1;
+                selected_valid  = px_valid_1;
+            end
+            4'b0100: begin
+                selected_pixel  = pixel_in_2;
+                selected_cam_id = 2'd2;
+                selected_valid  = px_valid_2;
+            end
+            4'b1000: begin
+                selected_pixel  = pixel_in_3;
+                selected_cam_id = 2'd3;
+                selected_valid  = px_valid_3;
+            end
+        endcase
+    end
+
+    assign work = (grant_locked != 4'd0);
+    assign src_ready = !px_valid || px_ready;
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            pixel_out <= 16'd0;
+            grant_locked <= 4'd0;
+            pixel_out    <= 16'd0;
+            cam_id       <= 2'd0;
+            px_valid     <= 1'b0;
         end else begin
-            // 在硬件中，针对按位开启的逻辑，最标准且极省资源的写法是 case 独热码匹配
-            case (grant)
-                4'b0001: begin
-                    pixel_out <= pixel_in_0; // 第 0 号 Bit 为高，导通通道 0
-                    cam_id <= 2'd0;
+            // Lock one camera for the whole AXI transaction.  Grant changes from
+            // arbitration are ignored until AXI drawback closes this transaction.
+            if (drawback) begin
+                grant_locked <= 4'd0;
+                pixel_out    <= 16'd0;
+                cam_id       <= 2'd0;
+                px_valid     <= 1'b0;
+            end else begin
+                if ((grant_locked == 4'd0) && grant_is_onehot) begin
+                    grant_locked <= grant;
                 end
-                4'b0010: begin
-                    pixel_out <= pixel_in_1; // 第 1 号 Bit 为高，导通通道 1
-                    cam_id <= 2'd1;
+
+                // One-stage ready/valid buffer.  When AXI is not ready, hold the
+                // registered byte and deassert src_ready so the selected LG does
+                // not pop and lose the next byte.
+                if (src_ready) begin
+                    pixel_out <= selected_pixel;
+                    cam_id    <= selected_cam_id;
+                    px_valid  <= selected_valid;
                 end
-                4'b0100: begin
-                    pixel_out <= pixel_in_2; // 第 2 号 Bit 为高，导通通道 2
-                    cam_id <= 2'd2;
-                end
-                4'b1000: begin
-                    pixel_out <= pixel_in_3; // 第 3 号 Bit 为高，导通通道 3
-                    cam_id <= 2'd3;
-                end
-                default: pixel_out <= 16'd0;      // 没有任何授权，输出保持干净的 0
-            endcase
+            end
         end
     end
 
