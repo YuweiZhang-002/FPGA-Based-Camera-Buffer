@@ -686,7 +686,7 @@
             "value": "16"
           },
           "Input_Depth": {
-            "value": "1024"
+            "value": "2048"
           },
           "Output_Data_Width": {
             "value": "128"
@@ -714,7 +714,7 @@
         "has_run_ip_tcl": "true",
         "parameters": {
           "Empty_Threshold_Assert_Value": {
-            "value": "25"
+            "value": "99"
           },
           "Fifo_Implementation": {
             "value": "Independent_Clocks_Block_RAM"
@@ -792,7 +792,7 @@
             "value": "16"
           },
           "Input_Depth": {
-            "value": "1024"
+            "value": "2048"
           },
           "Performance_Options": {
             "value": "First_Word_Fall_Through"
