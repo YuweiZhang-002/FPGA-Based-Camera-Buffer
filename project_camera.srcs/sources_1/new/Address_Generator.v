@@ -22,7 +22,7 @@
 
 module Address_Generator(
     input [1:0]         cam_id,
-    input [15:0]        frame_cnt,
+    input [7:0]         frame_cnt,
     input [9:0]         line_cnt,
     output wire [31:0]  addr
     );

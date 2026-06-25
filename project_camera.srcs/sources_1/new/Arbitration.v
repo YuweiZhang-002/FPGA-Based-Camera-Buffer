@@ -1,8 +1,7 @@
 `timescale 1ns / 1ps
 
 module Arbitration #(
-    parameter CHANNELS = 4,
-    parameter RELEASE_TIMEOUT = 24'd0
+    parameter CHANNELS = 4
 )(
     input            clk,
     input            rst,
@@ -14,8 +13,10 @@ module Arbitration #(
     output reg       drawback       // One clk pulse: this grant has been released.
 );
 
+    localparam LOCK_TIMEOUT_CYCLES = 24'd1_000_000; // ~10ms @ 100MHz
+
     reg        locked;
-    reg [2:0] rr_ptr;
+    reg [2:0]  rr_ptr;
     reg [23:0] lock_timer;
 
     wire [7:0] request_masked = (CHANNELS >= 8) ? request :
@@ -34,8 +35,7 @@ module Arbitration #(
 
     wire [2:0] selected_cam = rr_ptr + grant_idx;
     wire       any_req = (request_masked != 8'd0);
-    wire       timeout_en = (RELEASE_TIMEOUT != 24'd0);
-    wire       lock_timeout = timeout_en && (lock_timer >= RELEASE_TIMEOUT);
+    wire       lock_timeout = (lock_timer >= LOCK_TIMEOUT_CYCLES);
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -50,7 +50,7 @@ module Arbitration #(
             drawback <= 1'b0;
 
             if (locked) begin
-                if (timeout_en && !lock_timeout) begin
+                if (!lock_timeout) begin
                     lock_timer <= lock_timer + 1'b1;
                 end
 

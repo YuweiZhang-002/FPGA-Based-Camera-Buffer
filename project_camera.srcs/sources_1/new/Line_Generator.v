@@ -18,11 +18,13 @@ module Line_Generator #(
     input  wire        rst,
 
     output wire [15:0] pixel_out,
+    output wire [9:0]  line_num_ext,
+    output wire [7:0]  frame_num_ext,
+    output wire [7:0]  buf_cnt_ext,
+    output wire [1:0]  cam_id_ext,
     output wire        fifo_empty,
     output wire        rd_rst_busy,
     output wire        wr_rst_busy,
-    output wire        line_finish,
-    output wire        frame_done,
     output wire        request,
     output wire        px_valid,
     output wire        overflow_en
@@ -33,14 +35,25 @@ module Line_Generator #(
     reg [1:0] state;
     reg [9:0] line_num;
     reg [9:0] pixel_num;
+
+    // Registers to store the line/frame number for each buffer when it gets filled.
+    reg [9:0] line_num_buf1, line_num_buf2;
+    reg [7:0] frame_num_buf1, frame_num_buf2;
+
+    // Registers to hold the latched line/frame number for the duration of a transaction.
+    reg [9:0] line_num_shipping;
+    reg [7:0] frame_num_shipping;
+    reg       is_transmitting; // Flag to indicate a transaction is in progress for this LG.
+
     reg       in_overflow;
     reg       buf1_full;
     reg       buf2_full;
     reg       ptr_rx; // 0: write FIFO1, 1: write FIFO2
     reg       ptr_tx; // 0: read FIFO1,  1: read FIFO2
 
-    assign line_finish = (pixel_num == num_pixel - 1) && valid_clk && (state == GET_LINE);
-    assign frame_done  = (line_num == num_lines - 1) && line_finish;
+    assign cam_id_ext = cam_id;
+    reg [7:0]  buf_cnt = 8'd0;
+    assign buf_cnt_ext = buf_cnt;
 
     wire normal_pixel_valid = valid_clk && !in_overflow && (state == GET_LINE);
     assign overflow_en = valid_clk && in_overflow && (state == GET_LINE);
@@ -48,6 +61,9 @@ module Line_Generator #(
     // A request is a held level.  It remains high until AXI drawback releases
     // the buffer that is currently selected by ptr_tx.
     assign request = buf1_full | buf2_full;
+
+    reg vsync_d1;
+    wire vsync_falling_edge = vsync_d1 && !vsync;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -59,23 +75,40 @@ module Line_Generator #(
             buf1_full   <= 1'b0;
             buf2_full   <= 1'b0;
             state       <= IDLE;
+            line_num_buf1 <= 10'd0;
+            line_num_buf2 <= 10'd0;
+            frame_num_buf1 <= 8'd0;
+            frame_num_buf2 <= 8'd0;
+            line_num_shipping <= 10'd0;
+            frame_num_shipping <= 8'd0;
+            is_transmitting <= 1'b0;
         end else begin
+            vsync_d1 <= vsync;
             // AXI drawback is the only normal completion event.  The cam check
             // prevents another camera's completion pulse from clearing this LG.
             if (drawback && (cam_id == cam_arb)) begin
+                is_transmitting <= 1'b0; // End of transaction
                 if (!ptr_tx) begin
                     buf1_full <= 1'b0;
                 end else begin
                     buf2_full <= 1'b0;
                 end
                 ptr_tx <= ~ptr_tx;
-            end else if (!vsync) begin
+            // On the start of a new frame, reset the transmit pointer.
+            end else if (vsync_falling_edge) begin
                 ptr_tx <= 1'b0;
+            end
+
+            // Latch the shipping line and frame number at the start of a new transaction.
+            if (grant && (cam_id == cam_arb) && !is_transmitting) begin
+                is_transmitting <= 1'b1;
+                line_num_shipping <= ptr_tx ? line_num_buf2 : line_num_buf1;
+                frame_num_shipping <= ptr_tx ? frame_num_buf2 : frame_num_buf1;
             end
 
             case (state)
                 IDLE: begin
-                    if (!vsync) begin
+                    if (vsync_falling_edge) begin
                         state     <= WAIT_HREF;
                         line_num  <= 10'd0;
                         ptr_rx    <= 1'b0;
@@ -107,8 +140,12 @@ module Line_Generator #(
 
                             if (!in_overflow) begin
                                 if (!ptr_rx) begin
+                                    line_num_buf1 <= line_num;
+                                    frame_num_buf1 <= buf_cnt;
                                     buf1_full <= 1'b1;
                                 end else begin
+                                    line_num_buf2 <= line_num;
+                                    frame_num_buf2 <= buf_cnt;
                                     buf2_full <= 1'b1;
                                 end
                                 ptr_rx <= ~ptr_rx;
@@ -118,6 +155,7 @@ module Line_Generator #(
 
                             if (line_num == num_lines - 1) begin
                                 line_num <= 10'd0;
+                                buf_cnt  <= buf_cnt + 8'd1;
                                 state    <= WAIT_FINISH;
                             end else begin
                                 line_num <= line_num + 1'b1;
@@ -137,6 +175,9 @@ module Line_Generator #(
             endcase
         end
     end
+
+    assign line_num_ext = line_num_shipping;
+    assign frame_num_ext = frame_num_shipping;
 
     wire [15:0] dout1, dout2;
     wire        empty1, empty2;
