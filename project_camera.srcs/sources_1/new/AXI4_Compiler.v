@@ -8,10 +8,10 @@ module AXI4_Compiler(
     input  wire         rst,
     input  wire         permit,
     input  wire         px_valid,
-
-    output wire [127:0] axi_data,
-    output wire         drawback,   // One clk pulse generated after AXI B handshake.
     output wire         px_ready,
+
+    input  wire         confirm_drawback,
+    output wire         drawback,   // One clk pulse generated after AXI B handshake.
 
     input  wire         m_axi_awready,
     output reg  [31:0]  m_axi_awaddr,
@@ -21,7 +21,7 @@ module AXI4_Compiler(
     output wire [1:0]   m_axi_awburst,
 
     input  wire         m_axi_wready,
-    output wire [127:0] m_axi_wdata,
+    output wire [63:0]  m_axi_wdata,
     output reg          m_axi_wvalid,
     output reg          m_axi_wlast,
     output wire [15:0]  m_axi_wstrb,
@@ -30,18 +30,20 @@ module AXI4_Compiler(
     output reg          m_axi_bready
 );
 
-    localparam [7:0] BURST_LAST = 8'd99;  // AWLEN=99 means 100 AXI beats.
+    localparam [7:0] BURST_LAST = 8'd199;  // AWLEN=99 means 200 AXI beats.
 
     assign m_axi_awlen   = BURST_LAST;
-    assign m_axi_awsize  = 3'd4;          // 16 bytes per 128-bit beat.
+    assign m_axi_awsize  = 3'd3;          // 16 bytes per 64-bit beat.
     assign m_axi_awburst = 2'b01;         // INCR burst.
     assign m_axi_wstrb   = 16'hFFFF;
-    assign axi_data      = m_axi_wdata;
 
     localparam IDLE = 2'd0, STATE_AW = 2'd1, STATE_W = 2'd2, STATE_B = 2'd3;
     reg [1:0] state;
     reg [7:0] burst_beat_counter;
 
+    // ====================================================================
+    // REGION A : ADDRESS CAPTURE + CONTROL/AXI CLOCK CROSSING
+    // ====================================================================
     // Lock the address in the pixel/control clock domain when grant starts.
     // The system must keep cam_address stable while permit is high; this latch
     // prevents later cam_id/AG changes from changing the active AXI address.
@@ -92,6 +94,9 @@ module AXI4_Compiler(
         end
     end
 
+    // ====================================================================
+    // REGION B : BURST FSM  (drawback generation + watchdog abort)
+    // ====================================================================
     wire axi_b_done_pulse = m_axi_bvalid && m_axi_bready;
     reg axi_drawback_toggle;
     always @(posedge axi_clk or posedge rst) begin
@@ -135,6 +140,20 @@ module AXI4_Compiler(
             m_axi_bready       <= 1'b0;
             burst_beat_counter <= 8'd0;
         end else begin
+            // confirm_drawback = Arbitration's release pulse fed back here.
+            // On the happy path the FSM already returns to IDLE after B, so this
+            // is only essential as the WATCHDOG ABORT: if the burst hangs and the
+            // arbiter times out, this force-resets the FSM so it does not lock up.
+            if (confirm_drawback) begin
+                state              <= IDLE;
+                m_axi_awaddr       <= 32'd0;
+                m_axi_awvalid      <= 1'b0;
+                m_axi_wvalid       <= 1'b0;
+                m_axi_wlast        <= 1'b0;
+                m_axi_bready       <= 1'b0;
+                burst_beat_counter <= 8'd0;
+            end
+        
             case (state)
                 IDLE: begin
                     m_axi_awvalid      <= 1'b0;
@@ -187,7 +206,10 @@ module AXI4_Compiler(
 
     assign fifo_rd_en = (state == STATE_W) && m_axi_wvalid && m_axi_wready;
 
-    fifo_generator_1 u_fifo (
+    // ====================================================================
+    // REGION C : DATA FIFO  (16-bit pixel in @clk  ->  64-bit beat out @axi_clk)
+    // ====================================================================
+    fifo_generator_axi u_fifo (
         .rst         (rst),
         .wr_clk      (clk),
         .rd_clk      (axi_clk),

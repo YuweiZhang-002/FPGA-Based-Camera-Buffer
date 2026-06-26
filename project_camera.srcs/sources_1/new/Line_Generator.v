@@ -2,16 +2,15 @@
 
 module Line_Generator #(
     parameter num_pixel = 800,
-    parameter num_lines = 600
+    parameter num_lines = 600,
+    parameter CAM_ID    = 0          // hardwired per-instance id (was the cam_id input)
 )(
     input  wire [15:0] data,
-    input  wire [1:0]  cam_id,
-    input  wire [1:0]  cam_arb,
     input  wire        clk,
     input  wire        valid_clk,
     input  wire        href,
     input  wire        vsync,
-    input  wire        grant,
+    input  wire        grant,        // this LG's own grant bit (from Grant_Splitter)
     input  wire        px_ready,
     input  wire        drawback,      // AXI completion pulse, synchronized to clk.
     input  wire        req_overflow,
@@ -19,30 +18,31 @@ module Line_Generator #(
 
     output wire [15:0] pixel_out,
     output wire [9:0]  line_num_ext,
-    output wire [7:0]  frame_num_ext,
-    output wire [7:0]  buf_cnt_ext,
-    output wire [1:0]  cam_id_ext,
-    output wire        fifo_empty,
-    output wire        rd_rst_busy,
-    output wire        wr_rst_busy,
+    output wire [3:0]  frame_num_ext, // [Simplified] 4-bit width for 16 frames cycle
     output wire        request,
     output wire        px_valid,
     output wire        overflow_en
 );
+    // cam_id/cam_arb inputs removed: each LG owns a dedicated grant bit, so
+    // "selected" == grant, and "my completion" == (drawback && is_transmitting).
+    // fifo_empty/rd_rst_busy/wr_rst_busy/cam_id_ext outputs removed: empty is
+    // already folded into px_valid, busy is consumed internally, and the camera
+    // index is decoded downstream in MUX. These were Block-Diagram-only noise.
 
     localparam IDLE = 2'd0, WAIT_HREF = 2'd1, GET_LINE = 2'd2, WAIT_FINISH = 2'd3;
 
     reg [1:0] state;
     reg [9:0] line_num;
     reg [9:0] pixel_num;
+    reg [3:0] frame_num; // [Simplified] Unified internal frame counter
 
     // Registers to store the line/frame number for each buffer when it gets filled.
     reg [9:0] line_num_buf1, line_num_buf2;
-    reg [7:0] frame_num_buf1, frame_num_buf2;
+    reg [3:0] frame_num_buf1, frame_num_buf2;
 
     // Registers to hold the latched line/frame number for the duration of a transaction.
     reg [9:0] line_num_shipping;
-    reg [7:0] frame_num_shipping;
+    reg [3:0] frame_num_shipping;
     reg       is_transmitting; // Flag to indicate a transaction is in progress for this LG.
 
     reg       in_overflow;
@@ -50,10 +50,6 @@ module Line_Generator #(
     reg       buf2_full;
     reg       ptr_rx; // 0: write FIFO1, 1: write FIFO2
     reg       ptr_tx; // 0: read FIFO1,  1: read FIFO2
-
-    assign cam_id_ext = cam_id;
-    reg [7:0]  buf_cnt = 8'd0;
-    assign buf_cnt_ext = buf_cnt;
 
     wire normal_pixel_valid = valid_clk && !in_overflow && (state == GET_LINE);
     assign overflow_en = valid_clk && in_overflow && (state == GET_LINE);
@@ -69,6 +65,7 @@ module Line_Generator #(
         if (rst) begin
             line_num    <= 10'd0;
             pixel_num   <= 10'd0;
+            frame_num   <= 4'd0; // Reset unified frame counter
             in_overflow <= 1'b0;
             ptr_rx      <= 1'b0;
             ptr_tx      <= 1'b0;
@@ -77,16 +74,17 @@ module Line_Generator #(
             state       <= IDLE;
             line_num_buf1 <= 10'd0;
             line_num_buf2 <= 10'd0;
-            frame_num_buf1 <= 8'd0;
-            frame_num_buf2 <= 8'd0;
+            frame_num_buf1 <= 4'd0;
+            frame_num_buf2 <= 4'd0;
             line_num_shipping <= 10'd0;
-            frame_num_shipping <= 8'd0;
+            frame_num_shipping <= 4'd0;
             is_transmitting <= 1'b0;
+            vsync_d1 <= 1'b0;
         end else begin
             vsync_d1 <= vsync;
-            // AXI drawback is the only normal completion event.  The cam check
-            // prevents another camera's completion pulse from clearing this LG.
-            if (drawback && (cam_id == cam_arb)) begin
+            // AXI drawback is broadcast; is_transmitting filters it so only the
+            // LG that actually owns the in-flight transaction clears its buffer.
+            if (drawback && is_transmitting) begin
                 is_transmitting <= 1'b0; // End of transaction
                 if (!ptr_tx) begin
                     buf1_full <= 1'b0;
@@ -100,9 +98,9 @@ module Line_Generator #(
             end
 
             // Latch the shipping line and frame number at the start of a new transaction.
-            if (grant && (cam_id == cam_arb) && !is_transmitting) begin
-                is_transmitting <= 1'b1;
-                line_num_shipping <= ptr_tx ? line_num_buf2 : line_num_buf1;
+            if (grant && !is_transmitting) begin
+                is_transmitting    <= 1'b1;
+                line_num_shipping  <= ptr_tx ? line_num_buf2 : line_num_buf1;
                 frame_num_shipping <= ptr_tx ? frame_num_buf2 : frame_num_buf1;
             end
 
@@ -141,11 +139,11 @@ module Line_Generator #(
                             if (!in_overflow) begin
                                 if (!ptr_rx) begin
                                     line_num_buf1 <= line_num;
-                                    frame_num_buf1 <= buf_cnt;
+                                    frame_num_buf1 <= frame_num; // Local snapshot
                                     buf1_full <= 1'b1;
                                 end else begin
                                     line_num_buf2 <= line_num;
-                                    frame_num_buf2 <= buf_cnt;
+                                    frame_num_buf2 <= frame_num; // Local snapshot
                                     buf2_full <= 1'b1;
                                 end
                                 ptr_rx <= ~ptr_rx;
@@ -154,9 +152,9 @@ module Line_Generator #(
                             in_overflow <= 1'b0;
 
                             if (line_num == num_lines - 1) begin
-                                line_num <= 10'd0;
-                                buf_cnt  <= buf_cnt + 8'd1;
-                                state    <= WAIT_FINISH;
+                                line_num  <= 10'd0;
+                                frame_num <= frame_num + 4'd1; // [Simplified] Integrates frame counting cleanly
+                                state     <= WAIT_FINISH;
                             end else begin
                                 line_num <= line_num + 1'b1;
                                 state    <= WAIT_HREF;
@@ -176,19 +174,19 @@ module Line_Generator #(
         end
     end
 
-    assign line_num_ext = line_num_shipping;
+    // Expose metadata directly to the outputs
+    assign line_num_ext  = line_num_shipping;
     assign frame_num_ext = frame_num_shipping;
 
     wire [15:0] dout1, dout2;
     wire        empty1, empty2;
     wire        wr_busy1, wr_busy2, rd_busy1, rd_busy2;
+    wire        wr_busy_any = wr_busy1 | wr_busy2;   // internal-only now
 
-    assign pixel_out  = ptr_tx ? dout2  : dout1;
-    assign fifo_empty = ptr_tx ? empty2 : empty1;
-    assign wr_rst_busy = wr_busy1 | wr_busy2;
-    assign rd_rst_busy = rd_busy1 | rd_busy2;
+    assign pixel_out = ptr_tx ? dout2 : dout1;
 
-    wire cam_selected = grant && (cam_id == cam_arb);
+    // Selected == this LG's grant bit; the per-camera id comparison is gone.
+    wire cam_selected = grant;
     wire fifo1_can_read = cam_selected && !ptr_tx && !empty1 && !rd_busy1;
     wire fifo2_can_read = cam_selected &&  ptr_tx && !empty2 && !rd_busy2;
 
@@ -198,10 +196,10 @@ module Line_Generator #(
 
     wire transfer_fire = px_valid && px_ready;
 
-    wire fifo1_wr_en = normal_pixel_valid && !wr_rst_busy && !ptr_rx;
-    wire fifo2_wr_en = normal_pixel_valid && !wr_rst_busy &&  ptr_rx;
+    wire fifo1_wr_en = normal_pixel_valid && !wr_busy_any && !ptr_rx;
+    wire fifo2_wr_en = normal_pixel_valid && !wr_busy_any &&  ptr_rx;
 
-    fifo_generator_2 fifo_1 (
+    fifo_generator_line fifo_1 (
         .rst          (rst),
         .wr_clk       (clk),
         .rd_clk       (clk),
@@ -214,7 +212,7 @@ module Line_Generator #(
         .rd_rst_busy  (rd_busy1)
     );
 
-    fifo_generator_2 fifo_2 (
+    fifo_generator_line fifo_2 (
         .rst          (rst),
         .wr_clk       (clk),
         .rd_clk       (clk),

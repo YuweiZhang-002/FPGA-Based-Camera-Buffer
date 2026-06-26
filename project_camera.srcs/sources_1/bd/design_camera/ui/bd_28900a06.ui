@@ -1,0 +1,58 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"1.16629",
+   "Default View_TopLeft":"608,611",
+   "ExpandedHierarchyInLayout":"",
+   "PinnedBlocks":"/Line_Generator_0|/Address_Generator_0|/Alarmer_0|/Arbitration_0|/AXI4_Compiler_0|/Grant_Splitter_0|/MUX_Machine_0|/Pixel_Generator_0|/xlconcat_0|",
+   "PinnedPorts":"pins_0|clk_0|clk_data_0|rst_0|href_0|vsync_0|",
+   "guistr":"# # String gsaved with Nlview 7.8.0 2024-04-26 e1825d835c VDI=44 GEI=38 GUI=JA:21.0
+#  -string -flagsOSRD
+preplace port port-id_clk_0 -pg 1 -lvl 0 -x -30 -y 260 -defaultsOSRD
+preplace port port-id_clk_data_0 -pg 1 -lvl 0 -x -30 -y 240 -defaultsOSRD
+preplace port port-id_rst_0 -pg 1 -lvl 0 -x -30 -y 280 -defaultsOSRD
+preplace port port-id_href_0 -pg 1 -lvl 0 -x -30 -y 160 -defaultsOSRD
+preplace port port-id_vsync_0 -pg 1 -lvl 0 -x -30 -y 340 -defaultsOSRD
+preplace portBus pins_0 -pg 1 -lvl 0 -x -30 -y 180 -defaultsOSRD
+preplace inst Line_Generator_0 -pg 1 -lvl 3 -x 800 -y 170 -defaultsOSRD
+preplace inst Address_Generator_0 -pg 1 -lvl 5 -x 1510 -y 600 -defaultsOSRD
+preplace inst Alarmer_0 -pg 1 -lvl 1 -x 130 -y 260 -defaultsOSRD
+preplace inst Arbitration_0 -pg 1 -lvl 2 -x 410 -y 590 -defaultsOSRD
+preplace inst AXI4_Compiler_0 -pg 1 -lvl 6 -x 1810 -y 470 -defaultsOSRD
+preplace inst Grant_Splitter_0 -pg 1 -lvl 3 -x 800 -y 970 -defaultsOSRD
+preplace inst MUX_Machine_0 -pg 1 -lvl 4 -x 1200 -y 980 -defaultsOSRD
+preplace inst Pixel_Generator_0 -pg 1 -lvl 2 -x 410 -y 270 -defaultsOSRD
+preplace inst xlconcat_0 -pg 1 -lvl 1 -x 130 -y 600 -defaultsOSRD
+preplace netloc Alarmer_0_alarm 1 1 1 230 260n
+preplace netloc pins_0_1 1 0 2 20J 170 230J
+preplace netloc clk_0_1 1 0 6 0 150 240 170 620 440 1030J 440 NJ 440 NJ
+preplace netloc clk_data_0_1 1 0 1 NJ 240
+preplace netloc rst_0_1 1 0 6 30 180 250 180 570 480 980 480 NJ 480 NJ
+preplace netloc Pixel_Generator_0_out 1 2 1 560 60n
+preplace netloc Pixel_Generator_0_confirm 1 2 1 600 140n
+preplace netloc href_0_1 1 0 3 -10J 140 NJ 140 590J
+preplace netloc vsync_0_1 1 0 3 10J 160 NJ 160 580J
+preplace netloc Arbitration_0_grant_onehot 1 2 2 560 1140 N
+preplace netloc Address_Generator_0_addr 1 5 1 1650 420n
+preplace netloc Line_Generator_0_pixel_out 1 3 1 1050 80n
+preplace netloc Line_Generator_0_line_num_ext 1 3 1 1040 100n
+preplace netloc Line_Generator_0_frame_num_ext 1 3 1 990 120n
+preplace netloc Line_Generator_0_request 1 0 4 30 360 NJ 360 NJ 360 960
+preplace netloc MUX_Machine_0_data_out 1 4 2 1350 400 NJ
+preplace netloc Arbitration_0_accept 1 2 4 610 500 1010J 500 NJ 500 NJ
+preplace netloc Grant_Splitter_0_out0 1 3 1 1020 820n
+preplace netloc Grant_Splitter_0_out1 1 3 1 N 920
+preplace netloc Grant_Splitter_0_out2 1 3 1 970 940n
+preplace netloc Grant_Splitter_0_out3 1 3 1 960 960n
+preplace netloc AXI4_Compiler_0_px_ready 1 2 5 640 340 NJ 340 NJ 340 NJ 340 1950
+preplace netloc AXI4_Compiler_0_drawback 1 1 6 260 470 NJ 470 NJ 470 NJ 470 1660J 600 1950
+preplace netloc Arbitration_0_drawback 1 2 4 630 520 1000 520 N 520 1640
+preplace netloc Line_Generator_0_px_valid 1 3 3 N 240 NJ 240 1670J
+preplace netloc xlconcat_0_dout 1 1 1 NJ 600
+preplace netloc MUX_Machine_0_buf_out 1 4 1 1370 600n
+preplace netloc MUX_Machine_0_line_out 1 4 1 1380 620n
+preplace netloc MUX_Machine_0_cam_id 1 4 1 1360 580n
+levelinfo -pg 1 -30 130 410 800 1200 1510 1810 1970
+pagesize -pg 1 -db -bbox -sgen -150 0 1970 1280
+"
+}
+

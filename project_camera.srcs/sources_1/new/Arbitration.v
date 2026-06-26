@@ -7,11 +7,13 @@ module Arbitration #(
     input            rst,
     input [7:0]      request,
     input            released,      // AXI drawback pulse, already in clk domain.
-    output reg       accept,
-    output reg [2:0] cam_id,
-    output reg [7:0] grant_onehot,  // Latched grant. Use this to drive LG/MUX select.
+    output reg       accept,        // = (grant_onehot != 0); drives AXI permit.
+    output reg [7:0] grant_onehot,  // Latched one-hot grant. Drives LG/MUX select + AG.
     output reg       drawback       // One clk pulse: this grant has been released.
 );
+    // cam_id output removed: the camera index is fully recoverable from the
+    // one-hot grant (MUX decodes it for Address_Generator), so exporting a
+    // separate cam_id bus was redundant routing.
 
     localparam LOCK_TIMEOUT_CYCLES = 24'd1_000_000; // ~10ms @ 100MHz
 
@@ -40,7 +42,6 @@ module Arbitration #(
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             accept       <= 1'b0;
-            cam_id       <= 3'd0;
             grant_onehot <= 8'd0;
             drawback     <= 1'b0;
             locked       <= 1'b0;
@@ -68,7 +69,6 @@ module Arbitration #(
 
                 if (any_req) begin
                     accept       <= 1'b1;
-                    cam_id       <= selected_cam;
                     grant_onehot <= (8'h01 << selected_cam);
                     locked       <= 1'b1;
                     rr_ptr       <= selected_cam + 1'b1;
