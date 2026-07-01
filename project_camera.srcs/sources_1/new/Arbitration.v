@@ -1,31 +1,39 @@
 `timescale 1ns / 1ps
-
-module Arbitration #(
-    parameter CHANNELS = 4
-)(
-    input            clk,
-    input            rst,
-    input [7:0]      request,
-    input            released,      // AXI drawback pulse, already in clk domain.
-    output reg       accept,        // = (grant_onehot != 0); drives AXI permit.
-    output reg [7:0] grant_onehot,  // Latched one-hot grant. Drives LG/MUX select + AG.
-    output reg       drawback       // One clk pulse: this grant has been released.
+//////////////////////////////////////////////////////////////////////////////////
+// Module Name: Arbitration
+// Role: Round-robin arbiter for 8 camera channels.
+//       Decides which camera's request gets processed, issues a locked one-hot
+//       grant, and releases the grant upon receiving the drawback pulse.
+//
+// Key Updates:
+// - Scaled down from 16 channels to 8 channels to align with the 8-camera MUX.
+// - Input 'request' narrowed to [7:0] (1 line per camera).
+// - Output 'grant_onehot' narrowed to [7:0] (one-hot grant for MUX).
+// - Round-robin pointer (rr_ptr) resized to 3-bit width [2:0] to index 8 channels.
+// - Watchdog timer and priority encoder updated to perfectly match 8-bit widths.
+//////////////////////////////////////////////////////////////////////////////////
+module Arbitration (
+    input  wire       clk,
+    input  wire       rst,
+    input  wire [7:0] request,      // 8 request lines (1 per camera)
+    input  wire       released,     // AXI drawback pulse, indicating grant can be released
+    output reg  [7:0] grant_onehot, // Latched one-hot grant for the selected camera
+    output reg        drawback,     // One-cycle pulse indicating the grant has been released
+    output reg        watchdog_en   // Latches high on timeout (See Watchdog Notice)
 );
-    // cam_id output removed: the camera index is fully recoverable from the
-    // one-hot grant (MUX decodes it for Address_Generator), so exporting a
-    // separate cam_id bus was redundant routing.
 
-    localparam LOCK_TIMEOUT_CYCLES = 24'd1_000_000; // ~10ms @ 100MHz
+    localparam NUM_CHANNELS        = 8;
+    localparam LOCK_TIMEOUT_CYCLES = 24'd400_000;   // ~1ms @ 400MHz / ~4ms @ 100MHz
 
-    reg        locked;
-    reg [2:0]  rr_ptr;
-    reg [23:0] lock_timer;
+    reg        locked;       // Flag indicating a grant is currently active
+    reg [2:0]  rr_ptr;       // Round-robin pointer (points to the start of the priority list)
+    reg [23:0] lock_timer;   // Timer to detect if a grant is held for too long
 
-    wire [7:0] request_masked = (CHANNELS >= 8) ? request :
-                                (request & ((8'h01 << CHANNELS) - 8'h01));
-    wire [15:0] double_req = {request_masked, request_masked};
-    wire [7:0] shifted_req = double_req >> rr_ptr;
+    // Round-robin priority encoding logic
+    wire [15:0] double_req  = {request, request};
+    wire [7:0]  shifted_req = double_req >> rr_ptr;
 
+    // Priority encoder to find the index of the first set bit in the shifted request vector
     wire [2:0] grant_idx = shifted_req[0] ? 3'd0 :
                            shifted_req[1] ? 3'd1 :
                            shifted_req[2] ? 3'd2 :
@@ -35,43 +43,51 @@ module Arbitration #(
                            shifted_req[6] ? 3'd6 :
                            shifted_req[7] ? 3'd7 : 3'd0;
 
-    wire [2:0] selected_cam = rr_ptr + grant_idx;
-    wire       any_req = (request_masked != 8'd0);
-    wire       lock_timeout = (lock_timer >= LOCK_TIMEOUT_CYCLES);
+    wire [2:0] selected_channel = rr_ptr + grant_idx; // The absolute index of the channel to be granted
+    wire       any_req          = (request != 8'd0);
+    wire       lock_timeout     = (lock_timer >= LOCK_TIMEOUT_CYCLES);
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            accept       <= 1'b0;
             grant_onehot <= 8'd0;
             drawback     <= 1'b0;
+            watchdog_en  <= 1'b0;
             locked       <= 1'b0;
             rr_ptr       <= 3'd0;
             lock_timer   <= 24'd0;
         end else begin
+            // Default to de-asserting the single-cycle drawback pulse
             drawback <= 1'b0;
 
             if (locked) begin
+                // If a grant is active, start the watchdog timer
                 if (!lock_timeout) begin
                     lock_timer <= lock_timer + 1'b1;
                 end
 
-                // AXI drawback is the only normal completion signal.  Arbitration
-                // only converts it into a one-cycle release pulse and drops grant.
-                if (released || lock_timeout) begin
-                    accept       <= 1'b0;
+                // Normal completion: the AXI compiler signals 'released'
+                if (released) begin
                     grant_onehot <= 8'd0;
-                    drawback     <= 1'b1;
+                    drawback     <= 1'b1;   // Signal back that the release was seen
+                    locked       <= 1'b0;
+                    lock_timer   <= 24'd0;
+                // Timeout completion: the grant has been held for too long
+                end else if (lock_timeout) begin
+                    grant_onehot <= 8'd0;
+                    watchdog_en  <= 1'b1;   // Assert watchdog signal
                     locked       <= 1'b0;
                     lock_timer   <= 24'd0;
                 end
             end else begin
+                // If no grant is active, keep timer cleared and look for new requests
                 lock_timer <= 24'd0;
 
                 if (any_req) begin
-                    accept       <= 1'b1;
-                    grant_onehot <= (8'h01 << selected_cam);
+                    // Grant the highest priority request
+                    grant_onehot <= (8'h1 << selected_channel);
                     locked       <= 1'b1;
-                    rr_ptr       <= selected_cam + 1'b1;
+                    // Advance the round-robin pointer for the next cycle
+                    rr_ptr       <= selected_channel + 1'b1;
                 end
             end
         end

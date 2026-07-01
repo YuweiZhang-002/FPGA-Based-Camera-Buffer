@@ -22,13 +22,21 @@
 
 
 module Pixel_Generator(
-    input      [3:0]  pins,      // 每拍输入 4-bit 数据
-    input             clk, 
-    input             rst, 
-    input             valid,     // 数据有效信号
+    input  wire    [3:0]  pins,      // 每拍输入 4-bit 数据
+    input  wire           cam_clk,   // Acquire clock from RP2354A
+    input  wire           clk, 
+    input  wire           rst, 
     output reg [15:0] out,       // 【修改】降为 16-bit 输出
     output reg        confirm    // 输出完成脉冲 (1拍)
 );
+
+    wire valid;
+
+    Alarmer alarmer_pixel(
+    .clk_data(cam_clk), .clk(clk), .rst(rst),
+    .alarm(valid)
+    );
+    
 
     reg [15:0] data;             // 【修改】内部移位寄存器降为 16-bit
     reg [1:0]  cnt;              // 【修改】计数器降为 2-bit (只需数 0~3)
