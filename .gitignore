@@ -1,25 +1,26 @@
 # ============================================================
-#  Vivado project boundary for GitHub hosting
-#  Only the authored sources in project_camera.srcs/ are tracked.
-#  Everything Vivado generates (.cache/.gen/.hw/.sim/.ip_user_files/.xpr ...)
-#  is intentionally ignored and stays in place for local builds.
+#  Vivado repository boundary for GitHub hosting
+#
+#  project_camera.srcs/ : retained legacy AXI4/DDR project sources
+#  prg_cam.srcs/        : current FIFO/BRAM packet pipeline sources
+#  docs/                : current architecture and refactor documents
+#  scripts/             : reproducible out-of-context synthesis scripts
 # ============================================================
 
-# 1) Ignore everything at the repository root by default.
+# Ignore everything at repository root by default.
 /*
 
-# 2) Re-include repository meta files.
+# Repository metadata and documentation.
 !/.gitignore
 !/README.md
+!/docs/
+!/scripts/
 
-# 3) Re-include the authored Vivado sources:
-#    RTL (*.v), constraints (*.xdc), block design (*.bd), IP defs (*.xci), sim.
+# Authored Vivado sources: legacy and current.
 !/project_camera.srcs/
+!/prg_cam.srcs/
 
-# ------------------------------------------------------------
-#  Safety net: drop common Vivado-generated artifacts even if
-#  they ever appear *inside* project_camera.srcs/.
-# ------------------------------------------------------------
+# Safety net for common Vivado-generated artifacts.
 *.jou
 *.log
 *.str
@@ -28,3 +29,9 @@
 .Xil/
 *_synth_*/
 *_impl_*/
+*.runs/
+*.cache/
+*.gen/
+*.hw/
+*.sim/
+*.ip_user_files/

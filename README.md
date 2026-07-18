@@ -1,100 +1,146 @@
-# Camera to DDR4 AXI-Based Framebuffer
+# Multi-Camera FIFO-Based FPGA Packet Buffer
 
 ## 1. 项目概述
 
-本项目旨在实现一个多摄像头（最高支持8路）视频采集系统，该系统将通过AXI4总线将视频数据实时存入DDR4内存。整个设计采用高度模块化的闭环控制系统，确保数据传输的稳定性和可靠性，并内置了必要的超时和溢出保护机制。
+本项目当前实现一个基于 FPGA 内部 FIFO/BRAM 的四摄像头数据缓冲与聚合系统。摄像头输入已经是固定 128-byte 完整行包，包内包含 16-byte header、数据区和 2-byte CRC tail；FPGA 不再依赖 AXI4 或外部 DDR，而是在片内完成跨相机缓冲、完整包仲裁、字段补充、CRC 重算和 ready/valid 输出。
 
-当前设计完成了视频数据从摄像头采集到写入DDR4内存的完整链路。
+当前设计的核心数据链为：
+
+```text
+4 × Camera_Capture
+    -> 4 × Line_Buffer (每路 4 × 128-byte)
+    -> 4-way Arbitration
+    -> Byte_Replacer
+    -> Byte_FIFO
+    -> ready/valid packet stream
+```
+
+仓库同时保留两个版本：
+
+*   **`project_camera.srcs/`**：早期 AXI4/DDR、Line Generator 和 Block Design 工程，作为历史版本保留。
+*   **`prg_cam.srcs/`**：当前最新的 FIFO/BRAM 四相机实现，包含有效 RTL、明确废弃的 RTL 和仿真 testbench。
+
+当前模块架构、状态机和综合结果见 [`docs/fpga_module_structure.md`](docs/fpga_module_structure.md)，重构状态见 [`docs/fpga_fifo_refactor_status.md`](docs/fpga_fifo_refactor_status.md)。
 
 ## 2. 模块功能说明
 
-系统由以下几个核心Verilog模块构成：
+系统由以下几个核心 Verilog 模块构成：
 
-*   **`Line_Generator` (LG)**
-    *   **功能**: 每个摄像头通道对应一个LG实例。它负责接收摄像头的视频信号（`vsync`, `href`, `data`），并将每一行像素数据（如800像素）存入一个双缓冲（Ping-Pong）FIFO中。
-    *   **核心机制**: 当其中一个缓冲区写满后，它会向 `Arbitration` 模块发出总线访问`request`。在获得授权后，它会将该缓冲区的数据发送给 `MUX_Machine`。
+*   **`Alarmer`（pclk 边沿同步器）**
+    *   **功能**：每路相机 `pclk` 与 FPGA 100 MHz `sys_clk` 异步。该模块使用两级 `ASYNC_REG` 同步器，在 `sys_clk` 域产生单周期 pclk 上升沿 pulse。
+    *   **核心机制**：所有后级模块只使用 `sys_clk`，四路相机数据在统一时钟域内进入 Line Buffer 和 Arbitration。
 
-*   **`Arbitration` (仲裁机)**
-    *   **功能**: 系统的“交通警察”。它接收来自所有 `Line_Generator` 的请求，并采用轮询（Round-Robin）策略，公平地为其中一个通道授予AXI总线访问权。
-    *   **核心机制**: 发出`grant`（授权）信号锁定一个通道，在接收到`drawback`（撤销）信号后释放锁定。**该模块内置了一个不可配置的硬件看门狗定时器**，如果一个`grant`在规定时间（约10ms）内没有收到对应的`drawback`，定时器将强制触发`drawback`，释放总线锁，防止系统因下游模块（如AXI）卡死而全局冻结。
+*   **`Camera_Capture`（摄像头采集前端）**
+    *   **功能**：接收一组 `pclk`、`href` 和 8-bit camera data。`href` 上升表示 128-byte 包开始，`href` 下降表示包结束。
+    *   **核心机制**：统计 href 有效期间的 byte 数；复位后从 row 0 开始，无 VSYNC。生成第一行、最后一行和长度错误 flags。
 
-*   **`MUX_Machine` (数据选择器)**
-    *   **功能**: 根据 `Arbitration` 发出的`grant`信号，从多个 `Line_Generator` 的输出中选择一个通道的数据流，并将其传递给 `AXI4_Compiler`。
-    *   **核心机制**: `grant`信号使其锁定在一个通道上，直到`drawback`信号抵达才解除锁定。
+*   **`Line_Buffer`（四包环形缓冲）**
+    *   **功能**：每个摄像头对应一个 Line Buffer，使用 512×8 BRAM 保存四个 128-byte 包，并保存与包对齐的 `cam_id/row_flags/length`。
+    *   **核心机制**：使用 `wr_ptr`、`rd_ptr`、`used_count` 和 `committed_count` 管理 FIFO 顺序。RX 和 TX 分别由独立 always block 管理，不使用 `slot_busy[]`、`slot_ready[]`、`capture_active` 或 `capture_drop`。
+    *   **溢出策略**：四个 slot 全部占用时，新的 href 包被整体丢弃，累计 dropped counter，并将 frame overflow bit sticky 到后续成功输出的包。
 
-*   **`Address_Generator` (AG)**
-    *   **功能**: 一个纯组合逻辑模块，根据 `Arbitration` 提供的`cam_id`（摄像头ID）以及 `Line_Generator` 提供的`line_num`（行号）和`frame_num`（帧号），计算出当前数据行在DDR4内存中应存储的目标地址。
+*   **`Arbitration`（四路仲裁机）**
+    *   **功能**：接收四个 Line Buffer 的持续 `request`，采用 Round-Robin 方式公平选择一个完整包。
+    *   **核心机制**：`grant_onehot` 同时充当授权输出和锁定状态；内部只保留两位 `rr_ptr`。grant 在整个 128-byte 包内保持不变，直到最后一个 byte 完成 valid/ready 握手。
 
-*   **`AXI4_Compiler`**
-    *   **功能**: AXI4总线接口的核心。它接收来自 `MUX_Machine` 的16位像素流和来自 `Address_Generator` 的32位目标地址。
-    *   **核心机制**: 模块内部包含一个宽度转换FIFO（16位输入，128位输出）。它首先将像素流打包成128位的AXI数据宽度，当FIFO中的数据量达到一次完整AXI突发（Burst）所需的数据量（100个128位字）时，它才向内存控制器发起一次AXI写操作。操作完成后（以接收到`bvalid`信号为标志），它会产生`drawback`脉冲，通知上游模块释放总线。
+*   **`Byte_Replacer`（字段修改与 CRC 单元）**
+    *   **功能**：输入已经是完整 128-byte 包，因此该模块不重新生成 header 或 payload。
+    *   **核心机制**：offset 4 写入 `cam_id`；offset 9 输出原始 flags 与 FPGA flags 的 OR；对修改后的 offset 0..125 计算 CRC-16，并覆盖 offset 126/127。
+    *   **CRC 参数**：初值 `0xFFFF`、多项式 `0x1021`、MSB-first、无 reflection、无 final XOR，低字节先输出。
+
+*   **`Byte_FIFO`（最终输出 FIFO）**
+    *   **功能**：保存仲裁和 CRC 完成后的输出数据，为下游提供 ready/valid backpressure 隔离。
+    *   **核心机制**：FIFO word 为 9 bit，其中 bit[7:0] 是数据，bit[8] 是 `packet_last`；默认深度 512 entries。
+
+*   **`Camera_Pipeline`（Top Module）**
+    *   **功能**：实例化四套 Camera Capture 和 Line Buffer，以及一套共享 Arbitration、Byte Replacer 和 Byte FIFO。
+    *   **核心机制**：one-hot mux 同时选择数据、`cam_id` 和 `row_flags`，确保 metadata 不会与被授权的数据流错位。
+
+*   **`deprecated/`（历史 RTL）**
+    *   **功能**：保存已经退出有效数据链的 AXI4/DDR、Packet Formatter、旧单 byte replacer、Pixel/Line Generator 和胶水模块。
+    *   **核心机制**：历史模块由 `ENABLE_DEPRECATED_*` 宏整体隔离，默认不会进入综合。
 
 ## 3. 架构与信号流
 
-整个系统的工作流程是一个精确控制的闭环握手机制：
+整个系统采用完整包粒度的闭环 ready/valid 握手机制：
 
-1.  **数据采集**: `Line_Generator` 捕获一行视频数据并存满一个内部FIFO。
-2.  **请求总线**: LG向 `Arbitration` 发出 `request` 信号。
-3.  **授权访问**: `Arbitration` 在轮询后选择一个LG，并发出 `grant` 信号。此 `grant` 信号同时发送给：
-    *   目标 `Line_Generator`：允许其开始发送数据。
-    *   `Address_Generator`：使其基于当前LG的`cam_id`、`line_num`和`frame_num`生成地址。
-    *   `MUX_Machine`：使其选择正确的LG数据源。
-    *   `AXI4_Compiler`：作为`permit`信号，允许其准备接收数据和地址。
-4.  **数据传输**:
-    *   LG将数据发送到 `MUX_Machine`。
-    *   `MUX_Machine` 将数据转发到 `AXI4_Compiler`。
-    *   `AXI4_Compiler` 将数据存入其内部的宽度转换FIFO。
-5.  **AXI突发写入**: 当 `AXI4_Compiler` 的FIFO满足突发条件（存满100个128位字）后，它将锁存的地址和准备好的数据通过一次AXI突发（100个周期），写入DDR4内存。
-6.  **释放总线**: AXI写操作的最后一个环节是内存控制器返回`B-Channel`响应。`AXI4_Compiler`在收到`bvalid`后，会生成一个单周期的 `drawback` 信号。
-7.  **解除锁定**: `drawback` 信号被广播给 `Arbitration`、`MUX_Machine` 和 `Line_Generator`，使它们解除各自的锁定状态，准备处理下一个请求。`Arbitration` 的轮询指针（`rr_ptr`）也会移动到下一个通道。
+1.  **数据采集**：每个 `Camera_Capture` 通过同步后的 pclk pulse 接收 8-bit 数据，并在 href 下降时给出 `line_end` 和本包 flags。
+2.  **缓冲提交**：对应 `Line_Buffer` 将最多 128 bytes 写入当前 `wr_ptr`；包结束后增加 `committed_count`。
+3.  **请求授权**：只要 `committed_count != 0`，Line Buffer 就持续拉高 `request`。`Arbitration` 从四路请求中选择一个 one-hot grant。
+4.  **完整包传输**：获得 grant 的 Line Buffer 从 `rd_ptr` 连续输出 byte 0..127。未选中的 Line Buffer 不会消费数据。
+5.  **字段与 CRC 更新**：共享 `Byte_Replacer` 修改 `cam_id` 和 `row_flags`，同时按 byte 更新 CRC；downstream stall 时 byte index 和 CRC 均保持不变。
+6.  **FIFO 输出**：修改后的 `{packet_last, packet_data}` 写入 `Byte_FIFO`，再通过标准 ready/valid 接口送往 MCU 或其他下游模块。
+7.  **释放授权**：只有 `selected_valid && selected_ready && selected_packet_last` 同时成立时才产生 `released`，仲裁器随后从下一通道开始轮询。
 
-## 4. 闭环机制深度分析 (“权利”模型)
+固定包布局为：
 
-为了确保系统的稳定，我们设计了四种“权利”交接的闭环机制。
+| Offset | 字段 | FPGA 行为 |
+|---:|---|---|
+| 0..3 | `sync0/sync1` | 原样通过 |
+| 4 | `cam_id` | 写入当前相机 ID |
+| 5..8 | `frame_id/row_idx` | 原样通过 |
+| 9 | `row_flags` | 原 flags OR FPGA flags |
+| 10..125 | 其余 header 和数据 | 原样通过，短包缺失区补零 |
+| 126 | CRC low | FPGA 重算 |
+| 127 | CRC high | FPGA 重算，同时产生 `packet_last` |
 
-#### 4.1. 控制权 (Control Rights)
+## 4. 闭环机制深度分析（“权利”模型）
 
-*   **核心**: `grant` (授权) 与 `drawback` (撤销) 构成了唯一的控制权交接路径。
-*   **流程**: `Arbitration` 是 `grant` 的唯一发出者，它将总线控制权交给下游。`AXI4_Compiler` 是 `drawback` 的唯一正常发出者，它在AXI事务结束后将控制权交还给 `Arbitration`。
-*   **问题与对策**:
-    *   **潜在问题**: "目前的`drawback`高度依赖`cnt`机制，如果`cnt`没有达到预期可能会导致AXI卡死在`W state`。" — 您提到的这个问题是致命的。如果 `AXI4_Compiler` 因为任何原因（例如，AXI总线`wready`一直为低）而无法完成100个字的突发计数，`drawback`信号将永远不会产生，导致系统全局死锁。
-    *   **解决方案 (已实施)**: **`Arbitration`模块中的硬件看门狗（超时熔断机制）是这个问题的最终解决方案**。该机制现在是**永久启用**的。如果 `grant` 发出后，在预设的100万个时钟周期内没有收到`drawback`，仲裁机将强制产生一个`drawback`脉冲。这个脉冲会像正常信号一样，复位`Arbitration`、`MUX_Machine`和`Line_Generator`的状态，从而强行释放总线，避免系统被完全冻结。
+为了确保多相机数据不会交叉、覆盖或失去错误信息，当前设计保留四种明确的权利交接机制。
 
-#### 4.2. 数据权 (Data Rights)
+#### 4.1. 控制权（Control Rights）
 
-*   **核心**: 数据流动的方向和时机由控制权和FIFO状态共同决定。
-*   **流程**:
-    1.  `grant`信号发出后，`MUX_Machine`立即锁定数据源，`cam_id`也随之确定。
-    2.  `Line_Generator`根据其内部FIFO是否为空（`empty`）以及下游是否就绪（`px_ready`）来决定是否发送像素数据。
-    3.  `AXI4_Compiler`则完全根据标准的AXI握手信号（`m_axi_wready`）来决定何时发送数据到总线。
-    4.  传输完成后，`drawback`信号到达，`MUX_Machine`解除锁定。
+*   **核心**：`request`、`grant_onehot` 和 `released` 构成唯一的控制权路径。
+*   **流程**：Line Buffer 在存在 committed packet 时持续请求；Arbitration 只选择一路；最后一个 byte 真正被下游接受后才释放。
+*   **简化**：不再使用旧架构的 `drawback`、watchdog、Grant Splitter 或额外 `locked` flag。`grant_onehot != 0` 本身就表示当前授权已经锁定。
 
-#### 4.3. 地址权 (Address Rights)
+#### 4.2. 数据权（Data Rights）
 
-*   **核心**: 保证一次AXI突发写入的地址在事务处理期间是绝对唯一的、不被改变的。
-*   **问题与对策**:
-    *   **潜在问题**: "如何避免在写的时候突然发生id翻动，导致地址出现严重的问题？" — 如果在一次传输中，`cam_id`或`line_num`等地址生成参数发生变化，将导致数据被写入错误的内存位置。
-    *   **解决方案 (已实施)**: 本设计通过**双重锁存机制**来杜绝此问题：
-        1.  **仲裁机锁定 `cam_id`**: 一旦 `Arbitration` 发出 `grant`，它就进入 `locked` 状态。在此期间，输出的 `cam_id` 是稳定不变的，直到 `drawback` 到来。
-        2.  **AXI编译器锁存地址**: `AXI4_Compiler`在收到`permit`信号（即`grant`）的第一个周期，就会将 `Address_Generator` 计算出的完整32位地址 `cam_address` 锁存到其内部寄存器 `cam_address_hold` 中。后续的整个AXI事务都将使用这个锁存的地址，完全不受上游信号（`cam_id`, `line_num`等）后续任何变化的影响。
+*   **核心**：数据只在 `valid && ready` 时移动。
+*   **流程**：
+    1.  grant 选择唯一 Line Buffer。
+    2.  one-hot mux 同时选择该通道的数据、last 和 metadata。
+    3.  Byte Replacer、Byte FIFO 和外部输出逐级传播 backpressure。
+    4.  grant 在 128-byte 包中间不会改变，因此不同摄像头的 byte 不会交叉。
+*   **边界**：`packet_last` 必须和 valid/ready 握手共同使用，不能单独作为释放电平。
 
-#### 4.4. 容量权 (Capacity Rights)
+#### 4.3. 元数据与完整性权（Metadata and Integrity Rights）
 
-*   **核心**: 处理数据生产速度（摄像头输入）和消费速度（AXI写入）不匹配的问题，即“反压”和“溢出”处理。
-*   **流程**:
-    *   **反压 (Backpressure)**: 这是标准的`ready/valid`机制，从 `AXI4_Compiler` 的内部FIFO `full`信号一直反向传播到 `Line_Generator`，逐级暂停数据发送。
-    *   **溢出熔断 (Overflow Fuse)**: 在 `Line_Generator` 中，如果一个新的数据行 (`href`有效) 到达，但用于接收该数据的FIFO缓冲区仍处于 `full` 状态（意味着上次的数据还没来得及被AXI总线处理），系统将触发**溢出熔断** (`in_overflow <= 1'b1`)。在此期间，所有新输入的像素数据都将被丢弃，直到当前行结束。这避免了用新数据冲刷未处理的旧数据，保证了已缓存数据的完整性，代价是丢弃一整行视频。
+*   **核心**：上游包内已有的字段保持不变，FPGA 只修改自己拥有的信息。
+*   **Flags**：
+    *   bit0：第一行。
+    *   bit1：最后一行。
+    *   bit2：该帧出现 Line Buffer overflow。
+    *   bit3：href 内实际 byte 数不等于 128。
+    *   bit7..4：保留原包值。
+*   **CRC**：CRC 输入是已经写入新 `cam_id`、已经合并 `row_flags` 后的 offset 0..125，保证接收端校验的是最终输出内容。
+
+#### 4.4. 容量权（Capacity Rights）
+
+*   **核心**：`used_count` 表示已预留、已提交和正在发送的 slot；`committed_count` 表示完整接收但尚未发送完毕的包。
+*   **约束**：始终满足 `0 <= committed_count <= used_count <= 4`。
+*   **反压**：下游暂停会依次回传至 Byte FIFO、Byte Replacer 和被授权的 Line Buffer。
+*   **溢出熔断**：如果新包到达时 `used_count == 4`，系统丢弃整个包而不是覆盖旧数据。丢包包本身无法携带 overflow bit，因此 bit2 会 sticky 到后续成功包，同时保留独立 dropped counter。
 
 ## 5. 后续进展
 
-当前项目构建了从摄像头到DDR4内存的**存入**路径。一个完整的视频系统还需要**发送**（或称**读出**）路径，即从DDR4中读取帧数据并发送到显示设备（如HDMI或VGA）。
+当前 RTL 和 OOC 综合已经验证，但完整板级工程还需要继续完成以下工作：
 
-因此，后续工作除开重新构建系统架构，还将围绕实现一个**读AXI模块**展开，该模块将：
-1.  根据显示时序，从`Address_Generator`获取正确的读取地址。
-2.  向内存控制器发起AXI读请求。
-3.  接收来自DDR4的数据，并将其转换为视频像素流，发送给显示接口。
-4.  可能需要一个新的仲裁机制来协调读/写操作对DDR4总线的访问。
+1.  根据实际开发板和四路相机接口补充 pin、I/O standard、input delay 和时钟约束。
+2.  实测相机 pclk 频率及 data hold time；如果 100 MHz sys_clk pulse-sampling 余量不足，应改成 pclk 写、sys_clk 读的异步 FIFO。
+3.  将 128-byte 输出接口与 MCU/RP2354 端的接收状态机、CRC 校验和丢包统计联调。
+4.  根据真实数据率评估 4×128-byte 每路缓冲和 512-entry 输出 FIFO 是否需要加深。
+5.  完成板级 implementation、bitstream 和长时间四相机压力测试。
 
 ## 6. 进展情况
 
-6/27 优化了以 Arbitration 和 AXI4 为核心的中央数据聚合链路。将 Line_Generator 等外设控制线统一精简为标准类 AXI-Stream 握手架构；增添 Grant_Splitter 级联模块以降低授权信号的物理扇出。在简化内部保护逻辑、提升系统最大工作频率的同时，确保了多通道突发写入 DDR 时的无死锁调度
+*   **6/27 历史版本**：完成以 Arbitration、MUX Machine、AXI4 Compiler 和 DDR 为核心的多通道写入链路；源码保留在 `project_camera.srcs/`。
+*   **7/17 FIFO/BRAM 重构**：新增 `prg_cam.srcs/`，将有效链路改为四路 Camera Capture、四路 Line Buffer、轻量 Arbitration、共享 Byte Replacer 和 Byte FIFO。
+*   **7/17 协议更新**：固定 128-byte 包；offset 4 写 cam_id，offset 9 合并 flags，offset 126/127 重算 CRC。
+*   **7/17 Line Buffer 简化**：删除逐 slot busy/ready flags，使用双指针和两个 count；RX/TX 分离；每路 512×8 存储映射为一个 RAMB18。
+*   **验证结果**：
+    *   `tb_Arbitration`：四路 round-robin 和完整包锁定通过。
+    *   `tb_Camera_Pipeline`：四相机链路、短包、flags、cam_id、CRC 和 backpressure 通过。
+    *   `tb_Line_Buffer`：四槽填满、整包丢弃、双 count 和 sticky overflow 通过。
+    *   Vivado 2025.2.1 OOC 综合：590 LUT、554 Registers、5 RAMB18、0 DSP。
+    *   100 MHz `sys_clk`：WNS `+3.875 ns`，综合 0 error、0 critical warning、0 warning。
