@@ -1,0 +1,215 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Module Name: AXI4_Compiler
+// Role: Compiles pixel data from multiple cameras into AXI4 write transactions
+//       and manages a ring buffer system in DDR memory.
+//
+// Key Updates (Checklist v3):
+// C1/C2: Corrected address strides. CAM_STRIDE is now 256MB (<<28) to support
+//        a 16-deep ring buffer of 16MB frames without collision.
+// C3:    Burst length changed to 2048 bytes (AWLEN=255) to match the 2KB line
+//        stride, preventing DMA data misalignment.
+// User:  System scaled to support 8 cameras.
+//
+//////////////////////////////////////////////////////////////////////////////////
+module AXI4_Compiler(
+    // ---- Input Data Interface ----
+    input  wire [15:0]  pixel,          // Pixel data from MUX
+    
+    // ---- Coordinate & Control Interface (from MUX) ----
+    input  wire [2:0]   cam_id,         // Camera ID (0-7)
+    input  wire [3:0]   frame_num,      // Frame number within a camera
+    input  wire [9:0]   line_num,       // Line number within a frame
+    input  wire         is_final_line,
+    
+    // ---- Clocks & Reset ----
+    input  wire         clk,            // Pixel clock domain
+    input  wire         axi_clk,        // AXI clock domain
+    input  wire         rst,
+    input  wire         rst_axi,
+    
+    // ---- Flow Control ----
+    input  wire         permit,         // Permission to start processing a line
+    input  wire         px_valid,       // Pixel valid signal from MUX
+    output wire         px_ready,       // Ready to accept a pixel
+
+    // ---- System Control ----
+    output wire         drawback,       // Pulse to release the arbiter
+    
+    // ---- Ring Buffer Handoff to Send_Control ----
+    output wire         frame_done_pulse, // Single-cycle pulse on frame completion (in axi_clk domain)
+    output wire [2:0]   done_cam_id,      // ID of the camera whose frame was just completed
+    output wire [3:0]   done_frame_ptr,    // Ring buffer pointer for the completed frame
+
+    // ---- (Debug) AXI Connection Status Observe ----
+    output wire [1:0]   m_axi_connstatus,
+
+    // ---- AXI4 Write Address Channel ----
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWREADY"  *) input  wire         m_axi_awready,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWADDR"   *) output wire [31:0]  m_axi_awaddr,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWLEN"    *) output wire [7:0]   m_axi_awlen,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWVALID"  *) output wire         m_axi_awvalid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWSIZE"   *) output wire [2:0]   m_axi_awsize,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWBURST"  *) output wire [1:0]   m_axi_awburst,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWLOCK"   *) output wire         m_axi_awlock,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWID"     *) output wire [3:0]   m_axi_awid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWQOS"    *) output wire [3:0]   m_axi_awqos,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWCACHE"  *) output wire [2:0]   m_axi_awcache,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWPROT"   *) output wire [2:0]   m_axi_awprot,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI AWREGION" *) output wire [3:0]   m_axi_awregion,
+
+    // ---- AXI4 Write Data Channel ----
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI WREADY"   *) input  wire         m_axi_wready,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI WDATA"    *) output wire [63:0]  m_axi_wdata,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI WVALID"   *) output wire         m_axi_wvalid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI WLAST"    *) output wire         m_axi_wlast,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI WSTRB"    *) output wire [7:0]   m_axi_wstrb, // 8 strobes for a 64-bit data bus
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI WID"      *) output wire [3:0]   m_axi_wid,
+
+    // ---- AXI4 Write Response Channel ----
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI BVALID"   *) input  wire         m_axi_bvalid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI BRESP"    *) input  wire [1:0]   m_axi_bresp,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI BUSER"    *) input  wire         m_axi_buser,   
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI BID"      *) input  wire [3:0]   m_axi_bid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI BREADY"   *) output wire         m_axi_bready
+);
+
+    // ==========================================================================
+    // Local Parameters for Readability and Maintenance
+    // ==========================================================================
+    localparam NUM_CAMERAS        = 8;
+    localparam FRAME_DEPTH        = 16; // 16 frames per camera in ring buffer
+
+    // C3 Fix: AWLEN=255 means 256 AXI beats. 256 * 8 bytes/beat = 2048 bytes
+    localparam [7:0] BURST_LEN_2048B = 8'd255; 
+
+    // C1/C2 Fix: Address stride definitions
+    localparam CAM_STRIDE_SHIFT   = 25; // 32MB per camera (2^25)
+    localparam FRAME_STRIDE_SHIFT = 21; // 2MB per frame (2^21)
+    localparam LINE_STRIDE_SHIFT  = 11; // 2KB per line (2^11)
+
+    // AXI constants
+    assign m_axi_awlen   = BURST_LEN_2048B;
+    assign m_axi_awsize  = 3'b011;       // 8 bytes (64-bit) per beat
+    assign m_axi_awburst = 2'b01;        // INCR burst
+    assign m_axi_wstrb   = 8'hFF;        // Write all 8 bytes of the 64-bit bus
+    assign m_axi_awlock  = 1'b0;
+    assign m_axi_awid    = 4'd0;         // Define system's id number and their relative QoS
+    assign m_axi_awqos   = 4'd0; 
+    assign m_axi_awcache = 4'b0011;
+    assign m_axi_awprot  = 3'b000;
+    assign m_axi_awregion = 4'b0000;
+    assign m_axi_wid     = 4'd0;
+
+    // AXI debug const 
+    assign m_axi_connstatus = m_axi_bresp;
+
+    // ====================================================================
+    // REGION A : Coordinate Capture & Clock Domain Crossing (CDC)
+    // ====================================================================
+    // 1. Synchronize the 'permit' signal into the AXI clock domain.
+    wire permit_rise; // Edge detector for permit
+    Alarmer alarmer_permit (
+        .clk_data (permit),
+        .clk      (axi_clk),
+        .rst      (rst_axi),
+        .alarm    (permit_rise)
+    );
+
+    // 2. Safely capture the latched coordinates in the AXI domain when permit_rise occurs.
+    reg [2:0] cam_id_axi;
+    reg [9:0] line_num_axi;
+    reg [3:0] frame_num_axi;
+    reg       final_line_axi;
+    
+    wire      sm_state_is_aw;
+    reg       armed; // Flag indicating that coordinates are loaded and ready for an AXI transaction
+
+    always @(posedge axi_clk or posedge rst_axi) begin
+        if (rst_axi) begin
+            armed          <= 1'b0;
+            cam_id_axi     <= 3'd0;
+            line_num_axi   <= 10'd0;
+            frame_num_axi  <= 4'd0;
+            final_line_axi <= 1'b0;
+        end else if (permit_rise) begin
+            armed          <= 1'b1;
+            cam_id_axi     <= cam_id;
+            line_num_axi   <= line_num;
+            frame_num_axi  <= frame_num;
+            final_line_axi <= is_final_line;
+        end else if (sm_state_is_aw) begin
+            // De-arm once the address has been sent.
+            armed <= 1'b0;
+        end
+    end
+
+    // ====================================================================
+    // REGION B : Ring Buffer Address Management
+    // ====================================================================
+    
+    // Dynamic physical address calculation using shifters for performance.
+    // Address = Base + CamOffset + FrameOffset + LineOffset
+    wire [31:0] target_awaddr = 32'h8000_0000 
+                              + (cam_id_axi << CAM_STRIDE_SHIFT) 
+                              + (frame_num_axi << FRAME_STRIDE_SHIFT) 
+                              + (line_num_axi << LINE_STRIDE_SHIFT);
+
+
+    // 'drawback' pulse generator to release arbiter (crosses from axi_clk to clk)
+    wire axi_b_done_pulse = m_axi_bvalid && m_axi_bready;
+    Alarmer alarmer_drawback (
+        .clk_data (axi_b_done_pulse),
+        .clk      (clk),
+        .rst      (rst),
+        .alarm    (drawback)
+    );
+
+    wire fifo_rd_en, fifo_full, fifo_prog_empty, fifo_wr_rst_busy, fifo_rd_rst_busy;
+    assign px_ready = !fifo_full && !fifo_wr_rst_busy;
+    wire can_start_burst = armed && !fifo_prog_empty && !fifo_rd_rst_busy;
+
+    // ====================================================================
+    // REGION C : AXI Burst FSM (extracted into AXI4_CompilerSM)
+    // ====================================================================
+    AXI4_CompilerSM u_axi4_compiler_sm (
+        .axi_clk          (axi_clk),
+        .rst_axi          (rst_axi),
+        .can_start_burst  (can_start_burst),
+        .target_awaddr    (target_awaddr),
+        .final_line_axi   (final_line_axi),
+        .cam_id_axi       (cam_id_axi),
+        .frame_num_axi    (frame_num_axi),
+        .m_axi_awready    (m_axi_awready),
+        .m_axi_wready     (m_axi_wready),
+        .m_axi_bvalid     (m_axi_bvalid),
+        .fifo_rd_en       (fifo_rd_en),
+        .state_is_aw      (sm_state_is_aw),
+        .frame_done_pulse (frame_done_pulse),
+        .done_cam_id      (done_cam_id),
+        .done_frame_ptr   (done_frame_ptr),
+        .m_axi_awaddr     (m_axi_awaddr),
+        .m_axi_awvalid    (m_axi_awvalid),
+        .m_axi_wvalid     (m_axi_wvalid),
+        .m_axi_wlast      (m_axi_wlast),
+        .m_axi_bready     (m_axi_bready)
+    );
+
+    // ====================================================================
+    // REGION D : Asynchronous Data FIFO
+    // ====================================================================
+    fifo_generator_axi u_fifo (
+        .rst         (rst || rst_axi),      // Asynchronous reset for FIFO
+        .wr_clk      (clk),                 // Write clock (pixel domain)
+        .rd_clk      (axi_clk),             // Read clock (AXI domain)
+        .din         (pixel),
+        .full        (fifo_full),
+        .wr_en       (px_valid && px_ready),
+        .rd_en       (fifo_rd_en),
+        .dout        (m_axi_wdata),
+        .wr_rst_busy (fifo_wr_rst_busy),
+        .rd_rst_busy (fifo_rd_rst_busy),
+        .empty       (fifo_prog_empty)
+    );
+
+endmodule

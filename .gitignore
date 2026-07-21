@@ -1,0 +1,37 @@
+# ============================================================
+#  Vivado repository boundary for GitHub hosting
+#
+#  project_camera.srcs/ : retained legacy AXI4/DDR project sources
+#  prg_cam.srcs/        : current FIFO/BRAM packet pipeline sources
+#  docs/                : current architecture and refactor documents
+#  scripts/             : reproducible out-of-context synthesis scripts
+# ============================================================
+
+# Ignore everything at repository root by default.
+/*
+
+# Repository metadata and documentation.
+!/.gitignore
+!/README.md
+!/docs/
+!/scripts/
+
+# Authored Vivado sources: legacy and current.
+!/project_camera.srcs/
+!/prg_cam.srcs/
+
+# Safety net for common Vivado-generated artifacts.
+*.jou
+*.log
+*.str
+*.backup.jou
+*.backup.log
+.Xil/
+*_synth_*/
+*_impl_*/
+*.runs/
+*.cache/
+*.gen/
+*.hw/
+*.sim/
+*.ip_user_files/

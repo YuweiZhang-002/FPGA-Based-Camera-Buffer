@@ -1,0 +1,61 @@
+Taxi local compile manifest
+entry=prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_mii_fifo.f
+lib_root=D:/prg/prg_cam/prg_cam.srcs/sources_1/lib
+
+FILELISTS (8)
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_arb_mux.f
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo.f
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo_adapter.f
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_mii.f
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_mii_fifo.f
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_stats.f
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mii_phy_if.f
+
+RTL (26)
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_adapter.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_arb_mux.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo_adapter.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_if.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_null_src.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_pad.sv
+prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_tie.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_axis_gmii_rx.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_axis_gmii_tx.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_mii.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_mii_fifo.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_stats.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mac_ctrl_rx.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mac_ctrl_tx.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mac_pause_ctrl_rx.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mac_pause_ctrl_tx.sv
+prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mii_phy_if.sv
+prg_cam.srcs/sources_1/lib/taxi-master/io/rtl/taxi_ssio_sdr_in.sv
+prg_cam.srcs/sources_1/lib/taxi-master/lfsr/rtl/taxi_lfsr.sv
+prg_cam.srcs/sources_1/lib/taxi-master/prim/rtl/taxi_arbiter.sv
+prg_cam.srcs/sources_1/lib/taxi-master/prim/rtl/taxi_penc.sv
+prg_cam.srcs/sources_1/lib/taxi-master/stats/rtl/taxi_stats_collect.sv
+prg_cam.srcs/sources_1/lib/taxi-master/sync/rtl/taxi_sync_reset.sv
+prg_cam.srcs/sources_1/lib/taxi-master/sync/rtl/taxi_sync_signal.sv
+
+REMAPS (16)
+../lib/taxi/src/axis/rtl/taxi_axis_arb_mux.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_stats.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_arb_mux.f
+../lib/taxi/src/axis/rtl/taxi_axis_async_fifo.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_stats.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo.f
+../lib/taxi/src/axis/rtl/taxi_axis_async_fifo_adapter.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_mii_fifo.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo_adapter.f
+../lib/taxi/src/axis/rtl/taxi_axis_if.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_if.sv
+../lib/taxi/src/axis/rtl/taxi_axis_null_src.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_null_src.sv
+../lib/taxi/src/axis/rtl/taxi_axis_pad.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_pad.sv
+../lib/taxi/src/axis/rtl/taxi_axis_tie.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_tie.sv
+../lib/taxi/src/io/rtl/taxi_ssio_sdr_in.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mii_phy_if.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/io/rtl/taxi_ssio_sdr_in.sv
+../lib/taxi/src/lfsr/rtl/taxi_lfsr.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/lfsr/rtl/taxi_lfsr.sv
+../lib/taxi/src/prim/rtl/taxi_arbiter.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_arb_mux.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/prim/rtl/taxi_arbiter.sv
+../lib/taxi/src/prim/rtl/taxi_penc.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_arb_mux.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/prim/rtl/taxi_penc.sv
+../lib/taxi/src/stats/rtl/taxi_stats_collect.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_stats.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/stats/rtl/taxi_stats_collect.sv
+../lib/taxi/src/sync/rtl/taxi_sync_reset.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/sync/rtl/taxi_sync_reset.sv
+../lib/taxi/src/sync/rtl/taxi_sync_reset.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_mii_phy_if.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/sync/rtl/taxi_sync_reset.sv
+../lib/taxi/src/sync/rtl/taxi_sync_signal.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/axis/rtl/taxi_axis_async_fifo.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/sync/rtl/taxi_sync_signal.sv
+../lib/taxi/src/sync/rtl/taxi_sync_signal.sv D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/eth/rtl/taxi_eth_mac_1g.f D:/prg/prg_cam/prg_cam.srcs/sources_1/lib/taxi-master/sync/rtl/taxi_sync_signal.sv
+
+MISSING_OR_AMBIGUOUS (0)

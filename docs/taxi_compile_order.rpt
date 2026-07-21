@@ -1,0 +1,18 @@
+Source compile order for 'synthesis' with fileset 'sources_1' in source management mode 'All':
+Index  File Name          Used_In      File_Type  Library         Ngc Wrapper  Full Path Name
+-----  -----------------  -----------  ---------  --------------  -----------  -----------------------------------------------------------
+1      Alarmer.v          Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Alarmer.v
+2      Arbitration.v      Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Arbitration.v
+3      Byte_FIFO.v        Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Byte_FIFO.v
+4      Byte_Replacer.v    Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Byte_Replacer.v
+5      Camera_Capture.v   Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Camera_Capture.v
+6      Line_Buffer.v      Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Line_Buffer.v
+7      Camera_Pipeline.v  Synth & Sim  Verilog    xil_defaultlib  No           D:/prg/prg_cam/prg_cam.srcs/sources_1/new/Camera_Pipeline.v
+
+
+Missing instances for 'synthesis' with fileset 'sources_1':
+Index  Instance Path  File Path  Line
+-----  -------------  ---------  ----
+< empty >
+
+

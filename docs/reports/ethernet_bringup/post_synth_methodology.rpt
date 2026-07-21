@@ -1,0 +1,149 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
+| Date         : Mon Jul 20 18:32:31 2026
+| Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
+| Command      : report_methodology -file D:/prg/prg_cam/docs/reports/ethernet_bringup/post_synth_methodology.rpt
+| Design       : Camera_Ethernet_Top
+| Device       : xc7a50ticsg324-1L
+| Speed File   : -1L
+| Design State : Synthesized
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Report Methodology
+
+Table of Contents
+-----------------
+1. REPORT SUMMARY
+2. REPORT DETAILS
+
+1. REPORT SUMMARY
+-----------------
+            Netlist: Camera_Ethernet_Top
+          Floorplan: design_1
+      Design limits: <entire design considered>
+             Max checks: <unlimited>
+             Checks found: 18
++-----------+----------+-------------------------------+--------+
+| Rule      | Severity | Description                   | Checks |
++-----------+----------+-------------------------------+--------+
+| LUTAR-1   | Warning  | LUT drives async reset alert  | 2      |
+| TIMING-15 | Warning  | Large hold violation          | 14     |
+| TIMING-18 | Warning  | Missing input or output delay | 2      |
++-----------+----------+-------------------------------+--------+
+
+2. REPORT DETAILS
+-----------------
+LUTAR-1#1 Warning
+LUT drives async reset alert  
+LUT cell u_ethernet_frame_adapter/FSM_onehot_state[2]_i_1, with 2 or more inputs, drives asynchronous preset/clear pin(s) u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE,
+u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[1]/PRE,
+u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[2]/PRE,
+u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/rx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/rx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[1]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/rx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[2]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_cpl_fifo/s_reset_sync_inst/sync_reg_reg[0]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_cpl_fifo/s_reset_sync_inst/sync_reg_reg[1]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_cpl_fifo/s_reset_sync_inst/sync_reg_reg[2]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_cpl_fifo/s_reset_sync_inst/sync_reg_reg[3]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[1]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[2]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[3]/PRE
+ (the first 15 of 19 listed). The LUT may glitch and trigger an unexpected reset, even if it is a properly timed path.
+Related violations: <none>
+
+LUTAR-1#2 Warning
+LUT drives async reset alert  
+LUT cell u_ethernet_mii_rmii_bridge/u_rmii_phy_if/u_taxi_ethernet_subsystem_i_1, with 2 or more inputs, drives asynchronous preset/clear pin(s) u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/rx_reset_sync_inst/sync_reg_reg[0]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/rx_reset_sync_inst/sync_reg_reg[1]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/rx_reset_sync_inst/sync_reg_reg[2]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/rx_reset_sync_inst/sync_reg_reg[3]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[1]/PRE,
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[2]/PRE
+u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/PRE. The LUT may glitch and trigger an unexpected reset, even if it is a properly timed path.
+Related violations: <none>
+
+TIMING-15#1 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[0]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[0]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#2 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[10]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[10]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#3 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[11]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[11]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#4 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[12]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[12]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#5 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[1]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[1]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#6 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[2]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[2]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#7 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[3]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[3]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#8 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[4]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[4]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#9 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[5]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[5]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#10 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[6]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[6]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#11 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[7]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[7]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#12 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[8]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[8]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#13 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[9]/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[9]/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.853 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-15#14 Warning
+Large hold violation  
+There is a large clock skew of 2.301 ns between u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_update_reg_reg/C (clocked by sys_clk_pin) and u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_update_sync1_reg_reg/D (clocked by mii_tx_clk) that results in large hold timing violation(s) of -1.799 ns. Fixing large hold violations during routing might impact setup slack and result in more difficult timing closure
+Related violations: <none>
+
+TIMING-18#1 Warning
+Missing input or output delay  
+An input delay is missing on CPU_RESETN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#2 Warning
+Missing input or output delay  
+An output delay is missing on ETH_RSTN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+
