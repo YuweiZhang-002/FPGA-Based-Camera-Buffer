@@ -1,0 +1,75 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
+| Date         : Tue Jul 21 11:03:20 2026
+| Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
+| Command      : report_clocks -file D:/prg/prg_cam/docs/reports/ethernet_bringup/final_clocks.rpt
+| Design       : Camera_Ethernet_Top
+| Device       : 7a50ti-csg324
+| Speed File   : -1L  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Clock Report
+
+
+Attributes
+  P: Propagated
+  G: Generated
+  A: Auto-derived
+  R: Renamed
+  V: Virtual
+  I: Inverted
+  S: Pin phase-shifted with Latency mode
+
+Clock                          Period(ns)  Waveform(ns)    Attributes  Sources
+sys_clk_pin                    10.000      {0.000 5.000}   P           {CLK100MHZ}
+mii_tx_clk                     40.000      {0.000 20.000}  P,G         {u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q}
+clkfbout_ethernet_clk_wiz      10.000      {0.000 5.000}   P,G,A       {u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKFBOUT}
+phy_ref_clk_ethernet_clk_wiz   20.000      {2.500 12.500}  P,G,A       {u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT1}
+rmii_ref_clk_ethernet_clk_wiz  20.000      {0.000 10.000}  P,G,A       {u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0}
+
+
+====================================================
+Generated Clocks
+====================================================
+
+Generated Clock     : mii_tx_clk
+Master Source       : u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/C
+Master Clock        : rmii_ref_clk_ethernet_clk_wiz
+Divide By           : 2
+Generated Sources   : {u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q}
+
+Generated Clock     : clkfbout_ethernet_clk_wiz
+Master Source       : u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKIN1
+Master Clock        : sys_clk_pin
+Multiply By         : 1
+Generated Sources   : {u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKFBOUT}
+
+Generated Clock     : phy_ref_clk_ethernet_clk_wiz
+Master Source       : u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKIN1
+Master Clock        : sys_clk_pin
+Edges               : {1 2 3}
+Edge Shifts(ns)     : {2.500 7.500 12.500}
+Generated Sources   : {u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT1}
+
+Generated Clock     : rmii_ref_clk_ethernet_clk_wiz
+Master Source       : u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKIN1
+Master Clock        : sys_clk_pin
+Edges               : {1 2 3}
+Edge Shifts(ns)     : {0.000 5.000 10.000}
+Generated Sources   : {u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0}
+
+
+
+====================================================
+User Uncertainty
+====================================================
+
+
+
+====================================================
+User Jitter
+====================================================
+
+

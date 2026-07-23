@@ -1,16 +1,21 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
-| Date         : Wed Jul 22 21:07:32 2026
+| Date         : Tue Jul 21 11:03:31 2026
 | Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
-| Command      : report_cdc -details -file D:/prg/prg_cam/docs/reports/ethernet_bringup/post_route_cdc.rpt
+| Command      : report_clock_networks -file D:/prg/prg_cam/docs/reports/ethernet_bringup/final_clock_networks.rpt
 | Design       : Camera_Ethernet_Top
 | Device       : 7a50ti-csg324
 | Speed File   : -1L  PRODUCTION 1.23 2018-06-13
 | Design State : Routed
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
-CDC Report
+Clock Networks Report
 
-All paths are Safely Timed.
+
+Constrained Clocks
+-------------------
+
+Clock sys_clk_pin (100MHz)(endpoints: 162 clock, 2 nonclock)
+Port CLK100MHZ
 
