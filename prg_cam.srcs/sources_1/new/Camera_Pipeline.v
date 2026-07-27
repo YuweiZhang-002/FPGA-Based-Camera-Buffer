@@ -54,7 +54,17 @@ module Camera_Pipeline #(
     output wire [11:0] buffer_used_count,
     output wire [11:0] buffer_committed_count,
     output wire [15:0] packet_fifo_level,      // 末级 FIFO 当前总 word 数
-    output wire        packet_fifo_almost_full // 剩余容量不足 128 word
+    output wire        packet_fifo_almost_full, // 剩余容量不足 128 word
+
+    // Camera0 is the only physical input in Camera_Ethernet_Top.  These
+    // diagnostics expose the exact LENGTH_ERROR decision without changing the
+    // packet path.
+    output wire [15:0] debug_cam0_current_byte_count,
+    output wire [15:0] debug_cam0_last_line_byte_count,
+    output wire [7:0]  debug_cam0_line_flags,
+    output wire        debug_cam0_line_end,
+    output wire        debug_cam0_length_error_pulse,
+    output wire        debug_cam0_byte_valid
 );
 
     // ========================================================================
@@ -68,6 +78,9 @@ module Camera_Pipeline #(
     wire       c0_end, c1_end, c2_end, c3_end;
     wire [1:0] c0_id, c1_id, c2_id, c3_id;
     wire [7:0] c0_flags, c1_flags, c2_flags, c3_flags;
+    wire [15:0] c0_current_byte_count;
+    wire [15:0] c0_last_line_byte_count;
+    wire        c0_length_error_pulse;
 
     // Line_Buffer -> one-hot mux signals。request 是四路持续请求；lbN_ready
     // 只有在该路获得 grant 时才可能为 1，因此未授权 LB 永远不会误弹数据。
@@ -90,7 +103,10 @@ module Camera_Pipeline #(
         .byte_data(c0_data), .byte_valid(c0_valid),
         .line_start(c0_start), .line_end(c0_end),
         .line_cam_id(c0_id), .line_flags(c0_flags),
-        .current_row_idx(), .current_byte_count()
+        .current_row_idx(),
+        .current_byte_count(c0_current_byte_count),
+        .last_line_byte_count(c0_last_line_byte_count),
+        .length_error_pulse(c0_length_error_pulse)
     );
 
     Camera_Capture #(.CAM_ID(CAM1_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
@@ -293,5 +309,11 @@ module Camera_Pipeline #(
     assign buffer_used_count      = {used3, used2, used1, used0};
     assign buffer_committed_count = {committed3, committed2,
                                      committed1, committed0};
+    assign debug_cam0_current_byte_count = c0_current_byte_count;
+    assign debug_cam0_last_line_byte_count = c0_last_line_byte_count;
+    assign debug_cam0_line_flags = c0_flags;
+    assign debug_cam0_line_end = c0_end;
+    assign debug_cam0_length_error_pulse = c0_length_error_pulse;
+    assign debug_cam0_byte_valid = c0_valid;
 
 endmodule

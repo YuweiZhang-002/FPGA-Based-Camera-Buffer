@@ -9,6 +9,13 @@ if {[llength [get_projects -quiet]] == 0} {
 }
 
 set rtl_files [list \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Alarmer.v]] \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Camera_Capture.v]] \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Line_Buffer.v]] \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Arbitration.v]] \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Byte_Replacer.v]] \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Byte_FIFO.v]] \
+    [file normalize [file join $project_root prg_cam.srcs sources_1 new Camera_Pipeline.v]] \
     [file normalize [file join $project_root prg_cam.srcs sources_1 new Ethernet_Frame_Adapter.sv]] \
     [file normalize [file join $project_root prg_cam.srcs sources_1 new Fixed_Packet_Generator.sv]] \
     [file normalize [file join $project_root prg_cam.srcs sources_1 new Taxi_Ethernet_Subsystem.sv]] \
@@ -70,4 +77,3 @@ puts "ETHERNET_BRINGUP_SOURCE_ADD_PASS"
 puts "ETHERNET_BRINGUP_TOP: [get_property top [get_filesets sources_1]]"
 puts "ETHERNET_BRINGUP_RTL_COUNT: [llength $rtl_files]"
 puts "ETHERNET_BRINGUP_XDC: [string map {\\ /} $xdc_file]"
-

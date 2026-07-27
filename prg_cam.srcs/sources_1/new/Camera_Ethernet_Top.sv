@@ -1,19 +1,26 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-// Stage-b hardware top.  The default path puts the existing Byte_FIFO between
-// the fixed 00..7F diagnostic producer and the Ethernet II adapter.  Set
-// USE_BYTE_FIFO_PATH=0 to recover the previously verified direct fixed-source
-// path without changing Taxi, the MII MAC, or the RMII bridge.
+// Camera-to-Ethernet hardware top.
+//
+// USE_CAMERA_PIPELINE=1:
+//   GPIO camera0 -> Camera_Pipeline (including its Byte_FIFO) -> Adapter.
+//
+// USE_CAMERA_PIPELINE=0:
+//   Fixed 00..7F diagnostic source -> optional top-level Byte_FIFO -> Adapter.
+//
+// Source selection is a compile-time parameter, so it can never change in the
+// middle of a packet.  Taxi, the MII MAC and the RMII bridge are identical in
+// both modes.
 module Camera_Ethernet_Top #(
-    parameter bit USE_BYTE_FIFO_PATH = 1'b1
+    parameter bit     USE_CAMERA_PIPELINE = 1'b1,
+    parameter bit     USE_BYTE_FIFO_PATH  = 1'b1,
+    parameter integer CAMERA_LINES_PER_FRAME = 480
 ) (
     input  wire       CLK100MHZ,
     input  wire       CPU_RESETN,
 
-    // Camera/MCU receive connector.  These inputs are pinned now for board
-    // checkout, but the active Stage-b Ethernet source remains the fixed
-    // generator through Byte_FIFO until Camera_Pipeline is selected.
+    // Camera/MCU receive connector.
     input  wire [9:0] GPIO, // [7:0]=D0..D7, [8]=PCLK, [9]=HREF
 
     output wire       ETH_MDC,
@@ -51,7 +58,19 @@ module Camera_Ethernet_Top #(
     // MMCM locks.  ETH_RSTN is active low on the Nexys A7 schematic.
     logic [19:0] phy_reset_count = 20'd0;
     logic        phy_ready = 1'b0;
-    wire         logic_rst = ~phy_ready;
+
+    // ETH_RSTN is intentionally driven directly by phy_ready, but phy_ready
+    // must not also be the root of one monolithic internal reset tree.  The
+    // registered branches below preserve the original release condition while
+    // giving synthesis independent reset drivers for the camera, data path,
+    // RMII bridge and Taxi domains.  MAX_FANOUT permits local replication of
+    // the large camera reset branch without changing reset semantics.
+    (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic source_rst_reg     = 1'b1;
+    (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic camera_rst_reg     = 1'b1;
+    (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic frame_rst_reg      = 1'b1;
+    (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic bridge_rst_reg     = 1'b1;
+    (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic taxi_logic_rst_reg = 1'b1;
+    (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic taxi_mac_rst_reg   = 1'b1;
 
     always_ff @(posedge logic_clk) begin
         if (!CPU_RESETN || !clock_locked) begin
@@ -64,6 +83,15 @@ module Camera_Ethernet_Top #(
                 phy_reset_count <= phy_reset_count + 1'b1;
             end
         end
+    end
+
+    always_ff @(posedge logic_clk) begin
+        source_rst_reg     <= ~phy_ready;
+        camera_rst_reg     <= ~phy_ready;
+        frame_rst_reg      <= ~phy_ready;
+        bridge_rst_reg     <= ~phy_ready;
+        taxi_logic_rst_reg <= ~phy_ready;
+        taxi_mac_rst_reg   <= ~phy_ready;
     end
 
     ethernet_clk_wiz u_ethernet_clk_wiz (
@@ -81,7 +109,7 @@ module Camera_Ethernet_Top #(
 
     Fixed_Packet_Generator u_fixed_packet_generator (
         .clk          (logic_clk),
-        .rst          (logic_rst),
+        .rst          (source_rst_reg),
         .packet_data  (fixed_packet_data),
         .packet_valid (fixed_packet_valid),
         .packet_ready (fixed_packet_ready),
@@ -99,18 +127,26 @@ module Camera_Ethernet_Top #(
     (* MARK_DEBUG = "TRUE" *) wire [15:0] byte_fifo_level;
     (* MARK_DEBUG = "TRUE" *) wire        byte_fifo_almost_full;
 
-    assign fixed_packet_ready = USE_BYTE_FIFO_PATH
-                              ? byte_fifo_in_ready : packet_ready;
-    assign byte_fifo_out_ready = USE_BYTE_FIFO_PATH ? packet_ready : 1'b0;
+    wire fixed_path_packet_ready;
+
+    assign fixed_packet_ready = !USE_CAMERA_PIPELINE
+                              ? (USE_BYTE_FIFO_PATH
+                                 ? byte_fifo_in_ready
+                                 : fixed_path_packet_ready)
+                              : 1'b0;
+    assign byte_fifo_out_ready = (!USE_CAMERA_PIPELINE &&
+                                  USE_BYTE_FIFO_PATH)
+                               ? fixed_path_packet_ready : 1'b0;
 
     Byte_FIFO #(
         .DEPTH        (512),
         .PACKET_BYTES (128)
     ) u_ethernet_byte_fifo (
         .clk         (logic_clk),
-        .rst         (logic_rst),
+        .rst         (source_rst_reg),
         .in_data     ({fixed_packet_last, fixed_packet_data}),
-        .in_valid    (USE_BYTE_FIFO_PATH ? fixed_packet_valid : 1'b0),
+        .in_valid    ((!USE_CAMERA_PIPELINE && USE_BYTE_FIFO_PATH)
+                      ? fixed_packet_valid : 1'b0),
         .in_ready    (byte_fifo_in_ready),
         .out_data    (byte_fifo_out_data),
         .out_valid   (byte_fifo_out_valid),
@@ -119,16 +155,99 @@ module Camera_Ethernet_Top #(
         .almost_full (byte_fifo_almost_full)
     );
 
-    (* MARK_DEBUG = "TRUE" *) wire [7:0] packet_data = USE_BYTE_FIFO_PATH
-                                                      ? byte_fifo_out_data[7:0]
-                                                      : fixed_packet_data;
-    (* MARK_DEBUG = "TRUE" *) wire       packet_valid = USE_BYTE_FIFO_PATH
-                                                      ? byte_fifo_out_valid
-                                                      : fixed_packet_valid;
+    wire [7:0] fixed_path_packet_data = USE_BYTE_FIFO_PATH
+                                      ? byte_fifo_out_data[7:0]
+                                      : fixed_packet_data;
+    wire       fixed_path_packet_valid = USE_BYTE_FIFO_PATH
+                                       ? byte_fifo_out_valid
+                                       : fixed_packet_valid;
+    wire       fixed_path_packet_last = USE_BYTE_FIFO_PATH
+                                      ? byte_fifo_out_data[8]
+                                      : fixed_packet_last;
+
+    // The physical connector currently carries one RP2350A/OV5640 stream.
+    // Camera_Pipeline remains a four-input block, so camera0 consumes GPIO and
+    // camera1..3 are explicitly inactive.  PCLK is sampled into logic_clk by
+    // Camera_Capture/Alarmer; see that module's frequency/stability contract.
+    (* MARK_DEBUG = "TRUE" *) wire       camera_pclk_dbg = GPIO[8];
+    (* MARK_DEBUG = "TRUE" *) wire       camera_href_dbg = GPIO[9];
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] camera_data_dbg = GPIO[7:0];
+
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] camera_packet_data;
+    (* MARK_DEBUG = "TRUE" *) wire       camera_packet_valid;
+    (* MARK_DEBUG = "TRUE" *) wire       camera_packet_ready;
+    (* MARK_DEBUG = "TRUE" *) wire       camera_packet_last;
+    (* MARK_DEBUG = "TRUE" *) wire [3:0] camera_arb_grant;
+    (* MARK_DEBUG = "TRUE" *) wire [3:0] camera_overflow_pulse;
+    (* MARK_DEBUG = "TRUE" *) wire [31:0] camera_drop_count_0;
+    wire [31:0] camera_drop_count_1;
+    wire [31:0] camera_drop_count_2;
+    wire [31:0] camera_drop_count_3;
+    (* MARK_DEBUG = "TRUE" *) wire [11:0] camera_buffer_used_count;
+    (* MARK_DEBUG = "TRUE" *) wire [11:0] camera_buffer_committed_count;
+    (* MARK_DEBUG = "TRUE" *) wire [15:0] camera_packet_fifo_level;
+    (* MARK_DEBUG = "TRUE" *) wire        camera_packet_fifo_almost_full;
+    (* MARK_DEBUG = "TRUE" *) wire [15:0] camera_current_byte_count_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire [15:0] camera_last_line_byte_count_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire [7:0]  camera_line_flags_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera_line_end_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera_length_error_dbg =
+        camera_line_flags_dbg[3];
+    (* MARK_DEBUG = "TRUE" *) wire        camera_length_error_pulse_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera_capture_byte_valid_dbg;
+
+    Camera_Pipeline #(
+        .LINES_PER_FRAME   (CAMERA_LINES_PER_FRAME),
+        .PACKET_FIFO_DEPTH (512)
+    ) u_camera_pipeline (
+        .sys_clk                  (logic_clk),
+        .rst                      (camera_rst_reg),
+        .cam0_pclk                (camera_pclk_dbg),
+        .cam0_href                (camera_href_dbg),
+        .cam0_data                (camera_data_dbg),
+        .cam1_pclk                (1'b0),
+        .cam1_href                (1'b0),
+        .cam1_data                (8'd0),
+        .cam2_pclk                (1'b0),
+        .cam2_href                (1'b0),
+        .cam2_data                (8'd0),
+        .cam3_pclk                (1'b0),
+        .cam3_href                (1'b0),
+        .cam3_data                (8'd0),
+        .packet_data              (camera_packet_data),
+        .packet_valid             (camera_packet_valid),
+        .packet_ready             (camera_packet_ready),
+        .packet_last              (camera_packet_last),
+        .arb_grant                (camera_arb_grant),
+        .overflow_pulse           (camera_overflow_pulse),
+        .dropped_packet_count_0   (camera_drop_count_0),
+        .dropped_packet_count_1   (camera_drop_count_1),
+        .dropped_packet_count_2   (camera_drop_count_2),
+        .dropped_packet_count_3   (camera_drop_count_3),
+        .buffer_used_count        (camera_buffer_used_count),
+        .buffer_committed_count   (camera_buffer_committed_count),
+        .packet_fifo_level        (camera_packet_fifo_level),
+        .packet_fifo_almost_full  (camera_packet_fifo_almost_full),
+        .debug_cam0_current_byte_count (camera_current_byte_count_dbg),
+        .debug_cam0_last_line_byte_count
+                                      (camera_last_line_byte_count_dbg),
+        .debug_cam0_line_flags    (camera_line_flags_dbg),
+        .debug_cam0_line_end      (camera_line_end_dbg),
+        .debug_cam0_length_error_pulse
+                                      (camera_length_error_pulse_dbg),
+        .debug_cam0_byte_valid    (camera_capture_byte_valid_dbg)
+    );
+
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] packet_data =
+        USE_CAMERA_PIPELINE ? camera_packet_data : fixed_path_packet_data;
+    (* MARK_DEBUG = "TRUE" *) wire       packet_valid =
+        USE_CAMERA_PIPELINE ? camera_packet_valid : fixed_path_packet_valid;
     (* MARK_DEBUG = "TRUE" *) wire       packet_ready;
-    (* MARK_DEBUG = "TRUE" *) wire       packet_last = USE_BYTE_FIFO_PATH
-                                                      ? byte_fifo_out_data[8]
-                                                      : fixed_packet_last;
+    (* MARK_DEBUG = "TRUE" *) wire       packet_last =
+        USE_CAMERA_PIPELINE ? camera_packet_last : fixed_path_packet_last;
+
+    assign camera_packet_ready = USE_CAMERA_PIPELINE ? packet_ready : 1'b0;
+    assign fixed_path_packet_ready = USE_CAMERA_PIPELINE ? 1'b0 : packet_ready;
 
     (* MARK_DEBUG = "TRUE" *) wire [7:0] frame_data;
     (* MARK_DEBUG = "TRUE" *) wire       frame_valid;
@@ -138,7 +257,7 @@ module Camera_Ethernet_Top #(
 
     Ethernet_Frame_Adapter u_ethernet_frame_adapter (
         .clk          (logic_clk),
-        .rst          (logic_rst),
+        .rst          (frame_rst_reg),
         .packet_data  (packet_data),
         .packet_valid (packet_valid),
         .packet_ready (packet_ready),
@@ -173,7 +292,7 @@ module Camera_Ethernet_Top #(
     (* IOB = "TRUE" *) logic [1:0] eth_txd_out  = 2'b00;
 
     Ethernet_Mii_Rmii_Bridge u_ethernet_mii_rmii_bridge (
-        .rst            (logic_rst),
+        .rst            (bridge_rst_reg),
         .mode_speed_100 (1'b1),
         .rmii_ref_clk   (rmii_ref_clk),
         .mii_crs        (mii_crs),
@@ -202,9 +321,9 @@ module Camera_Ethernet_Top #(
         // Taxi already synchronizes this reset independently into its MII
         // TX/RX domains.  Avoid combinationally ORing bridge status into an
         // asynchronous reset tree.
-        .mac_rst             (logic_rst),
+        .mac_rst             (taxi_mac_rst_reg),
         .logic_clk           (logic_clk),
-        .logic_rst           (logic_rst),
+        .logic_rst           (taxi_logic_rst_reg),
         .frame_data          (frame_data),
         .frame_valid         (frame_valid),
         .frame_ready         (frame_ready),

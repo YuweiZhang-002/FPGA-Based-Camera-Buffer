@@ -67,14 +67,15 @@ module tb_Camera_Pipeline;
         input integer packet_no;
         input integer offset;
         begin
-            // Distinct deterministic packets. Existing cam_id/flags/CRC bytes
-            // are intentionally wrong so the DUT must replace them.
+            // Distinct deterministic packets. RP2350A owns FIRST/LAST in the
+            // incoming row_flags byte; FPGA only ORs capture errors.
             source_byte = (8'h31 + packet_no * 8'h27 + offset) & 8'hff;
             if (offset == 4)
                 source_byte = 8'hA0 + packet_no;
             if (offset == 9)
-                source_byte = (packet_no == 0) ? 8'h80 :
-                              (packet_no == 1) ? 8'h40 : 8'h20;
+                source_byte = (packet_no == 0) ? 8'h84 :
+                              (packet_no == 1) ? 8'h44 :
+                              (packet_no == 2) ? 8'h22 : 8'h24;
             if ((offset == 126) || (offset == 127))
                 source_byte = 8'hEE;
         end
@@ -198,10 +199,10 @@ module tb_Camera_Pipeline;
     initial begin
         // packet 0 = cam0 row0 (FIRST), packet 1 = cam1 row0 (FIRST),
         // packet 2 = cam0 row1 (LAST). Existing row_flags are OR-preserved.
-        build_expected(0, 2'd0, 8'h01);
-        build_expected(1, 2'd1, 8'h01);
-        build_expected(2, 2'd0, 8'h02);
-        build_expected(3, 2'd2, 8'h09); // FIRST_ROW | LENGTH_ERROR
+        build_expected(0, 2'd0, 8'h00);
+        build_expected(1, 2'd1, 8'h00);
+        build_expected(2, 2'd0, 8'h00);
+        build_expected(3, 2'd2, 8'h08); // preserve FIRST, OR LENGTH_ERROR
 
         repeat (8) @(posedge sys_clk);
         @(negedge sys_clk);

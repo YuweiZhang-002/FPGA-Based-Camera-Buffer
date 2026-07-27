@@ -89,7 +89,10 @@ module Line_Buffer #(
     // RX-ONLY FLAGS / REGISTERS -- 仅 RX agent 写入或判断
     // ========================================================================
     localparam [7:0] PKT_ROW_FLAG_LAST_ROW     = 8'h02;
-    localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h04;
+    // RP2350A wire protocol: bit0=overflow, bit1=last, bit2=first-valid-row.
+    // Keep the sticky FPGA overflow bit disjoint from the upstream 0x04 first
+    // marker when Byte_Replacer ORs both sources into packet offset 9.
+    localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h01;
 
     reg [SLOT_W-1:0] wr_ptr;           // 下一个将预留/提交的 slot
     reg [8:0] wr_count;                // 当前 href 已保存的真实 byte 数

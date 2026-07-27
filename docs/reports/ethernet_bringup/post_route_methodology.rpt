@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
-| Date         : Wed Jul 22 21:07:32 2026
+| Date         : Fri Jul 24 17:42:07 2026
 | Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
 | Command      : report_methodology -file D:/prg/prg_cam/docs/reports/ethernet_bringup/post_route_methodology.rpt
 | Design       : Camera_Ethernet_Top
@@ -23,19 +23,39 @@ Table of Contents
           Floorplan: design_1
       Design limits: <entire design considered>
              Max checks: <unlimited>
-             Checks found: 6
+             Checks found: 20
 +-----------+----------+--------------------------------------------+--------+
 | Rule      | Severity | Description                                | Checks |
 +-----------+----------+--------------------------------------------+--------+
-| SYNTH-6   | Warning  | Timing of a RAM block might be sub-optimal | 1      |
-| TIMING-18 | Warning  | Missing input or output delay              | 5      |
+| SYNTH-6   | Warning  | Timing of a RAM block might be sub-optimal | 5      |
+| TIMING-18 | Warning  | Missing input or output delay              | 15     |
 +-----------+----------+--------------------------------------------+--------+
 
 2. REPORT DETAILS
 -----------------
 SYNTH-6#1 Warning
 Timing of a RAM block might be sub-optimal  
-The timing for the instance u_ethernet_byte_fifo/mem_reg, implemented as a RAM block, might be sub-optimal as no output register was merged into the block.
+The timing for the instance u_camera_pipeline/u_line_buffer_0/packet_mem_reg, implemented as a RAM block, might be sub-optimal as no output register was merged into the block.
+Related violations: <none>
+
+SYNTH-6#2 Warning
+Timing of a RAM block might be sub-optimal  
+The timing for the instance u_camera_pipeline/u_line_buffer_1/packet_mem_reg, implemented as a RAM block, might be sub-optimal as no output register was merged into the block.
+Related violations: <none>
+
+SYNTH-6#3 Warning
+Timing of a RAM block might be sub-optimal  
+The timing for the instance u_camera_pipeline/u_line_buffer_2/packet_mem_reg, implemented as a RAM block, might be sub-optimal as no output register was merged into the block.
+Related violations: <none>
+
+SYNTH-6#4 Warning
+Timing of a RAM block might be sub-optimal  
+The timing for the instance u_camera_pipeline/u_line_buffer_3/packet_mem_reg, implemented as a RAM block, might be sub-optimal as no output register was merged into the block.
+Related violations: <none>
+
+SYNTH-6#5 Warning
+Timing of a RAM block might be sub-optimal  
+The timing for the instance u_camera_pipeline/u_packet_fifo/mem_reg, implemented as a RAM block, might be sub-optimal as no output register was merged into the block.
 Related violations: <none>
 
 TIMING-18#1 Warning
@@ -45,20 +65,70 @@ Related violations: <none>
 
 TIMING-18#2 Warning
 Missing input or output delay  
-An output delay is missing on ETH_RSTN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[0] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#3 Warning
 Missing input or output delay  
-An output delay is missing on ETH_TXD[0] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+An input delay is missing on GPIO[1] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#4 Warning
 Missing input or output delay  
-An output delay is missing on ETH_TXD[1] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+An input delay is missing on GPIO[2] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#5 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[3] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#6 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[4] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#7 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[5] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#8 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[6] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#9 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[7] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#10 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[8] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#11 Warning
+Missing input or output delay  
+An input delay is missing on GPIO[9] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#12 Warning
+Missing input or output delay  
+An output delay is missing on ETH_RSTN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#13 Warning
+Missing input or output delay  
+An output delay is missing on ETH_TXD[0] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+Related violations: <none>
+
+TIMING-18#14 Warning
+Missing input or output delay  
+An output delay is missing on ETH_TXD[1] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+Related violations: <none>
+
+TIMING-18#15 Warning
 Missing input or output delay  
 An output delay is missing on ETH_TXEN relative to the rising and/or falling clock edge(s) of eth_refclk_out.
 Related violations: <none>

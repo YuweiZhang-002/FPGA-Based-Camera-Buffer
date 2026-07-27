@@ -1,0 +1,3 @@
+# Only the live NIC capture path imports Scapy.
+# Npcap must also be installed on Windows (normally with Wireshark).
+scapy

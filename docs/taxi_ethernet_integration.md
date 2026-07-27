@@ -1,6 +1,6 @@
 # Taxi Ethernet 集成记录
 
-更新日期：2026-07-20  
+更新日期：2026-07-23  
 工程：Vivado 2025.2.1，`xc7a50ticsg324-1L`，Nexys A7-50T  
 分支：`feat/taxi-ethernet-bringup`
 
@@ -9,6 +9,39 @@
 第一阶段目标已达到：本地 `taxi_eth_mac_mii_fifo` 及 26 个递归依赖能够独立通过 `xvlog/xelab/xsim`，缺失依赖为 0。第二阶段的固定帧顶层、Clock Wizard、本地 MII→RMII bridge、官方引脚 XDC、综合与完整 place/route 也已通过。
 
 尚未完成的是物理板卡验证：本轮没有生成/下载 bitstream、没有操作板卡，也没有实际 link LED 或 Wireshark 抓包。因此“能稳定在 PC 上看到帧”仍是硬件待验收项，不能用仿真结果代替。
+
+## 2026-07-23 Camera 实时源接入
+
+`Camera_Ethernet_Top` 当前默认参数 `USE_CAMERA_PIPELINE=1`，活动链路已经改为：
+
+```text
+GPIO[7:0]/GPIO[8]/GPIO[9]
+  -> Camera_Pipeline
+     -> 4 x Camera_Capture
+     -> 4 x Line_Buffer
+     -> Arbitration
+     -> Byte_Replacer
+     -> Camera_Pipeline 内部 Byte_FIFO
+  -> Ethernet_Frame_Adapter
+  -> Taxi_Ethernet_Subsystem
+  -> MII/RMII bridge
+  -> PHY
+```
+
+camera0 使用 `GPIO[7:0]`、`GPIO[8]=PCLK`、`GPIO[9]=HREF`；camera1~3 在当前顶层绑为无效。Camera 路径不再经过顶层诊断用的第二个 Byte_FIFO，因此不会形成双重缓存。原有 `Fixed_Packet_Generator -> Byte_FIFO` 保留为编译期回退路径：把 `USE_CAMERA_PIPELINE` 设为 0 后重新实现即可恢复固定帧诊断。
+
+新增 `tb_Camera_Pipeline_Ethernet_Source.sv` 已用 XSim 验证 3 个连续 128-byte packet，覆盖周期性反压、最后一字节 stall、自动 header/payload/TLAST 比较、握手计数、stall 稳定性、FIFO 最终无积压、drop/overflow 为 0。结果：
+
+```text
+PASS: Camera_Pipeline -> Byte_FIFO -> Frame Adapter
+PASS: frames=3 packet_hs=384 frame_hs=426 stalls_and_last_stall=covered
+```
+
+当前非 ILA 实现完成且全部网络已路由，WNS `+0.025 ns`、WHS `+0.035 ns`，DRC Error/Critical 为 0；这是 **Digital implementation PASS WITH WARNINGS**。当前 ILA 实现 WNS `+1.323 ns`、WHS `+0.053 ns`，生成了匹配的 `Camera_Ethernet_Top_ila.bit/.ltx`，包含 Camera PCLK/HREF/data、Camera packet、仲裁、Line Buffer、Byte FIFO、frame 和 RMII 探针。
+
+2026-07-23 的烧录尝试在 `open_hw_target` 阶段失败，Vivado 报告 `There is no current hw_target`。因此没有下载本次 bitstream，也没有取得实时 Camera 波形；**Hardware Ethernet TX 与 Full Camera-to-Ethernet 均保持 PENDING**。
+
+实时接口仍有一个需要板上验证的风险：`Camera_Capture` 把 PCLK 先同步到 100 MHz 域，再在延迟后的采样脉冲上读取并行 data；GPIO PCLK/data/HREF 尚无基于 RP2350A 实测时序的 input-delay 约束。理想 12.5 MHz 仿真通过不能证明任意实际 PCLK 频率、脉宽和 data 保持时间都安全。如果 ILA 显示原始 PCLK/HREF 有活动但 Camera packet 丢失或数据错序，应优先核对 RP2350A 源同步时序；无法满足现有采样契约时，后续应改为 PCLK 写侧的异步 FIFO，而不能用单周期脉冲直接跨域。
 
 ## 本地源与版本
 
@@ -263,3 +296,38 @@ sniff(iface="<PC Ethernet interface>",
 | Byte_FIFO 接回 | NOT RUN | 必须在固定帧抓包后执行 |
 | Camera pipeline 接回 | NOT RUN | 必须在 Byte_FIFO 验证后执行 |
 | 两次 clean build | NOT RUN | 硬件抓包前不触发删除门槛 |
+
+## 2026-07-26 当前 Camera/Receiver 验证更新
+
+本节优先于上面的历史首轮 bring-up 状态。完整证据、哈希、ILA 逐拍分析和
+GUI/ILA A/B 构建结果见：
+
+`prg_cam.srcs/sources_1/tx/taxi_receiver_advanced/p7_live_ila_session_audit_and_ab_build_report.md`
+
+- 47-probe ILA 版本已构建并烧录；正式时序 WNS `+0.953 ns`、
+  WHS `+0.046 ns`。
+- Camera packet → Frame Adapter 捕获到严格的 128 + 14 = 142 次握手；
+  payload 最后一字节同拍 `frame_last=1`，捕获窗口内 Taxi
+  underflow/overflow 均为 0。
+- 当前 Camera 输入 payload 前四字节为 `95 90 6A 60`。该值已在
+  Camera_Capture 的 `data_sync` 边界出现，且严格等价于预期
+  `A5 A0 5A 50` 的 bit4/bit5 互换；Taxi/RMII/PC 不是该异常来源。
+- 残余 LENGTH_ERROR 现场值为 127 byte。完整 ILA 行显示同步 PCLK
+  一拍毛刺打断低电平过滤窗口并合并相邻脉冲；最终方案应为 PCLK 域采样
+  加异步 FIFO，不应仅增大 `PCLK_FILTER_LEN`。
+- Python receiver/session audit 回归为 `59 passed`；旧 data4 PCAP 的
+  78,467 个包均写入 audit CSV。
+- 同源普通/ILA A/B build 均通过：普通 WNS/WHS
+  `+0.793/+0.071 ns`，ILA `+0.953/+0.046 ns`；源码约束清单构建前后
+  SHA-256 相同。
+
+当前状态：
+
+| 项目 | 状态 |
+|---|---|
+| Digital implementation | PASS WITH WARNINGS |
+| Camera → Ethernet AXIS 活动 | PASS（ILA） |
+| 当前 Camera sync/位序 | FAIL（bit4/bit5 互换） |
+| 残余 Camera 行长度 | FAIL（已抓到 127 byte） |
+| Hardware Ethernet TX / Wireshark 当前版复验 | PENDING |
+| Full Camera-to-image reconstruction | PENDING |

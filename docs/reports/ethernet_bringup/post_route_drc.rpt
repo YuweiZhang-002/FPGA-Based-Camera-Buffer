@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
-| Date         : Wed Jul 22 21:07:34 2026
+| Date         : Fri Jul 24 17:42:09 2026
 | Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
 | Command      : report_drc -file D:/prg/prg_cam/docs/reports/ethernet_bringup/post_route_drc.rpt
 | Design       : Camera_Ethernet_Top
@@ -24,15 +24,16 @@ Table of Contents
       Design limits: <entire design considered>
            Ruledeck: default
              Max checks: <unlimited>
-             Checks found: 19
+             Checks found: 37
 +-----------+----------+-----------------------------------------------------+--------+
 | Rule      | Severity | Description                                         | Checks |
 +-----------+----------+-----------------------------------------------------+--------+
 | CFGBVS-1  | Warning  | Missing CFGBVS and CONFIG_VOLTAGE Design Properties | 1      |
+| CHECK-3   | Warning  | Report rule limit reached                           | 1      |
 | PLIO-6    | Warning  | Placement Constraints Check for IO constraints      | 6      |
 | REQP-1617 | Warning  | use_IOB_register                                    | 6      |
 | REQP-1839 | Warning  | RAMB36 async control check                          | 2      |
-| REQP-1840 | Warning  | RAMB18 async control check                          | 3      |
+| REQP-1840 | Warning  | RAMB18 async control check                          | 20     |
 | RTSTAT-10 | Warning  | No routable loads                                   | 1      |
 +-----------+----------+-----------------------------------------------------+--------+
 
@@ -49,6 +50,11 @@ Neither the CFGBVS nor CONFIG_VOLTAGE voltage property is set in the current_des
  #where value2 is the voltage provided to configuration bank 0
 
 Refer to the device configuration user guide for more information.
+Related violations: <none>
+
+CHECK-3#1 Warning
+Report rule limit reached  
+REQP-1840 rule limit reached: 20 violations have been found.
 Related violations: <none>
 
 PLIO-6#1 Warning
@@ -123,22 +129,109 @@ Related violations: <none>
 
 REQP-1840#1 Warning
 RAMB18 async control check  
-The RAMB18E1 u_ethernet_byte_fifo/mem_reg has an input control pin u_ethernet_byte_fifo/mem_reg/ENBWREN (net: u_ethernet_byte_fifo/out_data_r[0]) which is driven by a register (u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[3]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[10] (net: u_camera_pipeline/u_line_buffer_0/C[6]) which is driven by a register (u_camera_pipeline/u_capture_0/line_start_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
 Related violations: <none>
 
 REQP-1840#2 Warning
 RAMB18 async control check  
-The RAMB18E1 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/mem_reg_1 has an input control pin u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/mem_reg_1/ENARDEN (net: u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/mem_reg_1_ENARDEN_cooolgate_en_sig_2) which is driven by a register (u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[3]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[10] (net: u_camera_pipeline/u_line_buffer_0/C[6]) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[0]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
 Related violations: <none>
 
 REQP-1840#3 Warning
 RAMB18 async control check  
-The RAMB18E1 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/mem_reg_1 has an input control pin u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/mem_reg_1/WEA[0] (net: u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/overflow_reg127_out) which is driven by a register (u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[3]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[10] (net: u_camera_pipeline/u_line_buffer_0/C[6]) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[1]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#4 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[10] (net: u_camera_pipeline/u_line_buffer_0/C[6]) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#5 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[10] (net: u_camera_pipeline/u_line_buffer_0/C[6]) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[1]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#6 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[10] (net: u_camera_pipeline/u_line_buffer_0/C[6]) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#7 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_capture_0/line_start_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#8 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[0]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#9 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[1]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#10 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#11 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[0]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#12 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[1]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#13 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[11] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_4_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#14 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_capture_0/line_start_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#15 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[0]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#16 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[1]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#17 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/committed_count_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#18 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[0]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#19 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[1]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#20 Warning
+RAMB18 async control check  
+The RAMB18E1 u_camera_pipeline/u_line_buffer_0/packet_mem_reg has an input control pin u_camera_pipeline/u_line_buffer_0/packet_mem_reg/ADDRARDADDR[12] (net: u_camera_pipeline/u_line_buffer_0/packet_mem_reg_i_3_n_0) which is driven by a register (u_camera_pipeline/u_line_buffer_0/used_count_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
 Related violations: <none>
 
 RTSTAT-10#1 Warning
 No routable loads  
-1 net(s) have no routable loads. The problem bus(es) and/or net(s) are frame_handshake.
+29 net(s) have no routable loads. The problem bus(es) and/or net(s) are byte_fifo_almost_full, byte_fifo_level[15:0], camera_length_error_dbg,
+fixed_packet_data[7:0], fixed_packet_last, fixed_packet_valid
+frame_handshake.
 Related violations: <none>
 
 

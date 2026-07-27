@@ -11,6 +11,26 @@ update_compile_order -fileset sources_1
 generate_target all [get_ips ethernet_clk_wiz]
 synth_ip -force [get_ips ethernet_clk_wiz]
 synth_design -top Camera_Ethernet_Top -part xc7a50ticsg324-1L
+
+# The XDC intentionally cuts exactly two four-stage Taxi asynchronous-reset
+# synchronizers.  Validate the synthesized hierarchy here because generic Tcl
+# control flow is not supported inside an XDC file.
+set taxi_mii_tx_reset_pins [get_pins -quiet -of_objects \
+    [get_cells -hier -quiet -filter \
+        {NAME =~ */u_taxi_eth_mac_mii_fifo/*/tx_reset_sync_inst/sync_reg_reg*}] \
+    -filter {REF_PIN_NAME == PRE}]
+set taxi_fifo_m_reset_pins [get_pins -quiet -of_objects \
+    [get_cells -hier -quiet -filter \
+        {NAME =~ */u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg*}] \
+    -filter {REF_PIN_NAME == PRE}]
+set taxi_async_reset_pin_count [expr {
+    [llength $taxi_mii_tx_reset_pins] + [llength $taxi_fifo_m_reset_pins]}]
+puts "TAXI_MII_TX_ASYNC_RESET_PRE_COUNT: [llength $taxi_mii_tx_reset_pins]"
+puts "TAXI_FIFO_M_ASYNC_RESET_PRE_COUNT: [llength $taxi_fifo_m_reset_pins]"
+if {$taxi_async_reset_pin_count != 8} {
+    error "Expected exactly 8 constrained Taxi asynchronous-reset PRE pins; found $taxi_async_reset_pin_count"
+}
+
 opt_design
 place_design
 phys_opt_design

@@ -72,7 +72,7 @@ module tb_Line_Buffer;
                     $display("ERROR Line_Buffer cam_id=%0d", tx_cam_id);
                     errors = errors + 1;
                 end
-                if ((output_packet == 4) && (tx_flags !== 8'h06)) begin
+                if ((output_packet == 4) && (tx_flags !== 8'h03)) begin
                     $display("ERROR sticky overflow flags=%02x expected=06",
                              tx_flags);
                     errors = errors + 1;
@@ -122,7 +122,7 @@ module tb_Line_Buffer;
         wait (output_packet == 1);
 
         // A slot is now free. This LAST_ROW packet must inherit bit2, producing
-        // flags 0x02 | 0x04 = 0x06 when it eventually reaches TX.
+        // flags 0x02 | 0x01 = 0x03 when it eventually reaches TX.
         send_packet(8'h60, 8'h02);
 
         wait (output_packet == 5);

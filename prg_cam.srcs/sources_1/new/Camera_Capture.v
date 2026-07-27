@@ -15,7 +15,12 @@
 module Camera_Capture #(
     parameter [1:0]   CAM_ID          = 2'd0, // 本实例固定相机编号
     parameter integer PACKET_BYTES    = 128,  // href 内期望的 pclk byte 数
-    parameter integer LINES_PER_FRAME = 480   // 无 VSYNC 时用于帧回卷
+    parameter integer LINES_PER_FRAME = 480,  // 无 VSYNC 时用于帧回卷
+    // pclk 去抖投票深度（>=2）。连续 PCLK_FILTER_LEN 拍同值才认可电平翻转，
+    // 从而拒绝短于该深度的 runt/亚稳态跳变（重复计数的主因）。要求 pclk 的
+    // 高/低相位各 >= PCLK_FILTER_LEN 个 sys_clk（默认 2 => 约 pclk <= 25 MHz
+    // @100 MHz sys_clk）。pclk 真实周期测定后可据此调参。
+    parameter integer PCLK_FILTER_LEN = 2
 )(
     input  wire       pclk,        // Camera 异步像素时钟，仅送入 Alarmer
     input  wire       sys_clk,     // FPGA 100 MHz，模块内所有寄存器的时钟
@@ -30,8 +35,10 @@ module Camera_Capture #(
     output wire [1:0] line_cam_id, // 常量 CAM_ID，与行包 metadata 一起提交
     output reg  [7:0] line_flags,  // 行结束时计算，LB 按 slot 保存
 
-    output wire [15:0] current_row_idx,    // 调试：当前行编号，0 起始
-    output wire [8:0]  current_byte_count  // 调试：当前 href 已观察到的 byte 数
+    output wire [15:0] current_row_idx,       // 调试：当前行编号，0 起始
+    output wire [15:0] current_byte_count,    // 调试：当前 href 已观察到的 byte 数
+    output reg  [15:0] last_line_byte_count,  // href_fall 时锁存，供 ILA 读取
+    output reg         length_error_pulse     // 与 LENGTH_ERROR 判定同拍的单周期脉冲
 );
 
     // MODIFIED: the four FPGA-generated flag bits occupy the low nibble.
@@ -40,23 +47,51 @@ module Camera_Capture #(
     // SHARED PROTOCOL FLAGS -- Capture 生成，Line_Buffer/Byte_Replacer 解释
     // ========================================================================
     // row_flags 位定义（高四位完全保留给上游协议）：
-    // bit0 FIRST_ROW    : row_idx==0。
-    // bit1 LAST_ROW     : row_idx==LINES_PER_FRAME-1。
-    // bit2 FRAME_OVFLOW : 本模块只声明含义，真正由看得到容量的 Line_Buffer 设置。
+    // bit0 FRAME_OVFLOW : 本模块只声明含义，真正由看得到容量的 Line_Buffer 设置。
+    // bit1 LAST_ROW     : 由 RP2350A packet_generator 写入。
+    // bit2 FIRST_ROW    : 由 RP2350A packet_generator 写入，表示首个有效行。
     // bit3 LENGTH_ERROR : href 内 pclk 数不是 PACKET_BYTES。
-    localparam [7:0] PKT_ROW_FLAG_FIRST_ROW    = 8'h01;
+    localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h01;
     localparam [7:0] PKT_ROW_FLAG_LAST_ROW     = 8'h02;
-    localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h04;
+    localparam [7:0] PKT_ROW_FLAG_FIRST_ROW    = 8'h04;
     localparam [7:0] PKT_ROW_FLAG_LENGTH_ERROR = 8'h08;
 
     // ========================================================================
-    // CDC-ONLY FLAGS / REGISTERS -- 放在 href/pclk 同步 always 之前
+    // COHERENT ASYNC FRONT-END (MODIFIED 2026-07-24)
+    // ------------------------------------------------------------------------
+    // 旧实现里 pclk 经 Alarmer(2FF + 电平沿检测) 生成 strobe，href 经另一条独立
+    // 2FF 同步，而 camera_data 在 strobe 拍“新鲜”采样(0FF)。三条路径延迟不一致，
+    // 且对 async strobe 直接做电平沿检测无法抑制毛刺/亚稳态造成的重复脉冲——
+    // 这正是行内多插入 1 字节 (byte_count 129/130、payload 自某 offset 起整体
+    // 右移 1) 的来源：一次物理 pclk 沿被判成两拍 pclk_pulse。
+    //
+    // 现在 pclk / href / camera_data 走 **等深度(2FF)** 同步，使 strobe、行限定
+    // 与数据在同一采样节拍对齐(latency-matched)；pclk_sync 再经 PCLK_FILTER_LEN
+    // 深度投票去抖后才做沿检测，短于该深度的 runt/亚稳态跳变不会被认成第二个
+    // 字节。
+    //
+    // 注意：这是 PCLK 固定在 D14(Pmod，非时钟专用脚)约束下的“织构内缓解”，不是
+    // 根因根除。若 pclk 实测频率高于 ~25 MHz，或存在快于 sys_clk 周期的抖动，
+    // 仍需把 pclk 移到时钟专用脚并改用 pclk 域组包 + 异步 FIFO 跨时钟域。
     // ========================================================================
-    wire pclk_pulse; // pclk 上升沿同步到 sys_clk 后的一拍 data enable
+    (* ASYNC_REG = "TRUE" *) reg       pclk_meta;
+    (* ASYNC_REG = "TRUE" *) reg       pclk_sync;
+    (* ASYNC_REG = "TRUE" *) reg       href_meta;
+    (* ASYNC_REG = "TRUE" *) reg       href_sync;
+    (* ASYNC_REG = "TRUE" *) reg [7:0] data_meta;
+    (* ASYNC_REG = "TRUE" *) reg [7:0] data_sync;
 
-    (* ASYNC_REG = "TRUE" *) reg href_meta;
-    (* ASYNC_REG = "TRUE" *) reg href_sync;
-    reg href_sync_d; // href_sync 上一拍，用于组合产生 rise/fall
+    reg [PCLK_FILTER_LEN-1:0] pclk_hist;    // 最近 PCLK_FILTER_LEN 拍 pclk_sync
+    reg                       pclk_level;   // 去抖后的稳定 pclk 电平
+    reg                       pclk_level_d; // 上一拍去抖电平，用于沿检测
+    reg                       href_sync_d;  // href_sync 上一拍，用于 rise/fall
+
+    // 连续 N 拍全 1 才判为高、全 0 才判为低，其余保持——拒绝 1..N-1 拍的 runt。
+    wire pclk_hist_all1 = &pclk_hist;
+    wire pclk_hist_all0 = ~|pclk_hist;
+
+    // 一个 sys_clk 宽的数据使能：去抖电平的上升沿 == 一个真实 pclk 字节。
+    wire pclk_pulse = pclk_level && !pclk_level_d;
 
     wire href_rise = href_sync && !href_sync_d; // 包开始事件
     wire href_fall = !href_sync && href_sync_d; // 包结束/行编号递增事件
@@ -65,30 +100,38 @@ module Camera_Capture #(
     // CAPTURE/ROW-ONLY REGISTERS -- 仅 byte/row 处理 always 写入
     // ========================================================================
     reg [15:0] row_idx;    // MCU 复位后默认从第 0 行开始；到上限自动回卷
-    reg [8:0]  byte_count; // 9 bit 可表达 0..511，511 后饱和
+    // 16 bit avoids hiding the true HREF length behind the former 9-bit
+    // saturation value 511.  This counter does not alter the payload path.
+    reg [15:0] byte_count;
 
-    assign line_cam_id       = CAM_ID;
-    assign current_row_idx   = row_idx;
+    assign line_cam_id        = CAM_ID;
+    assign current_row_idx    = row_idx;
     assign current_byte_count = byte_count;
 
-    Alarmer u_pclk_alarmer (
-        .clk_data (pclk),
-        .clk      (sys_clk),
-        .rst      (rst),
-        .alarm    (pclk_pulse)
-    );
-
-    // href is a separate asynchronous camera signal and therefore receives its
-    // own two-stage synchronizer.  Edge detection occurs only in sys_clk domain.
+    // pclk / href / camera_data 等深度同步 + pclk 去抖，全部在 sys_clk 域。
     always @(posedge sys_clk or posedge rst) begin
         if (rst) begin
-            href_meta   <= 1'b0;
-            href_sync   <= 1'b0;
-            href_sync_d <= 1'b0;
+            pclk_meta    <= 1'b0;
+            pclk_sync    <= 1'b0;
+            href_meta    <= 1'b0;
+            href_sync    <= 1'b0;
+            href_sync_d  <= 1'b0;
+            data_meta    <= 8'd0;
+            data_sync    <= 8'd0;
+            pclk_hist    <= {PCLK_FILTER_LEN{1'b0}};
+            pclk_level   <= 1'b0;
+            pclk_level_d <= 1'b0;
         end else begin
-            href_meta   <= href;
-            href_sync   <= href_meta;
+            pclk_meta <= pclk;        pclk_sync <= pclk_meta;
+            href_meta <= href;        href_sync <= href_meta;
+            data_meta <= camera_data; data_sync <= data_meta;
             href_sync_d <= href_sync;
+
+            // 投票去抖：移入最新 pclk_sync 采样，全 1/全 0 才允许电平翻转。
+            pclk_hist <= {pclk_hist[PCLK_FILTER_LEN-2:0], pclk_sync};
+            if (pclk_hist_all1)      pclk_level <= 1'b1;
+            else if (pclk_hist_all0) pclk_level <= 1'b0;
+            pclk_level_d <= pclk_level;
         end
     end
 
@@ -97,47 +140,54 @@ module Camera_Capture #(
     always @(posedge sys_clk or posedge rst) begin
         if (rst) begin
             row_idx    <= 16'd0;
-            byte_count <= 9'd0;
+            byte_count <= 16'd0;
             byte_data  <= 8'd0;
             byte_valid <= 1'b0;
             line_start <= 1'b0;
             line_end   <= 1'b0;
             line_flags <= 8'd0;
+            last_line_byte_count <= 16'd0;
+            length_error_pulse    <= 1'b0;
         end else begin
             // 三个输出均为事件脉冲，默认每拍清零，仅在下方条件中拉高。
             byte_valid <= 1'b0;
             line_start <= 1'b0;
             line_end   <= 1'b0;
+            length_error_pulse <= 1'b0;
 
             if (href_rise) begin
                 line_start <= 1'b1;
                 // If href and the synchronized pclk edge arrive together, the
                 // first byte belongs to this new packet and must be counted.
-                byte_count <= pclk_pulse ? 9'd1 : 9'd0;
+                byte_count <= pclk_pulse ? 16'd1 : 16'd0;
             end else if (pclk_pulse && href_sync) begin
                 // Saturation preserves an unambiguous length-error indication
                 // even if a malformed href interval contains far too many bytes.
-                if (byte_count != 9'h1ff)
+                if (byte_count != 16'hffff)
                     byte_count <= byte_count + 1'b1;
             end
 
             if (pclk_pulse && href_sync) begin
-                byte_data  <= camera_data;
+                // data_sync 与 pclk_pulse/href_sync 等深度同步，取代旧的“新鲜”
+                // camera_data(0FF) 采样，消除数据相对 strobe 的延迟错位。
+                byte_data  <= data_sync;
                 byte_valid <= 1'b1;
             end
 
             if (href_fall) begin
                 line_end <= 1'b1;
-                // line_flags 在 href 结束时一次性生成，保证 byte_count 已覆盖
-                // 本行所有可观察 pclk。它不替换包内原 flags，而在后级做 OR。
-                line_flags <= ((row_idx == 0)
-                               ? PKT_ROW_FLAG_FIRST_ROW : 8'd0) |
-                              ((row_idx == LINES_PER_FRAME - 1)
-                               ? PKT_ROW_FLAG_LAST_ROW : 8'd0) |
-                              ((byte_count == PACKET_BYTES)
-                               ? 8'd0 : PKT_ROW_FLAG_LENGTH_ERROR);
+                last_line_byte_count <= byte_count;
+                length_error_pulse <= (byte_count != PACKET_BYTES);
+                // MODIFIED (2026-07-24): FPGA 侧不再自行生成 FIRST_ROW/LAST_ROW。
+                // 那份内部 row_idx 计数器与真实帧边界不同步（每帧固定在
+                // row_idx=2/75/76 附近产生错误标志）；真实的 FIRST_LINE/FINAL_LINE
+                // 已由 RP2350A 固件 packet_generator() 正确写入包内 offset 9，
+                // Byte_Replacer 只做 OR 不会破坏它们。此处仅保留 LENGTH_ERROR。
+                line_flags <= (byte_count == PACKET_BYTES)
+                              ? 8'd0 : PKT_ROW_FLAG_LENGTH_ERROR;
 
-                // 没有 VSYNC：LAST_ROW 的 href 下降沿即隐式帧结束，下一行为 0。
+                // row_idx 仅保留用于 current_row_idx 调试输出与无 VSYNC 帧回卷；
+                // 不再参与 line_flags。
                 if (row_idx == LINES_PER_FRAME - 1)
                     row_idx <= 16'd0;
                 else
@@ -148,6 +198,8 @@ module Camera_Capture #(
 
     // This constant is documented beside the other flags even though ownership
     // belongs to Line_Buffer, where an actual lack of storage can be observed.
-    wire _unused_flag_definition = ^PKT_ROW_FLAG_FRAME_OVFLOW;
+    wire _unused_flag_definition =
+        ^{PKT_ROW_FLAG_FIRST_ROW, PKT_ROW_FLAG_LAST_ROW,
+          PKT_ROW_FLAG_FRAME_OVFLOW};
 
 endmodule
