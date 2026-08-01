@@ -37,7 +37,15 @@ ROW_BYTES = PACKET_LEN - HEADER_LEN - TRAILER_LEN  # 80
 FLAG_FRAME_OVERFLOW = 1 << 0
 FLAG_LAST_ROW = 1 << 1
 FLAG_FIRST_ROW = 1 << 2
-FLAG_LENGTH_ERROR = 1 << 3
+SOURCE_ROW_FLAG_MASK = FLAG_FRAME_OVERFLOW | FLAG_LAST_ROW | FLAG_FIRST_ROW
+
+# FPGA-owned status is no longer ORed into the MCU row_flags byte.  It occupies
+# pkt_row_header_t.reserved[0] (wire offset 13), keeping the two fault domains
+# independently observable.  FLAG_LENGTH_ERROR remains as a compatibility name
+# for project-side code, but it is a bit in fpga_status, not in row_flags.
+FPGA_STATUS_FRAME_OVERFLOW = 1 << 0
+FPGA_STATUS_LENGTH_ERROR = 1 << 3
+FLAG_LENGTH_ERROR = FPGA_STATUS_LENGTH_ERROR
 
 # Protocol word values and their expected MSB-byte-first wire representation.
 # This is byte order inside each multi-byte metadata field; it is not an
@@ -85,6 +93,16 @@ class RowHeader:
     payload_len: int
     row_seq: int
     reserved: bytes
+
+    @property
+    def fpga_status(self) -> int:
+        """FPGA capture/buffer status from reserved[0], wire offset 13."""
+        return self.reserved[0]
+
+    @property
+    def header_check(self) -> int:
+        """Reserved[1] placeholder for the proposed MCU header check byte."""
+        return self.reserved[1]
 
 
 @dataclass(slots=True)
@@ -179,8 +197,11 @@ def parse_camera_row(payload: bytes) -> CameraRowPacket:
         crc_ok=(crc16 == calculated_crc),
         first_row=bool(row_flags & FLAG_FIRST_ROW),
         last_row=bool(row_flags & FLAG_LAST_ROW),
-        frame_overflow=bool(row_flags & FLAG_FRAME_OVERFLOW),
-        length_error=bool(row_flags & FLAG_LENGTH_ERROR),
+        frame_overflow=bool(
+            (row_flags & FLAG_FRAME_OVERFLOW)
+            or (header.fpga_status & FPGA_STATUS_FRAME_OVERFLOW)
+        ),
+        length_error=bool(header.fpga_status & FPGA_STATUS_LENGTH_ERROR),
     )
 
 
@@ -196,6 +217,8 @@ def build_camera_row(
     sync1: int = SYNC1_DEFAULT,
     payload_len: Optional[int] = None,
     reserved: bytes = b"\x00" * 11,
+    fpga_status: Optional[int] = None,
+    header_check: Optional[int] = None,
     pad: bytes = b"\x00" * 10,
     m00: int = 0,
     xc_q4: int = 0,
@@ -220,9 +243,19 @@ def build_camera_row(
     if payload_len is None:
         payload_len = ROW_BYTES
 
+    reserved_bytes = bytearray(reserved)
+    if fpga_status is not None:
+        if not 0 <= fpga_status <= 0xFF:
+            raise ValueError("fpga_status must fit in one byte")
+        reserved_bytes[0] = fpga_status
+    if header_check is not None:
+        if not 0 <= header_check <= 0xFF:
+            raise ValueError("header_check must fit in one byte")
+        reserved_bytes[1] = header_check
+
     body = _BODY_STRUCT_BE.pack(
         sync0, sync1, cam_id, frame_id, row_idx, row_flags,
-        payload_len, row_seq, reserved, payload, pad, m00,
+        payload_len, row_seq, bytes(reserved_bytes), payload, pad, m00,
         xc_q4, yc_q4, vx_q8, vy_q8,
     )
     crc = crc16_ccitt_false(body)

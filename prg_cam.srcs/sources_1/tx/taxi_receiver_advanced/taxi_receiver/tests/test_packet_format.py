@@ -4,6 +4,7 @@ from taxi_receiver.packet_format import (
     FLAG_FIRST_ROW,
     FLAG_LAST_ROW,
     FLAG_LENGTH_ERROR,
+    FPGA_STATUS_LENGTH_ERROR,
     PACKET_LEN,
     ROW_BYTES,
     build_camera_row,
@@ -40,6 +41,29 @@ def test_round_trip_ok():
     assert pkt.first_row is True
     assert pkt.last_row is False
     assert pkt.payload == payload
+
+
+def test_fpga_status_is_separate_from_raw_mcu_row_flags():
+    raw = build_camera_row(
+        cam_id=0,
+        frame_id=7,
+        row_idx=3,
+        row_flags=FLAG_FIRST_ROW,
+        row_seq=9,
+        payload=bytes(ROW_BYTES),
+        fpga_status=FPGA_STATUS_LENGTH_ERROR,
+        header_check=0x5A,
+    )
+    packet = parse_camera_row(raw)
+
+    assert raw[9] == FLAG_FIRST_ROW
+    assert raw[13] == FPGA_STATUS_LENGTH_ERROR
+    assert raw[14] == 0x5A
+    assert packet.header.row_flags == FLAG_FIRST_ROW
+    assert packet.header.fpga_status == FPGA_STATUS_LENGTH_ERROR
+    assert packet.header.header_check == 0x5A
+    assert packet.first_row
+    assert packet.length_error
 
 
 def test_current_metadata_is_big_endian_but_crc_tail_is_little_endian():

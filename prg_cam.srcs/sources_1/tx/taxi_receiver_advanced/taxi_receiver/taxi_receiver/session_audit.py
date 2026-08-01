@@ -22,6 +22,8 @@ AUDIT_FIELDS = (
     "row_idx",
     "row_flags_raw",
     "row_flags_effective",
+    "fpga_status",
+    "header_check",
     "payload_len",
     "row_seq",
     "crc_ok",
@@ -42,9 +44,10 @@ _WRAP_LOW = 0x0FFF
 class SessionAuditLogger:
     """Write one CSV row for every processed capture record.
 
-    ``row_flags_effective`` propagates LENGTH_ERROR (bit 3) from the first
-    contaminated row through the remainder of the same ``(cam_id, frame_id)``.
-    Raw flags are never modified.
+    ``row_flags_effective`` is an audit-only compatibility view: it propagates
+    FPGA LENGTH_ERROR (fpga_status bit 3) from the first contaminated row through
+    the remainder of the same ``(cam_id, frame_id)``. Raw MCU flags are never
+    modified and fpga_status is recorded in its own column.
 
     A large, non-wrap rollback of either frame_id or row_seq is treated as a
     new power-on session.  The CSV is then reopened with ``"w"`` so evidence
@@ -122,7 +125,7 @@ class SessionAuditLogger:
                 self._contaminated[cam_id] = False
 
             row_flags_raw = header.row_flags
-            if row_flags_raw & 0x08:
+            if packet.length_error:
                 self._contaminated[cam_id] = True
             row_flags_effective = (
                 row_flags_raw | 0x08
@@ -138,6 +141,8 @@ class SessionAuditLogger:
                     "row_idx": header.row_idx,
                     "row_flags_raw": f"0x{row_flags_raw:02X}",
                     "row_flags_effective": f"0x{row_flags_effective:02X}",
+                    "fpga_status": f"0x{header.fpga_status:02X}",
+                    "header_check": f"0x{header.header_check:02X}",
                     "payload_len": header.payload_len,
                     "row_seq": row_seq,
                     "crc_ok": int(packet.crc_ok),

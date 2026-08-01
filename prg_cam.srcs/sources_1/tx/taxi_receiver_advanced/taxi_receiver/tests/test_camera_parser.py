@@ -126,13 +126,57 @@ def test_camera_mode_rejects_fpga_capture_error_flags():
         cam_id=0,
         frame_id=1,
         row_idx=0,
-        row_flags=0x09,
+        row_flags=0,
+        row_seq=0,
+        payload=bytes(ROW_BYTES),
+        fpga_status=0x09,
+    )
+    result = parse_camera_mode(raw)
+    assert not result.ok
+    assert result.errors == ("frame_overflow", "length_error")
+
+
+def test_camera_mode_rejects_undefined_source_flag_bits():
+    raw = build_camera_row(
+        cam_id=0,
+        frame_id=1,
+        row_idx=0,
+        row_flags=0xF8,
         row_seq=0,
         payload=bytes(ROW_BYTES),
     )
     result = parse_camera_mode(raw)
     assert not result.ok
-    assert result.errors == ("frame_overflow", "length_error")
+    assert result.errors == ("undefined_flag_bits",)
+
+
+def test_camera_mode_rejects_out_of_range_header_identity():
+    raw = build_camera_row(
+        cam_id=4,
+        frame_id=1,
+        row_idx=480,
+        row_flags=0,
+        row_seq=0,
+        payload=bytes(ROW_BYTES),
+    )
+    result = parse_camera_mode(raw)
+    assert not result.ok
+    assert result.errors == ("cam_id_out_of_range", "row_idx_out_of_range")
+
+
+def test_camera_mode_warns_when_unassigned_reserved_bytes_are_nonzero():
+    raw = build_camera_row(
+        cam_id=0,
+        frame_id=1,
+        row_idx=0,
+        row_flags=0,
+        row_seq=0,
+        payload=bytes(ROW_BYTES),
+        reserved=b"\x00\x00\x01" + bytes(8),
+    )
+    result = parse_camera_mode(raw)
+    assert result.ok
+    assert result.warnings == ("reserved_nonzero",)
 
 
 def test_ila_legacy_v0_regression_vector():
@@ -149,7 +193,7 @@ def test_ila_legacy_v0_regression_vector():
     # protocol words. It remains useful as a byte/CRC regression, but must
     # now be identified honestly as legacy sync instead of current-valid.
     assert result.reason == "bad_sync"
-    assert result.errors == ("bad_sync", "length_error")
+    assert result.errors == ("bad_sync", "undefined_flag_bits")
     assert result.packet is not None
     assert result.packet.crc_ok
     assert result.packet.header.sync0 == 0xA5A5

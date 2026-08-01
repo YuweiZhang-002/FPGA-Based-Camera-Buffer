@@ -8,7 +8,8 @@
 // It changes only the fields FPGA owns and recomputes the packet-tail CRC:
 //
 //   offset 4   cam_id       = {6'd0, in_cam_id}
-//   offset 9   row_flags    = original byte OR in_row_flags
+//   offset 9   row_flags    = original MCU byte, unchanged
+//   offset 13  reserved[0]  = FPGA capture status (in_row_flags)
 //   offset 126 CRC low byte
 //   offset 127 CRC high byte and packet_last
 //
@@ -20,7 +21,7 @@
 module Byte_Replacer #(
     parameter integer PACKET_BYTES     = 128, // 固定输出包长
     parameter integer CAM_ID_OFFSET    = 4,   // pkt_row_header_t.cam_id
-    parameter integer ROW_FLAG_OFFSET  = 9,   // pkt_row_header_t.row_flags
+    parameter integer FPGA_STATUS_OFFSET = 13, // pkt_row_header_t.reserved[0]
     parameter integer CRC_LOW_OFFSET   = 126, // 小端 CRC 低字节
     parameter integer CRC_HIGH_OFFSET  = 127  // 小端 CRC 高字节/包尾
 )(
@@ -32,7 +33,7 @@ module Byte_Replacer #(
     output wire       in_ready,         // 由下游 ready 直接回传
     input  wire       in_packet_last,   // 上游包边界，用于异常情况下重同步
     input  wire [1:0] in_cam_id,        // 被仲裁通道 ID，写入 offset 4
-    input  wire [7:0] in_row_flags,     // FPGA flags，按位 OR 到 offset 9
+    input  wire [7:0] in_row_flags,     // FPGA-only status, written to offset 13
 
     output wire [7:0] out_data,         // 替换字段/CRC 后的 byte
     output wire       out_valid,        // 与 in_valid 同步的透明 valid
@@ -70,10 +71,12 @@ module Byte_Replacer #(
     // ========================================================================
     // 先形成最终 header byte，再把同一个值同时送往输出和 CRC，确保 CRC
     // 校验的是接收端实际看到的 cam_id/flags，而不是修改前的数据。
+    // row_flags(offset 9) is deliberately transparent so MCU corruption and
+    // FPGA-generated status can be distinguished from one another on the wire.
     wire [7:0] header_patched_data =
-        (byte_index == CAM_ID_OFFSET)   ? {6'd0, in_cam_id} :
-        (byte_index == ROW_FLAG_OFFSET) ? (in_data | in_row_flags) :
-                                           in_data;
+        (byte_index == CAM_ID_OFFSET)      ? {6'd0, in_cam_id} :
+        (byte_index == FPGA_STATUS_OFFSET) ? in_row_flags :
+                                              in_data;
 
     wire transfer_fire = in_valid && in_ready; // 唯一允许 index/CRC 前进的条件
 

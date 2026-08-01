@@ -222,6 +222,15 @@ class FrameReassembler:
         session.had_overflow |= packet.frame_overflow
 
         row_idx = packet.header.row_idx
+        # Layer 3 normally supplies this error. Keep a local defensive guard so
+        # direct callers can never create rows[65535] or another out-of-range
+        # entry in a configured 480-row session.
+        if (
+            self._configured_expected_rows is not None
+            and not 0 <= row_idx < self._configured_expected_rows
+            and "row_idx_out_of_range" not in errors
+        ):
+            errors = (*errors, "row_idx_out_of_range")
         payload = packet.payload[: packet.header.payload_len]
         duplicate = row_idx in session.rows
         conflict = duplicate and session.rows[row_idx] != payload

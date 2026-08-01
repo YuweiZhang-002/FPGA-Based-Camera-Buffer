@@ -11,6 +11,9 @@ set active_generics [get_property generic [get_filesets sources_1]]
 if {[lsearch -exact $active_generics "USE_CAMERA_PIPELINE=1"] < 0} {
     error "Camera source is not selected in sources_1 generics: $active_generics"
 }
+if {[lsearch -exact $active_generics "ENABLE_CAM1=0"] < 0} {
+    error "Unused cam1 is not explicitly isolated: $active_generics"
+}
 
 foreach required_module {
     Alarmer Camera_Capture Line_Buffer Byte_Replacer Byte_FIFO

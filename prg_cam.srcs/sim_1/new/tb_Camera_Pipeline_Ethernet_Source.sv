@@ -137,8 +137,8 @@ module tb_Camera_Pipeline_Ethernet_Source;
                 value = source_byte(packet_no, i);
                 if (i == 4)
                     value = 8'h00;
-                if (i == 9)
-                    value = value | generated_flags;
+                if (i == 13)
+                    value = generated_flags;
                 expected_payload[packet_no*PACKET_BYTES+i] = value;
                 crc = crc16_byte(crc, value);
             end

@@ -15,6 +15,9 @@
 module Camera_Ethernet_Top #(
     parameter bit     USE_CAMERA_PIPELINE = 1'b1,
     parameter bit     USE_BYTE_FIFO_PATH  = 1'b1,
+    // Keep physically routed but disconnected cam1 pins from creating false
+    // HREF/PCLK events. Set this generic only after cam1 is wired and verified.
+    parameter bit     ENABLE_CAM1 = 1'b0,
     parameter integer CAMERA_LINES_PER_FRAME = 480
 ) (
     input  wire       CLK100MHZ,
@@ -194,6 +197,9 @@ module Camera_Ethernet_Top #(
     (* MARK_DEBUG = "TRUE" *) wire       camera_pclk_dbg = GPIO[8];
     (* MARK_DEBUG = "TRUE" *) wire       camera_href_dbg = GPIO[9];
     (* MARK_DEBUG = "TRUE" *) wire [7:0] camera_data_dbg = GPIO[7:0];
+    // Keep raw cam1 pins observable even while its capture engine is disabled.
+    // Camera_Pipeline gates cam1 capture_enable, so pin noise cannot reserve a
+    // Line_Buffer slot or enter arbitration, while ILA can inspect the wiring.
     (* MARK_DEBUG = "TRUE" *) wire       camera1_pclk_dbg = GPIO_CAM1[8];
     (* MARK_DEBUG = "TRUE" *) wire       camera1_href_dbg = GPIO_CAM1[9];
     (* MARK_DEBUG = "TRUE" *) wire [7:0] camera1_data_dbg = GPIO_CAM1[7:0];
@@ -223,7 +229,8 @@ module Camera_Ethernet_Top #(
 
     Camera_Pipeline #(
         .LINES_PER_FRAME   (CAMERA_LINES_PER_FRAME),
-        .PACKET_FIFO_DEPTH (512)
+        .PACKET_FIFO_DEPTH (512),
+        .ENABLE_CAM1       (ENABLE_CAM1)
     ) u_camera_pipeline (
         .sys_clk                  (logic_clk),
         .rst                      (camera_pipeline_rst),

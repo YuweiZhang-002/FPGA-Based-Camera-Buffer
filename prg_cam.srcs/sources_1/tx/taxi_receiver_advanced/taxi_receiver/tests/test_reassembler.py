@@ -129,3 +129,18 @@ def test_frame_switch_never_reuses_previous_frame_rows():
     assert set(switched.rows) == {1}
     assert switched.to_bytes(2)[:ROW_BYTES] == bytes(ROW_BYTES)
     assert switched.to_bytes(2)[ROW_BYTES:] == bytes([0x44]) * ROW_BYTES
+
+
+def test_out_of_range_row_is_never_inserted_even_for_direct_caller():
+    reassembler = FrameReassembler(expected_rows=480)
+    packet = _parsed_fill(0, 20, 65535, 500, 0, 0x77)
+
+    assert reassembler.on_row(packet) is None
+    completed = reassembler.flush()
+
+    assert len(completed) == 1
+    assert completed[0].rows == {}
+    assert completed[0].packet_records[0].accepted is False
+    assert completed[0].packet_records[0].errors == (
+        "row_idx_out_of_range",
+    )

@@ -89,8 +89,8 @@ module Line_Buffer #(
     // RX-ONLY FLAGS / REGISTERS -- 仅 RX agent 写入或判断
     // ========================================================================
     // RP2350A wire protocol: bit0=overflow, bit1=last, bit2=first-valid-row.
-    // Keep the sticky FPGA overflow bit disjoint from the upstream 0x04 first
-    // marker when Byte_Replacer ORs both sources into packet offset 9.
+    // Byte_Replacer stores this FPGA status byte in reserved[0]/offset 13, so
+    // it remains disjoint from the MCU row_flags byte at offset 9.
     localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h01;
     localparam [7:0] PKT_ROW_FLAG_LENGTH_ERROR = 8'h08;
 

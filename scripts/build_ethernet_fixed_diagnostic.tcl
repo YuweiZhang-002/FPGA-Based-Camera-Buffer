@@ -24,7 +24,7 @@ synth_ip -force [get_ips ethernet_clk_wiz]
 synth_design \
     -top Camera_Ethernet_Top \
     -part xc7a50ticsg324-1L \
-    -generic {USE_CAMERA_PIPELINE=0 USE_BYTE_FIFO_PATH=1}
+    -generic {USE_CAMERA_PIPELINE=0 USE_BYTE_FIFO_PATH=1 ENABLE_CAM1=0}
 
 set taxi_mii_tx_reset_pins [get_pins -quiet -of_objects \
     [get_cells -hier -quiet -filter \

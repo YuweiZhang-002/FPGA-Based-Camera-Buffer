@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: Camera_Pipeline
-// Active four-camera top level.
+// Four-camera-capable top level. Camera0 is active; cam1 is compile-time gated
+// until explicitly enabled, and Camera_Ethernet_Top ties cam2/3 inactive.
 //
 // MODIFIED (2026-07-17):
 //
@@ -18,6 +19,9 @@
 module Camera_Pipeline #(
     parameter integer LINES_PER_FRAME   = 480, // href 行数达到此值即 frame 回卷
     parameter integer PACKET_FIFO_DEPTH = 512, // 末级 9-bit FIFO 深度
+    // A routed but disconnected cam1 remains visible to ILA, while this gate
+    // prevents its asynchronous pin noise from creating buffer requests.
+    parameter integer ENABLE_CAM1 = 0,
     parameter [1:0] CAM0_ID = 2'd0,
     parameter [1:0] CAM1_ID = 2'd1,
     parameter [1:0] CAM2_ID = 2'd2,
@@ -114,7 +118,7 @@ module Camera_Pipeline #(
     Camera_Capture #(.CAM_ID(CAM1_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
     u_capture_1 (
         .pclk(cam1_pclk), .sys_clk(sys_clk), .rst(rst),
-        .capture_enable(capture_enable),
+        .capture_enable(capture_enable && (ENABLE_CAM1 != 0)),
         .href(cam1_href), .camera_data(cam1_data),
         .byte_data(c1_data), .byte_valid(c1_valid),
         .line_start(c1_start), .line_end(c1_end),

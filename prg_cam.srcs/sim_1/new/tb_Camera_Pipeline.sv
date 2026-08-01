@@ -45,7 +45,8 @@ module tb_Camera_Pipeline;
 
     Camera_Pipeline #(
         .LINES_PER_FRAME   (2),
-        .PACKET_FIFO_DEPTH (256)
+        .PACKET_FIFO_DEPTH (256),
+        .ENABLE_CAM1       (1)
     ) dut (
         .sys_clk(sys_clk), .rst(rst), .capture_enable(1'b1),
         .cam0_pclk(cam0_pclk), .cam0_href(cam0_href), .cam0_data(cam0_data),
@@ -67,8 +68,8 @@ module tb_Camera_Pipeline;
         input integer packet_no;
         input integer offset;
         begin
-            // Distinct deterministic packets. RP2350A owns FIRST/LAST in the
-            // incoming row_flags byte; FPGA only ORs capture errors.
+            // Distinct deterministic packets. RP2350A owns row_flags at
+            // offset 9; FPGA status is written separately at offset 13.
             source_byte = (8'h31 + packet_no * 8'h27 + offset) & 8'hff;
             if (offset == 4)
                 source_byte = 8'hA0 + packet_no;
@@ -108,8 +109,8 @@ module tb_Camera_Pipeline;
                 value = source_byte(packet_no, i);
                 if (i == 4)
                     value = {6'd0, cam_id};
-                if (i == 9)
-                    value = value | generated_flags;
+                if (i == 13)
+                    value = generated_flags;
                 expected[packet_no*PACKET_BYTES+i] = value;
                 crc = crc16_byte(crc, value);
             end
@@ -199,7 +200,7 @@ module tb_Camera_Pipeline;
 
     initial begin
         // packet 0 = cam0 row0 (FIRST), packet 1 = cam1 row0 (FIRST),
-        // packet 2 = cam0 row1 (LAST). Existing row_flags are OR-preserved.
+        // packet 2 = cam0 row1 (LAST). MCU row_flags remain byte-exact.
         build_expected(0, 2'd0, 8'h00);
         build_expected(1, 2'd1, 8'h00);
         build_expected(2, 2'd0, 8'h00);
@@ -236,7 +237,7 @@ module tb_Camera_Pipeline;
         end
 
         if (errors == 0)
-            $display("PASS: 4-camera LB arbitration, header merge and CRC-16");
+            $display("PASS: 4-camera LB arbitration, status split and CRC-16");
         else
             $display("FAIL: %0d errors", errors);
         $finish;

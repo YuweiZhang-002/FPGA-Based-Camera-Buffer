@@ -44,8 +44,8 @@ module Camera_Capture #(
     output reg         length_error_pulse     // 与 LENGTH_ERROR 判定同拍的单周期脉冲
 );
 
-    // MODIFIED: the four FPGA-generated flag bits occupy the low nibble.
-    // Byte_Replacer ORs these bits into the row_flags byte already in the packet.
+    // FPGA-generated status is separate from the MCU row_flags byte.
+    // Byte_Replacer writes this byte to reserved[0] at wire offset 13.
     // ========================================================================
     // SHARED PROTOCOL FLAGS -- Capture 生成，Line_Buffer/Byte_Replacer 解释
     // ========================================================================
@@ -257,8 +257,8 @@ module Camera_Capture #(
                 // MODIFIED (2026-07-24): FPGA 侧不再自行生成 FIRST_ROW/LAST_ROW。
                 // 那份内部 row_idx 计数器与真实帧边界不同步（每帧固定在
                 // row_idx=2/75/76 附近产生错误标志）；真实的 FIRST_LINE/FINAL_LINE
-                // 已由 RP2350A 固件 packet_generator() 正确写入包内 offset 9，
-                // Byte_Replacer 只做 OR 不会破坏它们。此处仅保留 LENGTH_ERROR。
+                // 已由 RP2350A 固件 packet_generator() 正确写入包内 offset 9。
+                // Byte_Replacer 保持 offset 9 原样，并把此状态独立写入 offset 13。
                 line_flags <= (byte_count == PACKET_BYTES)
                               ? 8'd0 : PKT_ROW_FLAG_LENGTH_ERROR;
 

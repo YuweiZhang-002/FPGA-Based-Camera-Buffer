@@ -21,6 +21,7 @@ def _context(
     frame_id: int = 10,
     row_idx: int = 0,
     row_flags: int = 0,
+    fpga_status: int = 0,
     row_seq: int = 100,
     timestamp: float = 1.0,
     sync0: int = SYNC0_DEFAULT,
@@ -31,6 +32,7 @@ def _context(
         frame_id=frame_id,
         row_idx=row_idx,
         row_flags=row_flags,
+        fpga_status=fpga_status,
         row_seq=row_seq,
         payload=bytes([row_idx & 0xFF]) * ROW_BYTES,
         sync0=sync0,
@@ -64,14 +66,14 @@ def _rows(path):
 def test_length_error_propagates_without_mutating_raw_flags(tmp_path):
     audit = SessionAuditLogger(tmp_path)
     audit(_context(row_idx=0, row_flags=0x00, row_seq=100))
-    audit(_context(row_idx=1, row_flags=0x08, row_seq=101))
+    audit(_context(row_idx=1, row_flags=0x00, fpga_status=0x08, row_seq=101))
     audit(_context(row_idx=2, row_flags=0x00, row_seq=102))
     audit.close()
 
     rows = _rows(tmp_path / "session_audit.csv")
     assert [row["row_flags_raw"] for row in rows] == [
         "0x00",
-        "0x08",
+        "0x00",
         "0x00",
     ]
     assert [row["row_flags_effective"] for row in rows] == [
@@ -79,11 +81,19 @@ def test_length_error_propagates_without_mutating_raw_flags(tmp_path):
         "0x08",
         "0x08",
     ]
+    assert [row["fpga_status"] for row in rows] == [
+        "0x00",
+        "0x08",
+        "0x00",
+    ]
 
 
 def test_new_frame_and_different_camera_clear_contamination(tmp_path):
     audit = SessionAuditLogger(tmp_path)
-    audit(_context(cam_id=0, frame_id=10, row_flags=0x08, row_seq=100))
+    audit(_context(
+        cam_id=0, frame_id=10, row_flags=0x00,
+        fpga_status=0x08, row_seq=100,
+    ))
     audit(_context(cam_id=1, frame_id=10, row_flags=0x00, row_seq=200))
     audit(_context(cam_id=0, frame_id=11, row_flags=0x00, row_seq=101))
     audit.close()

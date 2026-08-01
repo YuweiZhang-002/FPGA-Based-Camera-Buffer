@@ -17,6 +17,7 @@ from .packet_format import (
     CameraRowPacket,
     PACKET_LEN,
     ROW_BYTES,
+    SOURCE_ROW_FLAG_MASK,
     SYNC0_DEFAULT,
     SYNC1_DEFAULT,
     parse_camera_row,
@@ -24,6 +25,7 @@ from .packet_format import (
 
 FIXED_TEST_PAYLOAD = bytes(range(128))
 LEGACY_PROTOCOL = "legacy-v0-observed"
+EXPECTED_IMAGE_ROWS = 480
 
 
 @dataclass(slots=True)
@@ -94,9 +96,23 @@ def parse_camera_mode(payload: bytes) -> CameraModeResult:
     if not packet.crc_ok:
         errors.append("crc_error")
 
-    # These flags are generated/ORed by the active FPGA capture path and make
-    # the packet unsuitable for image reconstruction even when its post-capture
-    # CRC is correct.
+    if packet.header.cam_id > 3:
+        errors.append("cam_id_out_of_range")
+    if packet.header.row_idx >= EXPECTED_IMAGE_ROWS:
+        errors.append("row_idx_out_of_range")
+
+    # offset 9 now belongs only to the MCU.  Any bit outside overflow/last/first
+    # is source-data corruption or a protocol-version mismatch, not FPGA status.
+    if packet.header.row_flags & ~SOURCE_ROW_FLAG_MASK:
+        errors.append("undefined_flag_bits")
+
+    # reserved[0] is FPGA status and reserved[1] is reserved for a future MCU
+    # header check.  The remaining bytes are expected to stay zero.
+    if any(packet.header.reserved[2:]):
+        warnings.append("reserved_nonzero")
+
+    # Source overflow (offset 9 bit 0) and FPGA status (offset 13) both make a
+    # row unsuitable, but packet_format keeps their wire origins observable.
     if packet.frame_overflow:
         errors.append("frame_overflow")
     if packet.length_error:

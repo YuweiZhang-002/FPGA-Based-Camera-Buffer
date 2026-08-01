@@ -146,8 +146,9 @@ def test_cam1_is_isolated_and_last_bit_is_masked_not_compared_whole(tmp_path):
                 frame_id=7,
                 row_idx=0,
                 row_seq=8,
-                # Extra high flag bit proves the end test is flags & 0x02.
-                row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW | 0x80,
+                # FIRST+LAST is 0x06, not exactly 0x02; successful publication
+                # therefore still proves the end test masks the LAST bit.
+                row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
                 payload=bytes(80),
             )
         ],
@@ -163,7 +164,7 @@ def test_cam1_is_isolated_and_last_bit_is_masked_not_compared_whole(tmp_path):
         newline="", encoding="utf-8"
     ) as handle:
         row = next(csv.DictReader(handle))
-    assert row["row_flags"] == "0x86"
+    assert row["row_flags"] == "0x06"
     assert row["last_row"] == "1"
     assert row["frame_end"] == "1"
 
