@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
-| Date         : Fri Jul 24 17:42:07 2026
+| Date         : Sat Aug  1 18:49:28 2026
 | Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
 | Command      : report_methodology -file D:/prg/prg_cam/docs/reports/ethernet_bringup/post_route_methodology.rpt
 | Design       : Camera_Ethernet_Top
@@ -23,12 +23,12 @@ Table of Contents
           Floorplan: design_1
       Design limits: <entire design considered>
              Max checks: <unlimited>
-             Checks found: 20
+             Checks found: 31
 +-----------+----------+--------------------------------------------+--------+
 | Rule      | Severity | Description                                | Checks |
 +-----------+----------+--------------------------------------------+--------+
 | SYNTH-6   | Warning  | Timing of a RAM block might be sub-optimal | 5      |
-| TIMING-18 | Warning  | Missing input or output delay              | 15     |
+| TIMING-18 | Warning  | Missing input or output delay              | 26     |
 +-----------+----------+--------------------------------------------+--------+
 
 2. REPORT DETAILS
@@ -60,75 +60,130 @@ Related violations: <none>
 
 TIMING-18#1 Warning
 Missing input or output delay  
-An input delay is missing on CPU_RESETN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on CAMERA_CAPTURE_ENABLE relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#2 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[0] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on CPU_RESETN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#3 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[1] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[0] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#4 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[2] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[1] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#5 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[3] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[2] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#6 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[4] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[3] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#7 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[5] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[4] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#8 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[6] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[5] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#9 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[7] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[6] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#10 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[8] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[7] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#11 Warning
 Missing input or output delay  
-An input delay is missing on GPIO[9] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[8] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#12 Warning
 Missing input or output delay  
-An output delay is missing on ETH_RSTN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+An input delay is missing on GPIO[9] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#13 Warning
 Missing input or output delay  
-An output delay is missing on ETH_TXD[0] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+An input delay is missing on GPIO_CAM1[0] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#14 Warning
 Missing input or output delay  
-An output delay is missing on ETH_TXD[1] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+An input delay is missing on GPIO_CAM1[1] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
 Related violations: <none>
 
 TIMING-18#15 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[2] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#16 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[3] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#17 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[4] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#18 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[5] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#19 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[6] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#20 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[7] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#21 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[8] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#22 Warning
+Missing input or output delay  
+An input delay is missing on GPIO_CAM1[9] relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#23 Warning
+Missing input or output delay  
+An output delay is missing on ETH_RSTN relative to the rising and/or falling clock edge(s) of sys_clk_pin.
+Related violations: <none>
+
+TIMING-18#24 Warning
+Missing input or output delay  
+An output delay is missing on ETH_TXD[0] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+Related violations: <none>
+
+TIMING-18#25 Warning
+Missing input or output delay  
+An output delay is missing on ETH_TXD[1] relative to the rising and/or falling clock edge(s) of eth_refclk_out.
+Related violations: <none>
+
+TIMING-18#26 Warning
 Missing input or output delay  
 An output delay is missing on ETH_TXEN relative to the rising and/or falling clock edge(s) of eth_refclk_out.
 Related violations: <none>
