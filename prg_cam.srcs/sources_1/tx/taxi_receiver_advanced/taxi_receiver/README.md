@@ -19,6 +19,12 @@ taxi_receiver/
   stages.py              Stage protocol + build_stage_chain(): compose Layer1-2/3/4/5 by name
   pipeline.py            orchestration only: queue + worker thread, runs whatever stage list it's given
   cli.py                 argparse entry point (adds --max-stage on top of the original flags)
+  archive_layout.py      read-only archive path adapter for attempt/cam/COMPLETE/RECOVERED layouts
+  archive_monitor.py     polling backend, latest-frame mailboxes, and generation handling
+  image_loader.py        PGM/JSON validation + decode for viewer consumption
+  camera_viewer.py       Tkinter viewer UI for COMPLETE/RECOVERED side-by-side display
+  viewer_cli.py          CLI entry point for the viewer
+  demo_archive_producer.py  temp-only demo archive generator for UI testing
 
 tests/
   synthetic.py           builds 128-byte camera/fixed packets + RawEthernetFrame without scapy
@@ -255,6 +261,22 @@ project-level `D:\prg\prg_cam\images`, so the pre-created `cam0` and
 an isolated test. The default threshold bit order is `msb_first`; pass
 CLI `--bit-order lsb_first` only when the sender's packed-pixel order
 has been confirmed to require it.
+
+Read-only viewer for the archive:
+
+```powershell
+.\run_camera_viewer.ps1 `
+  -ArchiveRoot D:\prg\prg_cam\images\temp\archive `
+  -Attempt attempt3 `
+  -Camera cam0 `
+  -RefreshIntervalMs 50
+```
+
+Temporary demo archive for local UI testing only:
+
+```powershell
+python -m taxi_receiver.demo_archive_producer --duration-seconds 8 --fps 16
+```
 
 ## Packet layout (packet_format.py)
 

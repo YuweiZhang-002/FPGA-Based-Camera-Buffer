@@ -12,7 +12,7 @@
 //
 // All Camera_Capture outputs, Line Buffers, Arbitration, CRC and output FIFO run
 // in sys_clk domain. Each camera pclk is only an asynchronous input strobe to its
-// own Alarmer. This makes the four Line Buffer streams safe to arbitrate without
+// own synchronized/debounced capture front-end. This makes the four Line Buffer streams safe to arbitrate without
 // an additional CDC after the buffers.
 //////////////////////////////////////////////////////////////////////////////////
 module Camera_Pipeline #(
@@ -25,6 +25,7 @@ module Camera_Pipeline #(
 )(
     input  wire       sys_clk, // FPGA 原生 100 MHz；全流水线唯一逻辑时钟
     input  wire       rst,     // 高有效复位，广播到所有子模块
+    input  wire       capture_enable, // 同步采集请求；不复位下游缓存
 
     input  wire       cam0_pclk,
     input  wire       cam0_href,
@@ -99,6 +100,7 @@ module Camera_Pipeline #(
     Camera_Capture #(.CAM_ID(CAM0_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
     u_capture_0 (
         .pclk(cam0_pclk), .sys_clk(sys_clk), .rst(rst),
+        .capture_enable(capture_enable),
         .href(cam0_href), .camera_data(cam0_data),
         .byte_data(c0_data), .byte_valid(c0_valid),
         .line_start(c0_start), .line_end(c0_end),
@@ -112,6 +114,7 @@ module Camera_Pipeline #(
     Camera_Capture #(.CAM_ID(CAM1_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
     u_capture_1 (
         .pclk(cam1_pclk), .sys_clk(sys_clk), .rst(rst),
+        .capture_enable(capture_enable),
         .href(cam1_href), .camera_data(cam1_data),
         .byte_data(c1_data), .byte_valid(c1_valid),
         .line_start(c1_start), .line_end(c1_end),
@@ -122,6 +125,7 @@ module Camera_Pipeline #(
     Camera_Capture #(.CAM_ID(CAM2_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
     u_capture_2 (
         .pclk(cam2_pclk), .sys_clk(sys_clk), .rst(rst),
+        .capture_enable(capture_enable),
         .href(cam2_href), .camera_data(cam2_data),
         .byte_data(c2_data), .byte_valid(c2_valid),
         .line_start(c2_start), .line_end(c2_end),
@@ -132,6 +136,7 @@ module Camera_Pipeline #(
     Camera_Capture #(.CAM_ID(CAM3_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
     u_capture_3 (
         .pclk(cam3_pclk), .sys_clk(sys_clk), .rst(rst),
+        .capture_enable(capture_enable),
         .href(cam3_href), .camera_data(cam3_data),
         .byte_data(c3_data), .byte_valid(c3_valid),
         .line_start(c3_start), .line_end(c3_end),

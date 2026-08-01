@@ -48,6 +48,8 @@ class TaxiReceiverPipeline:
         on_completed_frame: Optional[Callable[[CompletedFrame], None]] = None,
         on_frame_processed: Optional[Callable[[FrameContext], None]] = None,
     ) -> None:
+        if queue_depth <= 0:
+            raise ValueError("queue_depth must be positive")
         self.frame_source = frame_source
         self.mode = mode
         self.sink = sink
@@ -67,6 +69,7 @@ class TaxiReceiverPipeline:
         self.on_frame_processed = on_frame_processed
 
         self.monitor = StreamMonitor(report_interval=report_interval, sink=sink)
+        self.monitor.configure_capture_queue(queue_depth)
 
         # Either take the caller's hand-built chain as-is, or build one
         # declaratively from max_stage. Either way, from here on this
@@ -136,12 +139,16 @@ class TaxiReceiverPipeline:
             while not self._stop_event.is_set():
                 try:
                     self._queue.put(frame, timeout=0.2)
+                    self.monitor.record_capture_queue_depth(
+                        self._queue.qsize()
+                    )
                     return
                 except queue.Full:
                     continue
             return
         try:
             self._queue.put_nowait(frame)
+            self.monitor.record_capture_queue_depth(self._queue.qsize())
         except queue.Full:
             self.monitor.record_dropped_capture()
 

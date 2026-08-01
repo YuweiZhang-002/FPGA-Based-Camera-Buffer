@@ -26,6 +26,7 @@ module tb_Line_Buffer;
     integer output_byte = 0;
     integer output_packet = 0;
     integer errors = 0;
+    reg [7:0] observed_flags [0:7];
 
     always #5 sys_clk = ~sys_clk;
 
@@ -43,12 +44,13 @@ module tb_Line_Buffer;
         .used_count(used_count), .committed_count(committed_count)
     );
 
-    task automatic send_packet;
+    task automatic send_packet_n;
         input [7:0] base;
         input [7:0] flags;
+        input integer length;
         integer i;
         begin
-            for (i = 0; i < 128; i = i + 1) begin
+            for (i = 0; i < length; i = i + 1) begin
                 @(negedge sys_clk);
                 capture_line_start = (i == 0);
                 capture_valid      = 1'b1;
@@ -65,16 +67,20 @@ module tb_Line_Buffer;
         end
     endtask
 
+    task automatic send_packet;
+        input [7:0] base;
+        input [7:0] flags;
+        begin
+            send_packet_n(base, flags, 128);
+        end
+    endtask
+
     always @(posedge sys_clk) begin
         if (!rst && tx_valid && tx_ready) begin
             if (output_byte == 0) begin
+                observed_flags[output_packet] = tx_flags;
                 if (tx_cam_id !== 2'd2) begin
                     $display("ERROR Line_Buffer cam_id=%0d", tx_cam_id);
-                    errors = errors + 1;
-                end
-                if ((output_packet == 4) && (tx_flags !== 8'h03)) begin
-                    $display("ERROR sticky overflow flags=%02x expected=06",
-                             tx_flags);
                     errors = errors + 1;
                 end
             end
@@ -121,12 +127,40 @@ module tb_Line_Buffer;
         grant = 1'b1;
         wait (output_packet == 1);
 
-        // A slot is now free. This LAST_ROW packet must inherit bit2, producing
-        // flags 0x02 | 0x01 = 0x03 when it eventually reaches TX.
-        send_packet(8'h60, 8'h02);
+        // A slot is now free.  The first later valid packet reports the dropped
+        // packet once.  Camera_Capture no longer synthesizes LAST_ROW, so this
+        // must not depend on capture_flags[1] to clear.
+        send_packet(8'h60, 8'h00);
 
         wait (output_packet == 5);
+
+        // The overflow indication is an event report, not a permanent poison
+        // bit.  A second valid packet must not inherit the old overflow again.
+        send_packet(8'h70, 8'h00);
+        wait (output_packet == 6);
         repeat (5) @(posedge sys_clk);
+
+        if (observed_flags[4] !== 8'h01) begin
+            $display("ERROR first post-drop flags=%02x expected=01",
+                     observed_flags[4]);
+            errors = errors + 1;
+        end
+        if (observed_flags[5] !== 8'h00) begin
+            $display("ERROR sticky overflow did not clear flags=%02x expected=00",
+                     observed_flags[5]);
+            errors = errors + 1;
+        end
+
+        // A length-error row must release its reservation without becoming a
+        // padded, apparently well-formed 128-byte transmit packet.
+        send_packet_n(8'h80, 8'h08, 127);
+        repeat (5) @(posedge sys_clk);
+        if ((used_count !== 0) || (committed_count !== 0) || request ||
+            (output_packet !== 6)) begin
+            $display("ERROR invalid row escaped used=%0d committed=%0d request=%0b output=%0d",
+                     used_count, committed_count, request, output_packet);
+            errors = errors + 1;
+        end
 
         if ((used_count !== 0) || (committed_count !== 0) || request) begin
             $display("ERROR Line_Buffer did not drain: used=%0d committed=%0d",

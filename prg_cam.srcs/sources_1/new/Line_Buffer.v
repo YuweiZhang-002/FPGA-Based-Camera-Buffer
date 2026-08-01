@@ -46,7 +46,7 @@ module Line_Buffer #(
     input  wire       grant,   // Arbiter 给本 LB 的包级所有权
 
     // Selected packet stream to Byte_Replacer.
-    output wire [7:0] tx_data,        // 当前输出 byte；短包缺失区自动补 0
+    output wire [7:0] tx_data,        // 当前已提交的固定长度 packet byte
     output reg        tx_valid,       // tx_data/metadata/last 当前有效
     input  wire       tx_ready,       // 被选中且 Byte_Replacer 可接收
     output reg        tx_packet_last, // 固定 offset PACKET_BYTES-1 时置位
@@ -88,19 +88,19 @@ module Line_Buffer #(
     // ========================================================================
     // RX-ONLY FLAGS / REGISTERS -- 仅 RX agent 写入或判断
     // ========================================================================
-    localparam [7:0] PKT_ROW_FLAG_LAST_ROW     = 8'h02;
     // RP2350A wire protocol: bit0=overflow, bit1=last, bit2=first-valid-row.
     // Keep the sticky FPGA overflow bit disjoint from the upstream 0x04 first
     // marker when Byte_Replacer ORs both sources into packet offset 9.
     localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h01;
+    localparam [7:0] PKT_ROW_FLAG_LENGTH_ERROR = 8'h08;
 
     reg [SLOT_W-1:0] wr_ptr;           // 下一个将预留/提交的 slot
     reg [8:0] wr_count;                // 当前 href 已保存的真实 byte 数
 
     // Set after a packet is dropped because all slots are occupied.  The bit is
-    // merged into the first later packet that can be transmitted and remains set
-    // until a committed LAST_ROW packet reports it.  A dropped last-row packet
-    // cannot carry metadata itself, so retaining the bit prevents silent loss.
+    // merged into exactly the first later valid packet and then cleared.  The
+    // receiver's per-frame contamination state propagates the event; repeating
+    // the raw bit on every later row would reject otherwise usable data.
     reg frame_overflow_pending;
 
     // 隐式 RX 状态：正常不变量 committed_count<=used_count 下，二者之差
@@ -130,7 +130,12 @@ module Line_Buffer #(
                          (used_count < LINE_SLOTS);
     wire drop_event    = capture_line_start && !rx_reserved &&
                          (used_count >= LINE_SLOTS);
-    wire commit_event  = capture_line_end && rx_reserved;
+    // A malformed-length row is never converted into a padded, CRC-valid
+    // packet.  It releases its reservation and is represented downstream by
+    // the source row_seq gap, which the receiver can recover with zero-fill.
+    wire discard_event = capture_line_end && rx_reserved &&
+                         ((capture_flags & PKT_ROW_FLAG_LENGTH_ERROR) != 0);
+    wire commit_event  = capture_line_end && rx_reserved && !discard_event;
     wire release_event = tx_valid && tx_ready && tx_packet_last;
 
     // ========================================================================
@@ -167,7 +172,8 @@ module Line_Buffer #(
                                           : rd_base + tx_output_index + 1'b1;
 
     assign request = (committed_count != 0);
-    // 如果 href 过早结束，超出真实 tx_length 的位置补 0；后级仍发送 128 byte。
+    // Valid committed rows have tx_length=PACKET_BYTES; the guard remains as a
+    // defensive bound if a future producer violates the commit contract.
     assign tx_data = (tx_output_index < tx_length) ? mem_read_data : 8'd0;
 
     always @(posedge sys_clk) begin
@@ -183,8 +189,8 @@ module Line_Buffer #(
     //   drop_event    : no slot reserved; report overflow only.
     //   reserve_event : reserve wr_ptr and optionally store the first byte.
     //   rx_reserved   : accept later bytes; line_end commits metadata and wr_ptr.
-    // Short packets are later zero-padded by TX; long packets retain their first
-    // 128 bytes. Camera_Capture's length-error flag is merged at offset 9 later.
+    // Malformed-length packets are discarded at line_end; valid packets retain
+    // the fixed 128-byte TX contract.
     // -------------------------------------------------------------------------
     // Synchronous reset is intentional in both memory-owning agents. Vivado
     // cannot infer block RAM when a memory port sits in an asynchronous-reset
@@ -217,7 +223,11 @@ module Line_Buffer #(
                 if (capture_valid && (wr_count < PACKET_BYTES))
                     wr_count <= wr_count + 1'b1;
 
-                if (capture_line_end) begin
+                if (capture_line_end && discard_event) begin
+                    // Reuse the same wr_ptr slot.  Occupancy accounting removes
+                    // this reservation below; no request or packet is exposed.
+                    wr_count <= 9'd0;
+                end else if (capture_line_end) begin
                     // metadata 只在 commit 时写一次。若 line_end 与最后一个
                     // valid 同拍，length 需把本拍 byte 计入。
                     cam_id_mem[wr_ptr] <= capture_cam_id;
@@ -230,9 +240,10 @@ module Line_Buffer #(
                                             (wr_count < PACKET_BYTES))
                                            ? 1'b1 : 1'b0);
 
-                    // 成功提交的 LAST_ROW 会携带 sticky overflow，再清除它。
-                    // 若 LAST_ROW 本身被 drop，没有 commit，所以不会在此清零。
-                    if (capture_flags & PKT_ROW_FLAG_LAST_ROW)
+                    // Report a capacity drop on exactly one later valid packet.
+                    // Camera_Capture no longer synthesizes LAST_ROW, so tying
+                    // this clear to capture_flags[1] made the bit permanent.
+                    if (frame_overflow_pending)
                         frame_overflow_pending <= 1'b0;
 
                     if (wr_ptr == LINE_SLOTS - 1)
@@ -253,8 +264,8 @@ module Line_Buffer #(
     // 持有一个必须保持到 ready 的 byte。该编码与 Byte_FIFO.out_valid_r 相同。
     // 获得 grant 后固定从 rd_ptr 发送 128 bytes；同步 BRAM 读与 ready/valid
     // 输出寄存器形成紧凑的预取端口。
-    // Missing bytes from a short href interval are emitted as zero; Byte_Replacer
-    // then overwrites the CRC tail using the actual modified packet contents.
+    // The length guard in the RX agent prevents short/long rows from reaching
+    // this TX path, so every committed slot has the fixed packet length.
     // -------------------------------------------------------------------------
     // See RX note above: synchronous reset preserves the BRAM read template.
     always @(posedge sys_clk) begin
@@ -308,10 +319,14 @@ module Line_Buffer #(
             used_count      <= 3'd0;
             committed_count <= 3'd0;
         end else begin
-            case ({reserve_event, release_event})
-                // 同拍一进一出时占用不变；避免两个 always block 分别写 count。
-                2'b10: used_count <= used_count + 1'b1;
-                2'b01: used_count <= used_count - 1'b1;
+            case ({reserve_event, release_event, discard_event})
+                3'b100: used_count <= used_count + 1'b1;
+                3'b010,
+                3'b001: used_count <= used_count - 1'b1;
+                // One reservation plus one release is net zero.  A discard and
+                // TX release can coincide, in which case two slots leave.
+                3'b110: used_count <= used_count;
+                3'b011: used_count <= used_count - 2'd2;
                 default: used_count <= used_count;
             endcase
 

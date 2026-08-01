@@ -9,7 +9,16 @@ param(
 
     [int]$QueueDepth = 65536,
 
+    [int]$FrameOutputQueueDepth = 256,
+
     [string]$ImagesRoot = '',
+
+    [ValidateSet('strict', 'recover-zero-fill')]
+    [string]$ImagePolicy = 'strict',
+
+    [int]$MaxMissingRows = 4,
+
+    [int]$MaxConsecutiveMissing = 2,
 
     [string]$PythonExe =
         'C:\Users\Z\AppData\Local\Python\bin\python.exe'
@@ -29,7 +38,11 @@ try {
         --mode camera `
         --max-stage reassemble `
         --expected-rows $ExpectedRows `
+        --image-policy $ImagePolicy `
+        --max-missing-rows $MaxMissingRows `
+        --max-consecutive-missing $MaxConsecutiveMissing `
         --queue-depth $QueueDepth `
+        --frame-output-queue-depth $FrameOutputQueueDepth `
         --output-root $OutputRoot `
         --images-root $ImagesRoot
     exit $LASTEXITCODE

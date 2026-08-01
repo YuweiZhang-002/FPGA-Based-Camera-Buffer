@@ -20,8 +20,13 @@ module Camera_Ethernet_Top #(
     input  wire       CLK100MHZ,
     input  wire       CPU_RESETN,
 
-    // Camera/MCU receive connector.
-    input  wire [9:0] GPIO, // [7:0]=D0..D7, [8]=PCLK, [9]=HREF
+    // Camera/MCU receive connectors.
+    input  wire [9:0] GPIO,      // cam0: [7:0]=D0..D7, [8]=PCLK, [9]=HREF
+    input  wire [9:0] GPIO_CAM1, // cam1: [7:0]=D0..D7, [8]=PCLK, [9]=HREF
+
+    // Physical SW15 (FPGA package pin V10), active high.  The local Digilent
+    // Master XDC calls package pin J15 SW0, so do not confuse the two names.
+    input  wire       CAMERA_CAPTURE_ENABLE,
 
     output wire       ETH_MDC,
     inout  wire       ETH_MDIO,
@@ -71,6 +76,9 @@ module Camera_Ethernet_Top #(
     (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic bridge_rst_reg     = 1'b1;
     (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic taxi_logic_rst_reg = 1'b1;
     (* KEEP = "TRUE", MAX_FANOUT = 64 *) logic taxi_mac_rst_reg   = 1'b1;
+    (* ASYNC_REG = "TRUE" *) logic camera_enable_meta = 1'b0;
+    (* ASYNC_REG = "TRUE", MARK_DEBUG = "TRUE" *)
+    logic camera_enable_sync = 1'b0;
 
     always_ff @(posedge logic_clk) begin
         if (!CPU_RESETN || !clock_locked) begin
@@ -93,6 +101,21 @@ module Camera_Ethernet_Top #(
         taxi_logic_rst_reg <= ~phy_ready;
         taxi_mac_rst_reg   <= ~phy_ready;
     end
+
+    // SW15 is asynchronous to logic_clk.  Synchronize it, then pass it as a
+    // capture request.  Camera_Capture applies the request only at a clean HREF
+    // boundary; it is deliberately not part of the pipeline reset tree.
+    always_ff @(posedge logic_clk) begin
+        if (!CPU_RESETN || !clock_locked || !phy_ready) begin
+            camera_enable_meta <= 1'b0;
+            camera_enable_sync <= 1'b0;
+        end else begin
+            camera_enable_meta <= CAMERA_CAPTURE_ENABLE;
+            camera_enable_sync <= camera_enable_meta;
+        end
+    end
+
+    (* MARK_DEBUG = "TRUE" *) wire camera_pipeline_rst = camera_rst_reg;
 
     ethernet_clk_wiz u_ethernet_clk_wiz (
         .rmii_ref_clk (rmii_ref_clk),
@@ -165,13 +188,15 @@ module Camera_Ethernet_Top #(
                                       ? byte_fifo_out_data[8]
                                       : fixed_packet_last;
 
-    // The physical connector currently carries one RP2350A/OV5640 stream.
-    // Camera_Pipeline remains a four-input block, so camera0 consumes GPIO and
-    // camera1..3 are explicitly inactive.  PCLK is sampled into logic_clk by
-    // Camera_Capture/Alarmer; see that module's frequency/stability contract.
+    // cam0 is carried by JA/JB and cam1 by JC/JD.  Camera_Pipeline remains a
+    // four-input block; camera2..3 are explicitly inactive.  Each PCLK is
+    // synchronized and filtered independently inside its Camera_Capture.
     (* MARK_DEBUG = "TRUE" *) wire       camera_pclk_dbg = GPIO[8];
     (* MARK_DEBUG = "TRUE" *) wire       camera_href_dbg = GPIO[9];
     (* MARK_DEBUG = "TRUE" *) wire [7:0] camera_data_dbg = GPIO[7:0];
+    (* MARK_DEBUG = "TRUE" *) wire       camera1_pclk_dbg = GPIO_CAM1[8];
+    (* MARK_DEBUG = "TRUE" *) wire       camera1_href_dbg = GPIO_CAM1[9];
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] camera1_data_dbg = GPIO_CAM1[7:0];
 
     (* MARK_DEBUG = "TRUE" *) wire [7:0] camera_packet_data;
     (* MARK_DEBUG = "TRUE" *) wire       camera_packet_valid;
@@ -180,7 +205,7 @@ module Camera_Ethernet_Top #(
     (* MARK_DEBUG = "TRUE" *) wire [3:0] camera_arb_grant;
     (* MARK_DEBUG = "TRUE" *) wire [3:0] camera_overflow_pulse;
     (* MARK_DEBUG = "TRUE" *) wire [31:0] camera_drop_count_0;
-    wire [31:0] camera_drop_count_1;
+    (* MARK_DEBUG = "TRUE" *) wire [31:0] camera_drop_count_1;
     wire [31:0] camera_drop_count_2;
     wire [31:0] camera_drop_count_3;
     (* MARK_DEBUG = "TRUE" *) wire [11:0] camera_buffer_used_count;
@@ -201,13 +226,14 @@ module Camera_Ethernet_Top #(
         .PACKET_FIFO_DEPTH (512)
     ) u_camera_pipeline (
         .sys_clk                  (logic_clk),
-        .rst                      (camera_rst_reg),
+        .rst                      (camera_pipeline_rst),
+        .capture_enable           (camera_enable_sync),
         .cam0_pclk                (camera_pclk_dbg),
         .cam0_href                (camera_href_dbg),
         .cam0_data                (camera_data_dbg),
-        .cam1_pclk                (1'b0),
-        .cam1_href                (1'b0),
-        .cam1_data                (8'd0),
+        .cam1_pclk                (camera1_pclk_dbg),
+        .cam1_href                (camera1_href_dbg),
+        .cam1_data                (camera1_data_dbg),
         .cam2_pclk                (1'b0),
         .cam2_href                (1'b0),
         .cam2_data                (8'd0),

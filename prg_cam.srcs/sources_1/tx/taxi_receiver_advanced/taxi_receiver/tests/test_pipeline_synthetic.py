@@ -1,5 +1,6 @@
 import time
 
+from taxi_receiver.async_sink import AsyncCallbackDispatcher
 from taxi_receiver.capture import SyntheticFrameSource
 from taxi_receiver.packet_format import (
     FLAG_FIRST_ROW,
@@ -79,7 +80,7 @@ def test_pipeline_fixed_mode():
     assert pipeline.monitor.stats.bad_fixed_payload == 1
 
 
-def test_invalid_structured_packet_can_close_corrupt_evidence_session():
+def test_bad_sync_is_counted_but_cannot_create_image_session():
     payload = build_camera_row(
         cam_id=0,
         frame_id=24618,
@@ -107,7 +108,73 @@ def test_invalid_structured_packet_can_close_corrupt_evidence_session():
     assert pipeline.monitor.stats.valid_packets == 0
     assert pipeline.monitor.stats.camera(0).packets == 1
     assert pipeline.monitor.stats.camera(0).last_row_packets == 1
-    assert len(completed_frames) == 1
-    assert completed_frames[0].frame_id == 24618
-    assert completed_frames[0].status is FrameStatus.CORRUPT
-    assert completed_frames[0].row_count == 0
+    # Monitoring/session-audit retain the packet error, but Layer 5 must not
+    # trust frame_id=24618 from a packet whose sync words are invalid.
+    assert completed_frames == []
+
+
+def test_slow_frame_storage_is_decoupled_from_capture_queue():
+    """A slow image/archive callback must not stall the capture consumer."""
+
+    frames = [
+        make_camera_frame(
+            cam_id=0,
+            frame_id=index,
+            row_idx=0,
+            row_seq=index,
+            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+        )
+        for index in range(100)
+    ]
+
+    def slow_store(_frame):
+        time.sleep(0.002)
+
+    class PacedFrameSource:
+        def start(self, on_frame):
+            for frame in frames:
+                on_frame(frame)
+                time.sleep(0.0005)
+
+        def stop(self):
+            pass
+
+    direct = TaxiReceiverPipeline(
+        frame_source=PacedFrameSource(),
+        mode="camera",
+        max_stage="reassemble",
+        reassembler=FrameReassembler(expected_rows=1),
+        queue_depth=2,
+        report_interval=999,
+        sink=lambda *_: None,
+        on_completed_frame=slow_store,
+    )
+    direct.start()
+    direct.stop()
+    assert direct.monitor.stats.dropped_capture_queue > 0
+
+    dispatcher = AsyncCallbackDispatcher(
+        slow_store,
+        queue_depth=len(frames),
+        name="test-frame-writer",
+        error_sink=lambda _message: None,
+    )
+    asynchronous = TaxiReceiverPipeline(
+        frame_source=PacedFrameSource(),
+        mode="camera",
+        max_stage="reassemble",
+        reassembler=FrameReassembler(expected_rows=1),
+        queue_depth=2,
+        report_interval=999,
+        sink=lambda *_: None,
+        on_completed_frame=dispatcher.submit,
+    )
+    asynchronous.start()
+    asynchronous.stop()
+    dispatcher.close()
+
+    assert asynchronous.monitor.stats.dropped_capture_queue == 0
+    assert dispatcher.stats.submitted == len(frames)
+    assert dispatcher.stats.processed == len(frames)
+    assert dispatcher.stats.failures == 0
+    assert dispatcher.stats.queue_peak > 0

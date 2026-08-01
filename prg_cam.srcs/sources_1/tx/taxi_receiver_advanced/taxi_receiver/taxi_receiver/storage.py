@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import threading
 import time
+from typing import TextIO
 import uuid
 
 from .reassembler import CompletedFrame
@@ -48,6 +49,8 @@ class StorageAndPipeline:
         self.output_root.mkdir(parents=True, exist_ok=True)
         self.summary_path = self.output_root / "summary.csv"
         self._summary_lock = threading.Lock()
+        self._summary_handle: TextIO | None = None
+        self._summary_writer: csv.DictWriter | None = None
 
     def archive(self, frame: CompletedFrame) -> Path:
         camera_dir = self.output_root / f"cam_{frame.camera_id}"
@@ -89,6 +92,14 @@ class StorageAndPipeline:
 
     def __call__(self, frame: CompletedFrame) -> None:
         self.archive(frame)
+
+    def close(self) -> None:
+        with self._summary_lock:
+            if self._summary_handle is not None:
+                self._summary_handle.flush()
+                self._summary_handle.close()
+                self._summary_handle = None
+                self._summary_writer = None
 
     @staticmethod
     def _metadata(frame: CompletedFrame, raw: bytes) -> dict[str, object]:
@@ -162,22 +173,43 @@ class StorageAndPipeline:
     ) -> None:
         row = self._summary_row(frame, output_path)
         with self._summary_lock:
-            existing: list[dict[str, str]] = []
-            if self.summary_path.exists():
-                with self.summary_path.open(
-                    newline="", encoding="utf-8"
-                ) as handle:
-                    existing.extend(csv.DictReader(handle))
+            writer = self._get_summary_writer()
+            writer.writerow(row)
+            assert self._summary_handle is not None
+            self._summary_handle.flush()
 
-            temp_path = self.output_root / (
-                f".summary.{uuid.uuid4().hex}.tmp"
-            )
-            with temp_path.open("w", newline="", encoding="utf-8") as handle:
-                writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
-                writer.writeheader()
-                writer.writerows(existing)
-                writer.writerow(row)
-            os.replace(temp_path, self.summary_path)
+    def _get_summary_writer(self) -> csv.DictWriter:
+        if self._summary_writer is not None:
+            return self._summary_writer
+
+        has_content = (
+            self.summary_path.exists()
+            and self.summary_path.stat().st_size > 0
+        )
+        if has_content:
+            with self.summary_path.open(
+                newline="", encoding="utf-8"
+            ) as handle:
+                header = next(csv.reader(handle), [])
+            if tuple(header) != SUMMARY_FIELDS:
+                raise ValueError(
+                    "existing summary.csv schema does not match current "
+                    f"receiver: {self.summary_path}"
+                )
+
+        self._summary_handle = self.summary_path.open(
+            "a",
+            newline="",
+            encoding="utf-8",
+        )
+        self._summary_writer = csv.DictWriter(
+            self._summary_handle,
+            fieldnames=SUMMARY_FIELDS,
+        )
+        if not has_content:
+            self._summary_writer.writeheader()
+            self._summary_handle.flush()
+        return self._summary_writer
 
     @staticmethod
     def _summary_row(

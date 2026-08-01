@@ -20,6 +20,30 @@ set_property -dict { PACKAGE_PIN G18   IOSTANDARD LVCMOS33 } [get_ports { GPIO[7
 set_property -dict { PACKAGE_PIN D14   IOSTANDARD LVCMOS33 } [get_ports { GPIO[8] }]; # JB1  PCLK
 set_property -dict { PACKAGE_PIN E16   IOSTANDARD LVCMOS33 } [get_ports { GPIO[9] }]; # JB7  HREF
 
+# Camera1 receive interface.  Direction is RP2350A/Camera output -> FPGA input,
+# matching the input-only GPIO_CAM1 port in Camera_Ethernet_Top.sv.  Pin names
+# and package pins are copied from the local Nexys-A7-50T-Master.xdc.
+# JC carries the complete 8-bit data bus in ascending logical-bit order.
+set_property -dict { PACKAGE_PIN K1    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[0] }]; # JC1  Camera D0 output -> FPGA input
+set_property -dict { PACKAGE_PIN F6    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[1] }]; # JC2  Camera D1 output -> FPGA input
+set_property -dict { PACKAGE_PIN J2    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[2] }]; # JC3  Camera D2 output -> FPGA input
+set_property -dict { PACKAGE_PIN G6    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[3] }]; # JC4  Camera D3 output -> FPGA input
+set_property -dict { PACKAGE_PIN E7    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[4] }]; # JC7  Camera D4 output -> FPGA input
+set_property -dict { PACKAGE_PIN J3    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[5] }]; # JC8  Camera D5 output -> FPGA input
+set_property -dict { PACKAGE_PIN J4    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[6] }]; # JC9  Camera D6 output -> FPGA input
+set_property -dict { PACKAGE_PIN E6    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[7] }]; # JC10 Camera D7 output -> FPGA input
+
+# JD1 is the Camera/RP2350A PCLK input.  JD7 is HREF (line-valid timing input),
+# not a second free-running clock.  Camera_Capture synchronizes both into the
+# 100 MHz logic domain; no create_clock is asserted until PCLK is measured.
+set_property -dict { PACKAGE_PIN H4    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[8] }]; # JD1 PCLK output -> FPGA input
+set_property -dict { PACKAGE_PIN H2    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[9] }]; # JD7 HREF output -> FPGA input
+
+# The physical right-most slide switch is SW15 on package pin V10.  J15 is
+# SW0 in the Digilent Master XDC and is deliberately not used here.
+set_property -dict { PACKAGE_PIN V10   IOSTANDARD LVCMOS33 } \
+    [get_ports { CAMERA_CAPTURE_ENABLE }]; # SW15, high=capture enabled
+
 set_property -dict { PACKAGE_PIN C9    IOSTANDARD LVCMOS33 } [get_ports { ETH_MDC }]; #IO_L11P_T1_SRCC_16 Sch=eth_mdc
 set_property -dict { PACKAGE_PIN A9    IOSTANDARD LVCMOS33 } [get_ports { ETH_MDIO }]; #IO_L14N_T2_SRCC_16 Sch=eth_mdio
 set_property -dict { PACKAGE_PIN B3    IOSTANDARD LVCMOS33 } [get_ports { ETH_RSTN }]; #IO_L10P_T1_AD15P_35 Sch=eth_rstn

@@ -52,6 +52,7 @@ module tb_Camera_Pipeline_Ethernet_Source;
     ) u_camera_pipeline (
         .sys_clk                  (sys_clk),
         .rst                      (rst),
+        .capture_enable           (1'b1),
         .cam0_pclk                (cam_pclk),
         .cam0_href                (cam_href),
         .cam0_data                (cam_data),

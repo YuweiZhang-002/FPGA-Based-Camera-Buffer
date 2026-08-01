@@ -6,9 +6,10 @@ import sys
 import threading
 from pathlib import Path
 
+from .async_sink import AsyncCallbackDispatcher
 from .capture import ScapyLiveCapture, list_interfaces
 from .eth_validate import ETHER_TYPE
-from .image_pipeline import CameraImagePipeline
+from .image_pipeline import CameraImagePipeline, ImagePolicy
 from .pcap_stdlib import StdlibPcapReplayFrameSource
 from .pipeline import TaxiReceiverPipeline
 from .reassembler import FrameReassembler, NullReassembler
@@ -48,6 +49,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pcap", type=Path, help="Save matching Ethernet frames to a PCAP file.")
     parser.add_argument("--error-directory", type=Path, help="Save malformed payloads as binary files.")
     parser.add_argument("--queue-depth", type=int, default=8192)
+    parser.add_argument(
+        "--frame-output-queue-depth",
+        type=int,
+        default=256,
+        help=(
+            "Bounded queue between reassembly and slow RAW/PGM/JSON/archive "
+            "publication."
+        ),
+    )
     parser.add_argument("--report-interval", type=float, default=1.0)
     parser.add_argument(
         "--output-root",
@@ -73,6 +83,30 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=480,
         help="Expected packet rows per frame (current FPGA default: 480).",
+    )
+    parser.add_argument(
+        "--image-policy",
+        choices=tuple(policy.value for policy in ImagePolicy),
+        default=ImagePolicy.STRICT.value,
+        help=(
+            "strict publishes only COMPLETE images; recover-zero-fill may "
+            "publish narrowly eligible frames with missing rows filled dark."
+        ),
+    )
+    parser.add_argument(
+        "--max-missing-rows",
+        type=int,
+        default=4,
+        help="Maximum total missing rows accepted by recover-zero-fill.",
+    )
+    parser.add_argument(
+        "--max-consecutive-missing",
+        type=int,
+        default=2,
+        help=(
+            "Exclusive missing-run rejection threshold. The default 2 "
+            "rejects two or more consecutive missing rows."
+        ),
     )
     parser.add_argument("--frame-timeout", type=float, default=2.0)
     parser.add_argument(
@@ -118,6 +152,24 @@ def main() -> int:
         except ModuleNotFoundError:
             print("Scapy is not installed; offline --replay-pcap still works.")
         return 2
+    if (
+        args.image_policy == ImagePolicy.RECOVER_ZERO_FILL.value
+        and args.expected_rows != 480
+    ):
+        print(
+            "Error: recover-zero-fill requires --expected-rows 480.",
+            file=sys.stderr,
+        )
+        return 2
+    if (
+        args.image_policy == ImagePolicy.RECOVER_ZERO_FILL.value
+        and args.images_root is None
+    ):
+        print(
+            "Error: recover-zero-fill requires --images-root.",
+            file=sys.stderr,
+        )
+        return 2
 
     pcap_recorder = PcapRecorder(args.pcap) if args.pcap else None
     error_recorder = ErrorFrameRecorder(args.error_directory) if args.error_directory else None
@@ -149,8 +201,24 @@ def main() -> int:
             args.images_root,
             expected_rows=args.expected_rows,
             bit_order=args.bit_order,
+            image_policy=args.image_policy,
+            max_missing_rows=args.max_missing_rows,
+            max_consecutive_missing=args.max_consecutive_missing,
+            report_interval=args.report_interval,
         )
         if args.images_root is not None
+        else None
+    )
+    completed_frame_callback = _fanout_callbacks(
+        storage,
+        image_pipeline.archive_frame if image_pipeline is not None else None,
+    )
+    frame_output = (
+        AsyncCallbackDispatcher(
+            completed_frame_callback,
+            queue_depth=args.frame_output_queue_depth,
+        )
+        if completed_frame_callback is not None
         else None
     )
     frame_source = (
@@ -160,7 +228,11 @@ def main() -> int:
             source_mac=args.source_mac,
         )
         if args.replay_pcap is not None
-        else ScapyLiveCapture(args.interface, ether_type=ETHER_TYPE)
+        else ScapyLiveCapture(
+            args.interface,
+            ether_type=ETHER_TYPE,
+            include_raw=pcap_recorder is not None,
+        )
     )
 
     pipeline = TaxiReceiverPipeline(
@@ -173,9 +245,8 @@ def main() -> int:
         queue_depth=args.queue_depth,
         lossless_input=args.replay_pcap is not None,
         report_interval=args.report_interval,
-        on_completed_frame=_fanout_callbacks(
-            storage,
-            image_pipeline.archive_frame if image_pipeline is not None else None,
+        on_completed_frame=(
+            frame_output.submit if frame_output is not None else None
         ),
         on_frame_processed=_fanout_callbacks(
             session_audit,
@@ -203,6 +274,9 @@ def main() -> int:
         print(f"Archive   : {args.output_root.resolve()}")
     if args.images_root is not None:
         print(f"Images    : {args.images_root.resolve()}")
+        print(f"Image policy: {args.image_policy}")
+    if frame_output is not None:
+        print(f"Frame output queue: {args.frame_output_queue_depth}")
     print("Press Ctrl+C to stop.\n")
 
     try:
@@ -226,16 +300,26 @@ def main() -> int:
     finally:
         try:
             pipeline.stop()
+            if frame_output is not None:
+                frame_output.close()
             pipeline.print_final_report()
+            if frame_output is not None:
+                print("")
+                for line in frame_output.report_lines():
+                    print(line)
             if image_pipeline is not None:
                 print("")
                 for line in image_pipeline.report_lines():
                     print(line)
         finally:
+            if frame_output is not None:
+                frame_output.close()
             if session_audit is not None:
                 session_audit.close()
             if image_pipeline is not None:
                 image_pipeline.close()
+            if storage is not None:
+                storage.close()
 
     return 0
 

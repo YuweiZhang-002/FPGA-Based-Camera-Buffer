@@ -94,7 +94,11 @@ connect_probe $ila_name 19 16 [exact_bus byte_fifo_level 16]
 connect_probe $ila_name 20 1 [exact_net byte_fifo_almost_full]
 connect_probe $ila_name 21 1 [exact_net camera_pclk_dbg]
 connect_probe $ila_name 22 1 [exact_net camera_href_dbg]
-connect_probe $ila_name 23 8 [exact_bus camera_data_dbg 8]
+# The raw IBUF-to-IOB-register data nets cannot legally feed an ILA after the
+# Camera input sampling registers are packed into IOBs.  Probe the immutable
+# byte snapshot taken at the synchronized PCLK edge instead.
+connect_probe $ila_name 23 8 \
+    [exact_bus u_camera_pipeline/u_capture_0/data_on_pclk_rise 8]
 connect_probe $ila_name 24 8 [exact_bus camera_packet_data 8]
 connect_probe $ila_name 25 1 [exact_net camera_packet_valid]
 connect_probe $ila_name 26 1 [exact_net camera_packet_ready]
@@ -114,19 +118,56 @@ connect_probe $ila_name 39 1 [exact_net camera_length_error_dbg]
 connect_probe $ila_name 40 1 [exact_net camera_length_error_pulse_dbg]
 connect_probe $ila_name 41 1 [exact_net camera_capture_byte_valid_dbg]
 
-# Camera_Capture filter internals are synthesized, stable hierarchical nets.
-# Probe them directly so the ILA build gains visibility without changing any
-# Camera RTL port or data-path connection.
+# Camera_Capture two-phase PCLK qualifier.  low_count accumulates low evidence
+# across a one-cycle high runt; high_count must be consecutive after re-arm.
+# These probes distinguish an ignored runt from an accepted byte event.
 connect_probe $ila_name 42 2 \
-    [exact_bus u_camera_pipeline/u_capture_0/pclk_hist 2]
-connect_probe $ila_name 43 1 \
-    [exact_net u_camera_pipeline/u_capture_0/pclk_level]
+    [exact_bus u_camera_pipeline/u_capture_0/pclk_low_count 2]
+connect_probe $ila_name 43 2 \
+    [exact_bus u_camera_pipeline/u_capture_0/pclk_high_count 2]
 connect_probe $ila_name 44 1 \
     [exact_net u_camera_pipeline/u_capture_0/pclk_sync]
 connect_probe $ila_name 45 1 \
     [exact_net u_camera_pipeline/u_capture_0/href_sync]
 connect_probe $ila_name 46 8 \
     [exact_bus u_camera_pipeline/u_capture_0/data_sync 8]
+connect_probe $ila_name 47 1 \
+    [exact_net u_camera_pipeline/u_capture_0/pclk_pulse]
+connect_probe $ila_name 48 1 \
+    [exact_net u_camera_pipeline/u_capture_0/href_rise]
+connect_probe $ila_name 49 1 \
+    [exact_net u_camera_pipeline/u_capture_0/href_fall]
+
+# Camera1 uses JC for D0..D7 and JD1/JD7 for PCLK/HREF.  These probes prove
+# the second physical input, its synchronized view, arbitration/drop state and
+# the SW15 capture-enable control without changing the functional data path.
+connect_probe $ila_name 50 1 [exact_net camera1_pclk_dbg]
+connect_probe $ila_name 51 1 [exact_net camera1_href_dbg]
+connect_probe $ila_name 52 8 \
+    [exact_bus u_camera_pipeline/u_capture_1/data_on_pclk_rise 8]
+connect_probe $ila_name 53 32 [exact_bus camera_drop_count_1 32]
+connect_probe $ila_name 54 1 [exact_net camera_enable_sync]
+connect_probe $ila_name 55 1 [exact_net camera_pipeline_rst]
+connect_probe $ila_name 56 1 \
+    [exact_net u_camera_pipeline/u_capture_1/pclk_sync]
+connect_probe $ila_name 57 1 \
+    [exact_net u_camera_pipeline/u_capture_1/href_sync]
+connect_probe $ila_name 58 8 \
+    [exact_bus u_camera_pipeline/u_capture_1/data_sync 8]
+connect_probe $ila_name 59 1 \
+    [exact_net u_camera_pipeline/u_capture_1/pclk_pulse]
+
+# Boundary-safe capture control and the byte snapshot associated with the first
+# synchronized view of each PCLK edge.  These distinguish switch-boundary
+# behavior from PCLK/data alignment failures.
+connect_probe $ila_name 60 1 \
+    [exact_net u_camera_pipeline/u_capture_0/capture_armed]
+connect_probe $ila_name 61 1 \
+    [exact_net u_camera_pipeline/u_capture_0/line_active]
+connect_probe $ila_name 62 1 \
+    [exact_net u_camera_pipeline/u_capture_0/line_end_pending]
+connect_probe $ila_name 63 1 \
+    [exact_net u_camera_pipeline/u_capture_0/pclk_phase_armed]
 
 # implement_debug_core requires the debug-net constraints to have been persisted
 # in a saved project.  This modifies only build/ethernet_ila/prg_cam_ila.xpr.

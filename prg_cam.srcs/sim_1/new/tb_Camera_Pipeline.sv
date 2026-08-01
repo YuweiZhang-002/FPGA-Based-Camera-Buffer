@@ -2,7 +2,7 @@
 
 module tb_Camera_Pipeline;
     localparam integer PACKET_BYTES = 128;
-    localparam integer TEST_PACKETS = 4;
+    localparam integer TEST_PACKETS = 3;
 
     reg sys_clk = 1'b0;
     reg rst = 1'b1;
@@ -47,7 +47,7 @@ module tb_Camera_Pipeline;
         .LINES_PER_FRAME   (2),
         .PACKET_FIFO_DEPTH (256)
     ) dut (
-        .sys_clk(sys_clk), .rst(rst),
+        .sys_clk(sys_clk), .rst(rst), .capture_enable(1'b1),
         .cam0_pclk(cam0_pclk), .cam0_href(cam0_href), .cam0_data(cam0_data),
         .cam1_pclk(cam1_pclk), .cam1_href(cam1_href), .cam1_data(cam1_data),
         .cam2_pclk(cam2_pclk), .cam2_href(cam2_href), .cam2_data(cam2_data),
@@ -154,8 +154,9 @@ module tb_Camera_Pipeline;
         input integer packet_no;
         integer i;
         begin
-            // Only bytes 0..125 arrive. Line_Buffer pads the missing CRC tail,
-            // Camera_Capture sets LENGTH_ERROR, and Byte_Replacer creates CRC.
+            // Only bytes 0..125 arrive. Camera_Capture sets LENGTH_ERROR and
+            // Line_Buffer must discard the reservation instead of emitting a
+            // padded packet with a freshly recomputed, misleading valid CRC.
             for (i = 0; i < 126; i = i + 1) begin
                 @(negedge cam2_pclk);
                 if (i == 0)
@@ -202,7 +203,6 @@ module tb_Camera_Pipeline;
         build_expected(0, 2'd0, 8'h00);
         build_expected(1, 2'd1, 8'h00);
         build_expected(2, 2'd0, 8'h00);
-        build_expected(3, 2'd2, 8'h08); // preserve FIRST, OR LENGTH_ERROR
 
         repeat (8) @(posedge sys_clk);
         @(negedge sys_clk);
@@ -222,7 +222,13 @@ module tb_Camera_Pipeline;
         send_cam2_short_packet(3);
 
         wait (output_index == TEST_PACKETS * PACKET_BYTES);
-        repeat (10) @(posedge sys_clk);
+        repeat (40) @(posedge sys_clk);
+
+        if (output_index != TEST_PACKETS * PACKET_BYTES) begin
+            $display("ERROR malformed packet escaped output_index=%0d",
+                     output_index);
+            errors = errors + 1;
+        end
 
         if ({drop3, drop2, drop1, drop0} !== 128'd0) begin
             $display("ERROR unexpected dropped packet count");

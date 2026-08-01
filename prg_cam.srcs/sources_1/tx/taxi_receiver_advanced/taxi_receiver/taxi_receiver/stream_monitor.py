@@ -48,6 +48,8 @@ class GlobalStatistics:
     processing_errors: int = 0
 
     dropped_capture_queue: int = 0
+    capture_queue_capacity: int = 0
+    capture_queue_peak: int = 0
     ethernet_validation_failures: int = 0
 
     total_payload_bytes: int = 0
@@ -78,6 +80,15 @@ class StreamMonitor:
 
     def record_dropped_capture(self) -> None:
         self.stats.dropped_capture_queue += 1
+
+    def configure_capture_queue(self, capacity: int) -> None:
+        self.stats.capture_queue_capacity = capacity
+
+    def record_capture_queue_depth(self, depth: int) -> None:
+        self.stats.capture_queue_peak = max(
+            self.stats.capture_queue_peak,
+            depth,
+        )
 
     def record_validation_failure(self, reason: str) -> None:
         self.stats.ethernet_validation_failures += 1
@@ -156,12 +167,13 @@ class StreamMonitor:
         frame_delta = self.stats.matching_frames - self.stats.last_report_frames
         byte_delta = self.stats.total_payload_bytes - self.stats.last_report_bytes
 
-        fps = frame_delta / interval
+        packets_per_second = frame_delta / interval
         payload_mbps = byte_delta * 8 / interval / 1_000_000
 
         self.sink(
-            f"[RATE] frames={self.stats.matching_frames} "
-            f"valid={self.stats.valid_packets} fps={fps:.2f} "
+            f"[PACKET RATE] packets={self.stats.matching_frames} "
+            f"valid={self.stats.valid_packets} "
+            f"packets_per_second={packets_per_second:.2f} "
             f"payload={payload_mbps:.3f} Mb/s "
             f"crc_errors={self.stats.bad_crc} "
             f"queue_drops={self.stats.dropped_capture_queue}"
@@ -183,7 +195,21 @@ class StreamMonitor:
 
     def final_report(self) -> None:
         elapsed = time.monotonic() - self.stats.start_time
-        average_fps = self.stats.matching_frames / elapsed if elapsed > 0 else 0.0
+        average_packets_per_second = (
+            self.stats.matching_frames / elapsed if elapsed > 0 else 0.0
+        )
+        producer_rate = (
+            self.stats.total_ethernet_frames / elapsed
+            if elapsed > 0
+            else 0.0
+        )
+        queue_drop_percent = (
+            self.stats.dropped_capture_queue
+            * 100.0
+            / self.stats.total_ethernet_frames
+            if self.stats.total_ethernet_frames
+            else 0.0
+        )
         average_mbps = (
             self.stats.total_payload_bytes * 8 / elapsed / 1_000_000 if elapsed > 0 else 0.0
         )
@@ -199,7 +225,21 @@ class StreamMonitor:
         self.sink(f"Parser errors         : {self.stats.parser_errors}")
         self.sink(f"Processing errors     : {self.stats.processing_errors}")
         self.sink(f"Capture queue drops   : {self.stats.dropped_capture_queue}")
-        self.sink(f"Average frame rate    : {average_fps:.2f} fps")
+        self.sink(
+            f"Capture queue peak    : "
+            f"{self.stats.capture_queue_peak}/"
+            f"{self.stats.capture_queue_capacity}"
+        )
+        self.sink(f"Capture drop percent  : {queue_drop_percent:.4f}%")
+        self.sink(f"Producer rate         : {producer_rate:.2f} packets/s")
+        self.sink(
+            f"Consumer rate         : "
+            f"{average_packets_per_second:.2f} packets/s"
+        )
+        self.sink(
+            f"Average packet rate   : "
+            f"{average_packets_per_second:.2f} packets/s"
+        )
         self.sink(f"Average payload rate  : {average_mbps:.3f} Mb/s")
 
         for camera_id in sorted(self.stats.cameras):

@@ -56,9 +56,16 @@ class ScapyLiveCapture:
     layer plain data instead of a scapy Packet.
     """
 
-    def __init__(self, interface: str, ether_type: int = 0x88B5):
+    def __init__(
+        self,
+        interface: str,
+        ether_type: int = 0x88B5,
+        *,
+        include_raw: bool = True,
+    ):
         self.interface = interface
         self.ether_type = ether_type
+        self.include_raw = include_raw
         self._sniffer = None
 
     def start(self, on_frame: Callable[[RawEthernetFrame], None]) -> None:
@@ -74,7 +81,9 @@ class ScapyLiveCapture:
                 dst_mac=eth.dst,
                 ethertype=int(eth.type),
                 payload=bytes(eth.payload),
-                raw_bytes=bytes(packet),
+                # The complete second byte copy is needed only when the
+                # optional PCAP recorder is enabled.
+                raw_bytes=bytes(packet) if self.include_raw else b"",
                 timestamp=time.time(),
             ))
 

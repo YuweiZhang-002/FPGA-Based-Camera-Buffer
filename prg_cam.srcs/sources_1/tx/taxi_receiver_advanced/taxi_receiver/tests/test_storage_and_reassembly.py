@@ -186,7 +186,7 @@ def test_missing_row_closes_partial():
     assert completed.to_bytes()[80:160] == bytes(80)
 
 
-def test_crc_error_is_recorded_and_not_placed_in_image():
+def test_crc_error_is_rejected_before_image_session_creation():
     reassembler = FrameReassembler()
     corrupt = _packet(
         0,
@@ -198,12 +198,9 @@ def test_crc_error_is_recorded_and_not_placed_in_image():
     completed = reassembler.on_row(corrupt, errors=("crc_error",))
 
     assert completed is None
-    completed = reassembler.flush()[0]
-    assert completed.status is FrameStatus.CORRUPT
-    assert completed.row_count == 0
-    assert completed.missing_rows == [0]
-    assert completed.packet_records[0].accepted is False
-    assert completed.errors[0]["errors"] == ["crc_error"]
+    assert reassembler.flush() == []
+    assert reassembler.stats.sessions_created == 0
+    assert reassembler.stats.rows_rejected == 1
 
 
 def test_frame_id_wrap_closes_old_frame_without_cross_camera_ordering():

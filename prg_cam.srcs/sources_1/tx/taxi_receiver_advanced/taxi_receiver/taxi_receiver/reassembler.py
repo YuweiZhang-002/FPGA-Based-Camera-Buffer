@@ -173,6 +173,19 @@ class FrameReassembler:
         event_time = time.monotonic() if now is None else now
         self._pending.extend(self.expire(event_time))
 
+        # Do not use identity fields from a packet whose sync or CRC failed.
+        # Such packets still reach MonitoringStage and SessionAudit, so the
+        # original error evidence is preserved, but an untrusted frame_id must
+        # not create/rotate Layer-5 sessions.  A stream-wide bad-sync pattern
+        # (for example the attempt8 0x8C stuck-bit failure) otherwise produces
+        # one corrupt completed frame per changing bogus frame_id, fills the
+        # bounded image-output queue, and makes graceful Ctrl+C shutdown appear
+        # to hang while thousands of meaningless rejections are written.
+        identity_untrusted = {"bad_sync", "crc_error"}.intersection(errors)
+        if identity_untrusted:
+            self.stats.rows_rejected += 1
+            return self._pop_pending()
+
         cam_id = packet.header.cam_id
         key = (cam_id, packet.header.frame_id)
 
