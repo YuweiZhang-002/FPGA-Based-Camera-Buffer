@@ -21,7 +21,7 @@ module Camera_Pipeline #(
     parameter integer PACKET_FIFO_DEPTH = 512, // 末级 9-bit FIFO 深度
     // A routed but disconnected cam1 remains visible to ILA, while this gate
     // prevents its asynchronous pin noise from creating buffer requests.
-    parameter integer ENABLE_CAM1 = 0,
+    parameter integer ENABLE_CAM1 = 1,
     parameter [1:0] CAM0_ID = 2'd0,
     parameter [1:0] CAM1_ID = 2'd1,
     parameter [1:0] CAM2_ID = 2'd2,
