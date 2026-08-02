@@ -23,15 +23,20 @@ set_property -dict { PACKAGE_PIN E16   IOSTANDARD LVCMOS33 } [get_ports { GPIO[9
 # Camera1 receive interface.  Direction is RP2350A/Camera output -> FPGA input,
 # matching the input-only GPIO_CAM1 port in Camera_Ethernet_Top.sv.  Pin names
 # and package pins are copied from the local Nexys-A7-50T-Master.xdc.
-# JC carries the complete 8-bit data bus in ascending logical-bit order.
-set_property -dict { PACKAGE_PIN K1    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[0] }]; # JC1  Camera D0 output -> FPGA input
-set_property -dict { PACKAGE_PIN F6    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[1] }]; # JC2  Camera D1 output -> FPGA input
-set_property -dict { PACKAGE_PIN J2    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[2] }]; # JC3  Camera D2 output -> FPGA input
-set_property -dict { PACKAGE_PIN G6    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[3] }]; # JC4  Camera D3 output -> FPGA input
-set_property -dict { PACKAGE_PIN E7    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[4] }]; # JC7  Camera D4 output -> FPGA input
-set_property -dict { PACKAGE_PIN J3    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[5] }]; # JC8  Camera D5 output -> FPGA input
-set_property -dict { PACKAGE_PIN J4    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[6] }]; # JC9  Camera D6 output -> FPGA input
-set_property -dict { PACKAGE_PIN E6    IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[7] }]; # JC10 Camera D7 output -> FPGA input
+# The deployed cable reverses bit order inside each four-bit connector group.
+# Compensate entirely in the package-pin mapping so GPIO_CAM1[7:0] remains the
+# normal logical byte in RTL: logical [3:0] <- physical [0:3] and logical
+# [7:4] <- physical [4:7].  Hardware attempt2 validated this full-nibble
+# reversal.  Do not replace it with adjacent-pair swaps: sync alone cannot
+# distinguish those mappings, while attempt1 payloads showed periodic errors.
+set_property -dict { PACKAGE_PIN G6  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[0] }]; # JC4  physical D3
+set_property -dict { PACKAGE_PIN J2  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[1] }]; # JC3  physical D2
+set_property -dict { PACKAGE_PIN F6  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[2] }]; # JC2  physical D1
+set_property -dict { PACKAGE_PIN K1  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[3] }]; # JC1  physical D0
+set_property -dict { PACKAGE_PIN E6  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[4] }]; # JC10 physical D7
+set_property -dict { PACKAGE_PIN J4  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[5] }]; # JC9  physical D6
+set_property -dict { PACKAGE_PIN J3  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[6] }]; # JC8  physical D5
+set_property -dict { PACKAGE_PIN E7  IOSTANDARD LVCMOS33 } [get_ports { GPIO_CAM1[7] }]; # JC7  physical D4
 
 # JD1 is the Camera/RP2350A PCLK input.  JD7 is HREF (line-valid timing input),
 # not a second free-running clock.  Camera_Capture synchronizes both into the

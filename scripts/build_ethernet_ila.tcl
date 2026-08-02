@@ -40,11 +40,10 @@ update_compile_order -fileset sources_1
 
 generate_target all [get_ips ethernet_clk_wiz]
 synth_ip -force [get_ips ethernet_clk_wiz]
-# The saved GUI project currently retains the fixed-source diagnostic generic.
-# This script is the Camera/ILA build, so override that project property at the
-# synthesis boundary instead of silently inheriting USE_CAMERA_PIPELINE=0.
+# Keep the Camera/ILA build selection explicit at the synthesis boundary so a
+# saved GUI setting cannot silently disable either routed camera input.
 synth_design -top Camera_Ethernet_Top -part xc7a50ticsg324-1L \
-    -generic {USE_CAMERA_PIPELINE=1 USE_BYTE_FIFO_PATH=1 ENABLE_CAM1=0 CAMERA_LINES_PER_FRAME=480}
+    -generic {USE_CAMERA_PIPELINE=1 USE_BYTE_FIFO_PATH=1 ENABLE_CAM1=1 CAMERA_LINES_PER_FRAME=480}
 
 set taxi_mii_tx_reset_pins [get_pins -quiet -of_objects \
     [get_cells -hier -quiet -filter \

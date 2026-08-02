@@ -17,7 +17,7 @@ module Camera_Ethernet_Top #(
     parameter bit     USE_BYTE_FIFO_PATH  = 1'b1,
     // Keep physically routed but disconnected cam1 pins from creating false
     // HREF/PCLK events. Set this generic only after cam1 is wired and verified.
-    parameter bit     ENABLE_CAM1 = 1'b0,
+    parameter bit     ENABLE_CAM1 = 1'b1,
     parameter integer CAMERA_LINES_PER_FRAME = 480
 ) (
     input  wire       CLK100MHZ,
