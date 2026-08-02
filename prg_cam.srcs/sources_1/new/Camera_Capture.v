@@ -17,12 +17,14 @@ module Camera_Capture #(
     parameter [1:0]   CAM_ID          = 2'd0, // 本实例固定相机编号
     parameter integer PACKET_BYTES    = 128,  // href 内期望的 pclk byte 数
     parameter integer LINES_PER_FRAME = 480,  // 无 VSYNC 时用于帧回卷
-    // PCLK phase qualification depth (>=2).  A byte requires this many
-    // consecutive synchronized high samples.  Re-arm requires this many low
-    // samples, but a one-cycle high runt does not erase accumulated low
-    // evidence.  The physical high and low phases must still be observable by
-    // the 100 MHz sys_clk; this is a fabric-domain mitigation, not async FIFO.
-    parameter integer PCLK_FILTER_LEN = 2
+    // PCLK high qualification depth (>=2).  A byte requires this many
+    // consecutive synchronized high samples, which rejects a one-sample high
+    // glitch.  Hardware ILA showed that a real DATA transition can be bounded
+    // by only one observable low sample, so low re-arm has an independent
+    // threshold.  The physical phases must still be observable by the 100 MHz
+    // sys_clk; this is a fabric-domain mitigation, not an asynchronous FIFO.
+    parameter integer PCLK_FILTER_LEN     = 2,
+    parameter integer PCLK_LOW_FILTER_LEN = 1
 )(
     input  wire       pclk,        // Camera 异步像素时钟，送入同步/滤波前端
     input  wire       sys_clk,     // FPGA 100 MHz，模块内所有寄存器的时钟
@@ -91,15 +93,20 @@ module Camera_Capture #(
     (* MARK_DEBUG = "TRUE" *) reg pclk_phase_armed;
     (* MARK_DEBUG = "TRUE" *) reg [PCLK_FILTER_LEN-1:0] pclk_low_count;
     (* MARK_DEBUG = "TRUE" *) reg [PCLK_FILTER_LEN-1:0] pclk_high_count;
+    // Diagnostic-only early snapshot.  This is intentionally kept for ILA so
+    // hardware can compare the first synchronized view of DATA with the later
+    // phase-qualified functional sample.  It must not feed byte_data: when the
+    // RP2350A changes DATA close to PCLK, this early point can still contain
+    // bits from the preceding byte.
     (* MARK_DEBUG = "TRUE" *) reg [7:0] data_on_pclk_rise;
 
     (* MARK_DEBUG = "TRUE" *)
     wire pclk_sync_rise = pclk_sync && !pclk_sync_d;
 
-    // Phase-qualified byte event.  Low evidence is accumulated without being
-    // erased by a one-cycle high runt; after re-arm, high evidence must still
-    // be consecutive.  This rejects the observed short high glitch without
-    // merging the following real PCLK edge as the former level filter did.
+    // Phase-qualified byte event.  Low and high phases are intentionally
+    // asymmetric: one observed low sample re-arms, while two consecutive high
+    // samples are still required to emit a byte.  This accepts the attempt21
+    // low-runt boundary but continues to reject its one-sample high glitches.
     (* MARK_DEBUG = "TRUE" *)
     wire pclk_pulse = pclk_phase_armed && pclk_sync &&
                       (pclk_high_count == PCLK_FILTER_LEN - 1);
@@ -148,10 +155,9 @@ module Camera_Capture #(
             href_sync_d <= href_sync;
             pclk_sync_d <= pclk_sync;
 
-            // Every synchronized rise refreshes the candidate.  Qualification
-            // decides later whether the edge is real.  Gating this assignment
-            // with the previous pclk_level replayed the preceding byte when a
-            // valid rise coincided with the qualified falling transition.
+            // Preserve the earliest synchronized DATA view for ILA diagnosis.
+            // The functional byte is sampled later, at pclk_pulse, after the
+            // high phase has passed PCLK_FILTER_LEN consecutive observations.
             if (pclk_sync_rise)
                 data_on_pclk_rise <= data_sync;
 
@@ -173,7 +179,7 @@ module Camera_Capture #(
             end else begin
                 pclk_high_count <= {PCLK_FILTER_LEN{1'b0}};
                 if (!pclk_sync) begin
-                    if (pclk_low_count == PCLK_FILTER_LEN - 1) begin
+                    if (pclk_low_count == PCLK_LOW_FILTER_LEN - 1) begin
                         pclk_phase_armed <= 1'b1;
                         pclk_low_count   <= {PCLK_FILTER_LEN{1'b0}};
                         pclk_level       <= 1'b0;
@@ -236,7 +242,13 @@ module Camera_Capture #(
             end
 
             if (pclk_pulse && line_active) begin
-                byte_data  <= data_on_pclk_rise;
+                // Use the phase-qualified sample, not data_on_pclk_rise.  The
+                // attempt18..20 captures showed that a zero-valued header byte
+                // inherited high bits from its immediately preceding byte.
+                // Waiting until the qualified high phase gives DATA two extra
+                // sys_clk observations to settle while preserving one output
+                // event per accepted PCLK cycle.
+                byte_data  <= data_sync;
                 byte_valid <= 1'b1;
             end
 
