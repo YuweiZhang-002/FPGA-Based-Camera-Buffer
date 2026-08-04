@@ -62,6 +62,9 @@ def _run(frames, sink, expected_rows):
     pipeline.start()
     time.sleep(0.1)
     pipeline.stop()
+    # rows.csv is written by its own thread now, so the test has to wait for
+    # that thread rather than for the packet worker.
+    assert sink.flush_rows(timeout=10.0)
     return pipeline
 
 

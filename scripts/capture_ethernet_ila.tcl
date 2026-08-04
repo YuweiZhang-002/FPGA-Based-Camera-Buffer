@@ -13,7 +13,11 @@ if {[info exists ::env(ILA_TRIGGER_NAME)] && $::env(ILA_TRIGGER_NAME) ne ""} {
     set trigger_name "camera_length_error_pulse_dbg"
 }
 set safe_trigger_name [string map {"/" "_" "\\" "_" "[" "_" "]" "_"} $trigger_name]
-set csv_file [file normalize [file join $output_dir "${safe_trigger_name}_capture.csv"]]
+if {[info exists ::env(ILA_CAPTURE_CSV)] && $::env(ILA_CAPTURE_CSV) ne ""} {
+    set csv_file [file normalize $::env(ILA_CAPTURE_CSV)]
+} else {
+    set csv_file [file normalize [file join $output_dir "${safe_trigger_name}_capture.csv"]]
+}
 
 # The default leaves most samples after a high-rate activity trigger.  A
 # LENGTH_ERROR investigation needs enough pre-trigger history to include the

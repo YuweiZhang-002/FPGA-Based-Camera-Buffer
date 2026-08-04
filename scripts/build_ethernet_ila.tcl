@@ -70,103 +70,75 @@ set_property C_ADV_TRIGGER false [get_debug_cores $ila_name]
 set_property port_width 1 [get_debug_ports ${ila_name}/clk]
 connect_debug_port ${ila_name}/clk [exact_net logic_clk]
 
-connect_probe $ila_name 0  1 [exact_net rmii_tx_en_dbg]
-connect_probe $ila_name 1  2 [exact_bus rmii_txd_dbg 2]
-connect_probe $ila_name 2  1 [exact_net phy_ref_clk]
-connect_probe $ila_name 3  8 [exact_bus frame_data 8]
-connect_probe $ila_name 4  1 [exact_net frame_valid]
-connect_probe $ila_name 5  1 [exact_net frame_ready]
-connect_probe $ila_name 6  1 [exact_net frame_last]
-connect_probe $ila_name 7  1 [exact_net frame_handshake]
-connect_probe $ila_name 8  8 [exact_bus packet_data 8]
-connect_probe $ila_name 9  1 [exact_net packet_valid]
-connect_probe $ila_name 10 1 [exact_net packet_ready]
-connect_probe $ila_name 11 1 [exact_net packet_last]
-connect_probe $ila_name 12 1 [exact_net tx_error_underflow]
-connect_probe $ila_name 13 1 [exact_net tx_fifo_overflow]
-connect_probe $ila_name 14 1 [exact_net tx_fifo_good_frame]
-connect_probe $ila_name 15 8 [exact_bus fixed_packet_data 8]
-connect_probe $ila_name 16 1 [exact_net fixed_packet_valid]
-connect_probe $ila_name 17 1 [exact_net fixed_packet_ready]
-connect_probe $ila_name 18 1 [exact_net fixed_packet_last]
-connect_probe $ila_name 19 16 [exact_bus byte_fifo_level 16]
-connect_probe $ila_name 20 1 [exact_net byte_fifo_almost_full]
-connect_probe $ila_name 21 1 [exact_net camera_pclk_dbg]
-connect_probe $ila_name 22 1 [exact_net camera_href_dbg]
-# The raw IBUF-to-IOB-register data nets cannot legally feed an ILA after the
-# Camera input sampling registers are packed into IOBs.  Probe the immutable
-# byte snapshot taken at the synchronized PCLK edge instead.
-connect_probe $ila_name 23 8 \
-    [exact_bus u_camera_pipeline/u_capture_0/data_on_pclk_rise 8]
-connect_probe $ila_name 24 8 [exact_bus camera_packet_data 8]
-connect_probe $ila_name 25 1 [exact_net camera_packet_valid]
-connect_probe $ila_name 26 1 [exact_net camera_packet_ready]
-connect_probe $ila_name 27 1 [exact_net camera_packet_last]
-connect_probe $ila_name 28 4 [exact_bus camera_arb_grant 4]
-connect_probe $ila_name 29 4 [exact_bus camera_overflow_pulse 4]
-connect_probe $ila_name 30 12 [exact_bus camera_buffer_used_count 12]
-connect_probe $ila_name 31 12 [exact_bus camera_buffer_committed_count 12]
-connect_probe $ila_name 32 16 [exact_bus camera_packet_fifo_level 16]
-connect_probe $ila_name 33 1 [exact_net camera_packet_fifo_almost_full]
-connect_probe $ila_name 34 32 [exact_bus camera_drop_count_0 32]
-connect_probe $ila_name 35 16 [exact_bus camera_current_byte_count_dbg 16]
-connect_probe $ila_name 36 16 [exact_bus camera_last_line_byte_count_dbg 16]
-connect_probe $ila_name 37 8 [exact_bus camera_line_flags_dbg 8]
-connect_probe $ila_name 38 1 [exact_net camera_line_end_dbg]
-connect_probe $ila_name 39 1 [exact_net camera_length_error_dbg]
-connect_probe $ila_name 40 1 [exact_net camera_length_error_pulse_dbg]
-connect_probe $ila_name 41 1 [exact_net camera_capture_byte_valid_dbg]
+# A3 CAM1 layout.  Replace the old CAM0 detail probes instead of exceeding the
+# ILA v6.x 64-probe limit.  The functional datapath is unchanged.
+# Layer 1: CAM1 pins -> synchronizer/qualifier -> Camera_Capture output.
+connect_probe $ila_name 0  1 [exact_net camera1_pclk_dbg]
+connect_probe $ila_name 1  1 [exact_net camera1_href_dbg]
+connect_probe $ila_name 2  8 [exact_bus u_camera_pipeline/u_capture_1/data_on_pclk_rise 8]
+connect_probe $ila_name 3  1 [exact_net u_camera_pipeline/u_capture_1/pclk_sync]
+connect_probe $ila_name 4  1 [exact_net u_camera_pipeline/u_capture_1/href_sync]
+connect_probe $ila_name 5  8 [exact_bus u_camera_pipeline/u_capture_1/data_sync 8]
+connect_probe $ila_name 6  1 [exact_net u_camera_pipeline/u_capture_1/pclk_pulse]
+connect_probe $ila_name 7  1 [exact_net u_camera_pipeline/u_capture_1/href_rise]
+connect_probe $ila_name 8  1 [exact_net u_camera_pipeline/u_capture_1/href_fall]
+connect_probe $ila_name 9  2 [exact_bus u_camera_pipeline/u_capture_1/pclk_low_count 2]
+connect_probe $ila_name 10 2 [exact_bus u_camera_pipeline/u_capture_1/pclk_high_count 2]
+connect_probe $ila_name 11 1 [exact_net u_camera_pipeline/u_capture_1/pclk_phase_armed]
+connect_probe $ila_name 12 1 [exact_net u_camera_pipeline/u_capture_1/capture_armed]
+connect_probe $ila_name 13 1 [exact_net u_camera_pipeline/u_capture_1/line_active]
+connect_probe $ila_name 14 1 [exact_net u_camera_pipeline/u_capture_1/line_end_pending]
+connect_probe $ila_name 15 1 [exact_net camera_enable_sync]
+connect_probe $ila_name 16 1 [exact_net camera_pipeline_rst]
+connect_probe $ila_name 17 16 [exact_bus camera1_current_byte_count_dbg 16]
+connect_probe $ila_name 18 16 [exact_bus camera1_last_line_byte_count_dbg 16]
+connect_probe $ila_name 19 8 [exact_bus camera1_line_flags_dbg 8]
+connect_probe $ila_name 20 1 [exact_net camera1_line_end_dbg]
+connect_probe $ila_name 21 1 [exact_net camera1_length_error_pulse_dbg]
+connect_probe $ila_name 22 1 [exact_net camera1_capture_byte_valid_dbg]
+connect_probe $ila_name 23 32 [exact_bus camera_drop_count_1 32]
+connect_probe $ila_name 24 8 [exact_bus u_camera_pipeline/c1_data 8]
+connect_probe $ila_name 25 1 [exact_net u_camera_pipeline/c1_start]
 
-# Camera_Capture two-phase PCLK qualifier.  low_count accumulates low evidence
-# across a one-cycle high runt; high_count must be consecutive after re-arm.
-# These probes distinguish an ignored runt from an accepted byte event.
-connect_probe $ila_name 42 2 \
-    [exact_bus u_camera_pipeline/u_capture_0/pclk_low_count 2]
-connect_probe $ila_name 43 2 \
-    [exact_bus u_camera_pipeline/u_capture_0/pclk_high_count 2]
-connect_probe $ila_name 44 1 \
-    [exact_net u_camera_pipeline/u_capture_0/pclk_sync]
-connect_probe $ila_name 45 1 \
-    [exact_net u_camera_pipeline/u_capture_0/href_sync]
-connect_probe $ila_name 46 8 \
-    [exact_bus u_camera_pipeline/u_capture_0/data_sync 8]
-connect_probe $ila_name 47 1 \
-    [exact_net u_camera_pipeline/u_capture_0/pclk_pulse]
-connect_probe $ila_name 48 1 \
-    [exact_net u_camera_pipeline/u_capture_0/href_rise]
-connect_probe $ila_name 49 1 \
-    [exact_net u_camera_pipeline/u_capture_0/href_fall]
-
-# Camera1 uses JC for D0..D7 and JD1/JD7 for PCLK/HREF.  These probes prove
-# the second physical input, its synchronized view, arbitration/drop state and
-# the SW15 capture-enable control without changing the functional data path.
-connect_probe $ila_name 50 1 [exact_net camera1_pclk_dbg]
-connect_probe $ila_name 51 1 [exact_net camera1_href_dbg]
-connect_probe $ila_name 52 8 \
-    [exact_bus u_camera_pipeline/u_capture_1/data_on_pclk_rise 8]
-connect_probe $ila_name 53 32 [exact_bus camera_drop_count_1 32]
-connect_probe $ila_name 54 1 [exact_net camera_enable_sync]
-connect_probe $ila_name 55 1 [exact_net camera_pipeline_rst]
-connect_probe $ila_name 56 1 \
-    [exact_net u_camera_pipeline/u_capture_1/pclk_sync]
-connect_probe $ila_name 57 1 \
-    [exact_net u_camera_pipeline/u_capture_1/href_sync]
-connect_probe $ila_name 58 8 \
-    [exact_bus u_camera_pipeline/u_capture_1/data_sync 8]
-connect_probe $ila_name 59 1 \
-    [exact_net u_camera_pipeline/u_capture_1/pclk_pulse]
-
-# Boundary-safe capture control and the byte snapshot associated with the first
-# synchronized view of each PCLK edge.  These distinguish switch-boundary
-# behavior from PCLK/data alignment failures.
-connect_probe $ila_name 60 1 \
-    [exact_net u_camera_pipeline/u_capture_0/capture_armed]
-connect_probe $ila_name 61 1 \
-    [exact_net u_camera_pipeline/u_capture_0/line_active]
-connect_probe $ila_name 62 1 \
-    [exact_net u_camera_pipeline/u_capture_0/line_end_pending]
-connect_probe $ila_name 63 1 \
-    [exact_net u_camera_pipeline/u_capture_0/pclk_phase_armed]
+# Layer 2: Line_Buffer/arbitration -> Byte_Replacer -> Byte_FIFO -> Adapter.
+connect_probe $ila_name 26 4 [exact_bus camera_arb_grant 4]
+connect_probe $ila_name 27 12 [exact_bus camera_buffer_used_count 12]
+connect_probe $ila_name 28 12 [exact_bus camera_buffer_committed_count 12]
+connect_probe $ila_name 29 8 [exact_bus u_camera_pipeline/selected_data 8]
+connect_probe $ila_name 30 1 [exact_net u_camera_pipeline/cam1_selected_valid_dbg]
+connect_probe $ila_name 31 1 [exact_net u_camera_pipeline/replacer_in_ready]
+connect_probe $ila_name 32 1 [exact_net u_camera_pipeline/selected_last]
+connect_probe $ila_name 33 2 [exact_bus u_camera_pipeline/selected_cam_id 2]
+connect_probe $ila_name 34 8 [exact_bus u_camera_pipeline/selected_flags 8]
+connect_probe $ila_name 35 7 [exact_bus u_camera_pipeline/u_byte_replacer/byte_index 7]
+connect_probe $ila_name 36 8 [exact_bus u_camera_pipeline/replaced_data 8]
+connect_probe $ila_name 37 1 [exact_net u_camera_pipeline/replaced_valid]
+connect_probe $ila_name 38 1 [exact_net u_camera_pipeline/replaced_ready]
+connect_probe $ila_name 39 1 [exact_net u_camera_pipeline/replaced_last]
+connect_probe $ila_name 40 8 [exact_bus camera_packet_data 8]
+connect_probe $ila_name 41 1 [exact_net camera_packet_valid]
+connect_probe $ila_name 42 1 [exact_net camera_packet_ready]
+connect_probe $ila_name 43 1 [exact_net camera_packet_last]
+connect_probe $ila_name 44 16 [exact_bus camera_packet_fifo_level 16]
+connect_probe $ila_name 45 1 [exact_net camera_packet_fifo_almost_full]
+connect_probe $ila_name 46 8 [exact_bus packet_data 8]
+connect_probe $ila_name 47 1 [exact_net packet_valid]
+connect_probe $ila_name 48 1 [exact_net packet_ready]
+connect_probe $ila_name 49 1 [exact_net packet_last]
+connect_probe $ila_name 50 7 [exact_bus packet_byte_index_dbg 7]
+connect_probe $ila_name 51 8 [exact_bus packet_row_idx_hi_dbg 8]
+connect_probe $ila_name 52 1 [exact_net packet_bad_flags_dbg]
+connect_probe $ila_name 53 1 [exact_net packet_bad_row_idx_dbg]
+connect_probe $ila_name 54 1 [exact_net packet_bad_header_dbg]
+connect_probe $ila_name 55 8 [exact_bus frame_data 8]
+connect_probe $ila_name 56 1 [exact_net frame_valid]
+connect_probe $ila_name 57 1 [exact_net frame_ready]
+connect_probe $ila_name 58 1 [exact_net frame_last]
+connect_probe $ila_name 59 1 [exact_net frame_handshake]
+connect_probe $ila_name 60 1 [exact_net tx_error_underflow]
+connect_probe $ila_name 61 1 [exact_net tx_fifo_overflow]
+connect_probe $ila_name 62 1 [exact_net rmii_tx_en_dbg]
+connect_probe $ila_name 63 2 [exact_bus rmii_txd_dbg 2]
 
 # implement_debug_core requires the debug-net constraints to have been persisted
 # in a saved project.  This modifies only build/ethernet_ila/prg_cam_ila.xpr.

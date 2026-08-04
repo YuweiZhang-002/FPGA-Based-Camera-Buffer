@@ -226,6 +226,12 @@ module Camera_Ethernet_Top #(
         camera_line_flags_dbg[3];
     (* MARK_DEBUG = "TRUE" *) wire        camera_length_error_pulse_dbg;
     (* MARK_DEBUG = "TRUE" *) wire        camera_capture_byte_valid_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire [15:0] camera1_current_byte_count_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire [15:0] camera1_last_line_byte_count_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire [7:0]  camera1_line_flags_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera1_line_end_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera1_length_error_pulse_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera1_capture_byte_valid_dbg;
 
     Camera_Pipeline #(
         .LINES_PER_FRAME   (CAMERA_LINES_PER_FRAME),
@@ -268,7 +274,16 @@ module Camera_Ethernet_Top #(
         .debug_cam0_line_end      (camera_line_end_dbg),
         .debug_cam0_length_error_pulse
                                       (camera_length_error_pulse_dbg),
-        .debug_cam0_byte_valid    (camera_capture_byte_valid_dbg)
+        .debug_cam0_byte_valid    (camera_capture_byte_valid_dbg),
+        .debug_cam1_current_byte_count
+                                      (camera1_current_byte_count_dbg),
+        .debug_cam1_last_line_byte_count
+                                      (camera1_last_line_byte_count_dbg),
+        .debug_cam1_line_flags    (camera1_line_flags_dbg),
+        .debug_cam1_line_end      (camera1_line_end_dbg),
+        .debug_cam1_length_error_pulse
+                                      (camera1_length_error_pulse_dbg),
+        .debug_cam1_byte_valid    (camera1_capture_byte_valid_dbg)
     );
 
     (* MARK_DEBUG = "TRUE" *) wire [7:0] packet_data =
@@ -287,6 +302,40 @@ module Camera_Ethernet_Top #(
     (* MARK_DEBUG = "TRUE" *) wire       frame_ready;
     (* MARK_DEBUG = "TRUE" *) wire       frame_last;
     (* MARK_DEBUG = "TRUE" *) wire       frame_handshake = frame_valid && frame_ready;
+
+    (* MARK_DEBUG = "TRUE" *) logic [6:0] packet_byte_index_dbg;
+    (* MARK_DEBUG = "TRUE" *) logic [7:0] packet_row_idx_hi_dbg;
+
+    wire packet_fire_dbg =
+        packet_valid && packet_ready;
+
+    (* MARK_DEBUG = "TRUE" *) wire packet_bad_flags_dbg =
+        packet_fire_dbg &&
+        packet_byte_index_dbg == 7'd9 &&
+        ((packet_data & 8'hF8) != 0);
+
+    (* MARK_DEBUG = "TRUE" *) wire packet_bad_row_idx_dbg =
+        packet_fire_dbg &&
+        packet_byte_index_dbg == 7'd8 &&
+        ({packet_row_idx_hi_dbg, packet_data} >= 16'd480);
+
+    (* MARK_DEBUG = "TRUE" *) wire packet_bad_header_dbg =
+        packet_bad_flags_dbg || packet_bad_row_idx_dbg;
+
+    always_ff @(posedge logic_clk) begin
+        if (camera_pipeline_rst) begin
+            packet_byte_index_dbg <= 7'd0;
+            packet_row_idx_hi_dbg <= 8'd0;
+        end else if (packet_fire_dbg) begin
+            if (packet_byte_index_dbg == 7'd7)
+                packet_row_idx_hi_dbg <= packet_data;
+
+            if (packet_last)
+                packet_byte_index_dbg <= 7'd0;
+            else
+                packet_byte_index_dbg <= packet_byte_index_dbg + 1'b1;
+        end
+    end
 
     Ethernet_Frame_Adapter u_ethernet_frame_adapter (
         .clk          (logic_clk),

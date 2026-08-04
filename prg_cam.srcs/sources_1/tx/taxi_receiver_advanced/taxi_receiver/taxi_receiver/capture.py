@@ -25,6 +25,16 @@ from typing import Callable, Iterable, Optional, Protocol
 
 
 @dataclass(slots=True)
+class PcapStatistics:
+    ps_recv: int
+    ps_drop: int
+    ps_ifdrop: int
+    ps_capt: Optional[int] = None
+    ps_sent: Optional[int] = None
+    ps_netdrop: Optional[int] = None
+
+
+@dataclass(slots=True)
 class RawEthernetFrame:
     """Output of Layer 1 / input to Layer 2. Deliberately plain data --
     no scapy Packet object survives past this point."""
@@ -39,6 +49,13 @@ class RawEthernetFrame:
 class FrameSource(Protocol):
     def start(self, on_frame: Callable[[RawEthernetFrame], None]) -> None: ...
     def stop(self) -> None: ...
+
+
+def _packet_timestamp(packet) -> float:
+    packet_time = getattr(packet, "time", None)
+    if packet_time is None:
+        return time.time()
+    return float(packet_time)
 
 
 def list_interfaces() -> list[str]:
@@ -67,10 +84,20 @@ class ScapyLiveCapture:
         self.ether_type = ether_type
         self.include_raw = include_raw
         self._sniffer = None
+        self._socket = None
+        self._pcap_stats_snapshot: Optional[PcapStatistics] = None
 
     def start(self, on_frame: Callable[[RawEthernetFrame], None]) -> None:
         from scapy.all import AsyncSniffer
+        from scapy.all import conf
         from scapy.layers.l2 import Ether
+
+        self._socket = conf.L2listen(
+            iface=self.interface,
+            filter=f"ether proto 0x{self.ether_type:04x}",
+            promisc=True,
+            monitor=False,
+        )
 
         def _callback(packet) -> None:
             if Ether not in packet:
@@ -84,20 +111,62 @@ class ScapyLiveCapture:
                 # The complete second byte copy is needed only when the
                 # optional PCAP recorder is enabled.
                 raw_bytes=bytes(packet) if self.include_raw else b"",
-                timestamp=time.time(),
+                timestamp=_packet_timestamp(packet),
             ))
 
-        self._sniffer = AsyncSniffer(
-            iface=self.interface,
-            filter=f"ether proto 0x{self.ether_type:04x}",
-            prn=_callback,
-            store=False,
-        )
+        self._sniffer = AsyncSniffer(opened_socket=self._socket, prn=_callback, store=False)
         self._sniffer.start()
 
     def stop(self) -> None:
+        if self._socket is not None:
+            snapshot = self._read_pcap_stats()
+            if snapshot is not None:
+                self._pcap_stats_snapshot = snapshot
         if self._sniffer is not None and self._sniffer.running:
             self._sniffer.stop()
+        if self._socket is not None:
+            try:
+                self._socket.close()
+            finally:
+                self._socket = None
+
+    def pcap_stats(self) -> Optional[PcapStatistics]:
+        if self._socket is None:
+            return self._pcap_stats_snapshot
+
+        snapshot = self._read_pcap_stats()
+        if snapshot is not None:
+            self._pcap_stats_snapshot = snapshot
+        return snapshot
+
+    def _read_pcap_stats(self) -> Optional[PcapStatistics]:
+        if self._socket is None:
+            return None
+
+        from ctypes import byref
+
+        try:
+            from scapy.libs import winpcapy
+        except Exception:
+            return None
+
+        pcap_handle = getattr(self._socket.pcap_fd, "pcap", None)
+        if pcap_handle is None:
+            return None
+
+        stat = winpcapy.pcap_stat()
+        result = winpcapy.pcap_stats(pcap_handle, byref(stat))
+        if result != 0:
+            return None
+
+        return PcapStatistics(
+            ps_recv=int(stat.ps_recv),
+            ps_drop=int(stat.ps_drop),
+            ps_ifdrop=int(stat.ps_ifdrop),
+            ps_capt=int(stat.ps_capt) if hasattr(stat, "ps_capt") else None,
+            ps_sent=int(stat.ps_sent) if hasattr(stat, "ps_sent") else None,
+            ps_netdrop=int(stat.ps_netdrop) if hasattr(stat, "ps_netdrop") else None,
+        )
 
 
 class SyntheticFrameSource:
@@ -150,7 +219,7 @@ class PcapReplayFrameSource:
                 ethertype=int(eth.type),
                 payload=bytes(eth.payload),
                 raw_bytes=bytes(packet),
-                timestamp=time.time(),
+                timestamp=_packet_timestamp(packet),
             ))
 
     def stop(self) -> None:

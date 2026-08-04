@@ -1,7 +1,11 @@
 import time
+import sys
+import types
+from ctypes import Structure, c_ulong
+from types import SimpleNamespace
 
 from taxi_receiver.async_sink import AsyncCallbackDispatcher
-from taxi_receiver.capture import SyntheticFrameSource
+from taxi_receiver.capture import ScapyLiveCapture, SyntheticFrameSource, _packet_timestamp
 from taxi_receiver.packet_format import (
     FLAG_FIRST_ROW,
     FLAG_LAST_ROW,
@@ -64,6 +68,110 @@ def test_pipeline_with_reassembler_layer5():
     assert completed_frames[0].camera_id == 0
     assert completed_frames[0].frame_id == 7
     assert completed_frames[0].row_count == 2
+
+
+def test_final_report_includes_live_pcap_drop_stats():
+    class StatsFrameSource:
+        def __init__(self):
+            self.frames = []
+
+        def start(self, on_frame):
+            self.frames.append("started")
+
+        def stop(self):
+            self.frames.append("stopped")
+
+        def pcap_stats(self):
+            class Stats:
+                ps_recv = 12
+                ps_drop = 3
+                ps_ifdrop = 1
+
+            return Stats()
+
+    lines = []
+    pipeline = TaxiReceiverPipeline(
+        frame_source=StatsFrameSource(),
+        mode="camera",
+        report_interval=999,
+        sink=lines.append,
+    )
+    pipeline.print_final_report()
+
+    joined = "\n".join(lines)
+    assert "LIVE PCAP STATS" in joined
+    assert "ps_recv" in joined
+    assert "ps_drop" in joined
+    assert "ps_ifdrop" in joined
+
+
+def test_scapy_live_capture_caches_pcap_stats_across_stop(monkeypatch):
+    class FakeSocket:
+        def __init__(self):
+            self.pcap_fd = SimpleNamespace(pcap=object())
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    class FakeSniffer:
+        def __init__(self, opened_socket=None, prn=None, store=None):
+            self.opened_socket = opened_socket
+            self.prn = prn
+            self.store = store
+            self.running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    class FakeStat(Structure):
+        _fields_ = [
+            ("ps_recv", c_ulong),
+            ("ps_drop", c_ulong),
+            ("ps_ifdrop", c_ulong),
+        ]
+
+    fake_socket = FakeSocket()
+
+    def fake_pcap_stats(_handle, stat_ptr):
+        stat = stat_ptr._obj
+        stat.ps_recv = 42
+        stat.ps_drop = 7
+        stat.ps_ifdrop = 1
+        return 0
+
+    scapy_module = types.ModuleType("scapy")
+    scapy_libs_module = types.ModuleType("scapy.libs")
+    winpcapy_module = types.ModuleType("scapy.libs.winpcapy")
+    winpcapy_module.pcap_stat = FakeStat
+    winpcapy_module.pcap_stats = fake_pcap_stats
+    scapy_libs_module.winpcapy = winpcapy_module
+    scapy_module.libs = scapy_libs_module
+    monkeypatch.setitem(sys.modules, "scapy", scapy_module)
+    monkeypatch.setitem(sys.modules, "scapy.libs", scapy_libs_module)
+    monkeypatch.setitem(sys.modules, "scapy.libs.winpcapy", winpcapy_module)
+
+    capture = ScapyLiveCapture.__new__(ScapyLiveCapture)
+    capture.interface = "fake0"
+    capture.ether_type = 0x88B5
+    capture.include_raw = True
+    capture._sniffer = FakeSniffer()
+    capture._socket = fake_socket
+    capture._pcap_stats_snapshot = None
+
+    before_stop = capture.pcap_stats()
+    assert before_stop is not None
+    assert before_stop.ps_drop == 7
+
+    capture.stop()
+
+    after_stop = capture.pcap_stats()
+    assert after_stop is not None
+    assert after_stop.ps_drop == 7
+    assert fake_socket.closed
 
 
 def test_pipeline_fixed_mode():
@@ -178,3 +286,10 @@ def test_slow_frame_storage_is_decoupled_from_capture_queue():
     assert dispatcher.stats.processed == len(frames)
     assert dispatcher.stats.failures == 0
     assert dispatcher.stats.queue_peak > 0
+
+
+def test_packet_timestamp_prefers_captured_packet_time():
+    class DummyPacket:
+        time = 123.456
+
+    assert _packet_timestamp(DummyPacket()) == 123.456

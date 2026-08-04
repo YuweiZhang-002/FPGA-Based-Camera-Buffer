@@ -20,6 +20,7 @@ def make_raw_frame(
     src_mac: str = "02:00:00:00:00:01",
     dst_mac: str = "ff:ff:ff:ff:ff:ff",
     ethertype: int = ETHER_TYPE,
+    timestamp: float | None = None,
 ) -> RawEthernetFrame:
     header = (
         bytes.fromhex(dst_mac.replace(":", ""))
@@ -32,7 +33,7 @@ def make_raw_frame(
         ethertype=ethertype,
         payload=payload,
         raw_bytes=header + payload,
-        timestamp=time.time(),
+        timestamp=time.time() if timestamp is None else timestamp,
     )
 
 

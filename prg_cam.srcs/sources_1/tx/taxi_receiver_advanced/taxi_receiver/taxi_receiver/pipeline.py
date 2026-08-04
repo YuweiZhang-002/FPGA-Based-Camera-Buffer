@@ -92,6 +92,9 @@ class TaxiReceiverPipeline:
 
         self._queue: "queue.Queue[RawEthernetFrame]" = queue.Queue(maxsize=queue_depth)
         self._stop_event = threading.Event()
+        # Set before frame_source.stop() so a callback still in flight cannot
+        # enqueue work after the drain gate has already been satisfied.
+        self._source_stopped = False
         self._worker = threading.Thread(target=self._run_worker, name="taxi-worker", daemon=True)
 
     def start(self) -> None:
@@ -99,12 +102,26 @@ class TaxiReceiverPipeline:
         self.frame_source.start(self._on_frame)
 
     def stop(self) -> None:
-        self._stop_event.set()
+        # Order matters, and getting it wrong deadlocks at high packet rates.
+        #
+        # The worker loop exits as soon as it observes `_stop_event` set AND the
+        # queue momentarily empty.  Setting the event first therefore races the
+        # capture thread: at ~7.7 kpkt/s the sniffer keeps calling `_on_frame`
+        # while `frame_source.stop()` is still unwinding, the worker wins the
+        # "empty" check and exits, and the frames enqueued after that never get
+        # `task_done()` -- so the `queue.join()` below blocks forever and the
+        # Final Report / rows.csv flush never happen.  Observed as a hard hang
+        # with CPU pinned at 0 and three threads in Wait.
+        #
+        # Correct sequence: silence the producer, drain what it left, and only
+        # then tell the worker it may leave.
+        self._source_stopped = True
         self.frame_source.stop()
         # Do not flush Layer 5 while accepted capture records remain queued.
         # queue.join() is the explicit "no unexplained backlog" gate.
         self._queue.join()
-        self._worker.join(timeout=3.0)
+        self._stop_event.set()
+        self._worker.join(timeout=5.0)
         if self._worker.is_alive():
             raise RuntimeError("receiver worker did not stop after queue drain")
 
@@ -118,6 +135,25 @@ class TaxiReceiverPipeline:
 
     def print_final_report(self) -> None:
         self.monitor.final_report()
+        pcap_stats_fn = getattr(self.frame_source, "pcap_stats", None)
+        if callable(pcap_stats_fn):
+            stats = pcap_stats_fn()
+            self.sink("\nLIVE PCAP STATS")
+            if stats is None:
+                self.sink("  unavailable         : source does not expose libpcap stats")
+            else:
+                self.sink(f"  ps_recv             : {stats.ps_recv}")
+                self.sink(f"  ps_drop             : {stats.ps_drop}")
+                self.sink(f"  ps_ifdrop           : {stats.ps_ifdrop}")
+                ps_capt = getattr(stats, "ps_capt", None)
+                ps_sent = getattr(stats, "ps_sent", None)
+                ps_netdrop = getattr(stats, "ps_netdrop", None)
+                if ps_capt is not None:
+                    self.sink(f"  ps_capt             : {ps_capt}")
+                if ps_sent is not None:
+                    self.sink(f"  ps_sent             : {ps_sent}")
+                if ps_netdrop is not None:
+                    self.sink(f"  ps_netdrop          : {ps_netdrop}")
         for stage in self._reassembly_stages:
             stats = getattr(stage.reassembler, "stats", None)
             if stats is None:
@@ -134,6 +170,10 @@ class TaxiReceiverPipeline:
     # ---- Layer 1 -> queue hand-off (runs on the capture thread) -------
 
     def _on_frame(self, frame: RawEthernetFrame) -> None:
+        if self._source_stopped:
+            # A late Npcap/scapy callback during shutdown. Accepting it would
+            # add an unfinished task after stop() already drained the queue.
+            return
         self.monitor.record_ethernet_frame()
         if self.lossless_input:
             while not self._stop_event.is_set():

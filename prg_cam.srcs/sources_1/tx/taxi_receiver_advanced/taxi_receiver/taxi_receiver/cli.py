@@ -73,6 +73,34 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--no-rows-csv",
+        action="store_true",
+        help=(
+            "Publish images without recording camN/rows.csv. Use this as the "
+            "'A' half of an A/B replay when deciding whether the per-packet "
+            "recorder is costing capture throughput."
+        ),
+    )
+    parser.add_argument(
+        "--csv-queue-depth",
+        type=int,
+        default=65536,
+        help=(
+            "Bounded queue between the packet consumer and the rows.csv "
+            "writer thread."
+        ),
+    )
+    parser.add_argument(
+        "--csv-backpressure",
+        choices=("auto", "drop", "block"),
+        default="auto",
+        help=(
+            "auto (default): block on offline replay so no audit row is lost, "
+            "drop on live capture so telemetry never stalls the image path. "
+            "Dropped rows are always counted as csv_rows_dropped."
+        ),
+    )
+    parser.add_argument(
         "--bit-order",
         choices=("msb_first", "lsb_first"),
         default="msb_first",
@@ -196,6 +224,15 @@ def main() -> int:
         if args.output_root is not None
         else None
     )
+    # Offline replay already applies lossless backpressure to the capture
+    # queue; making the CSV queue match keeps a replay a complete audit.  Live
+    # capture keeps the drop policy so a slow disk can never become the reason
+    # packets stop being consumed.
+    csv_backpressure = (
+        args.csv_backpressure
+        if args.csv_backpressure != "auto"
+        else ("block" if args.replay_pcap is not None else "drop")
+    )
     image_pipeline = (
         CameraImagePipeline(
             args.images_root,
@@ -205,6 +242,9 @@ def main() -> int:
             max_missing_rows=args.max_missing_rows,
             max_consecutive_missing=args.max_consecutive_missing,
             report_interval=args.report_interval,
+            enable_row_csv=not args.no_rows_csv,
+            csv_queue_depth=args.csv_queue_depth,
+            csv_backpressure=csv_backpressure,
         )
         if args.images_root is not None
         else None
@@ -277,6 +317,13 @@ def main() -> int:
         print(f"Image policy: {args.image_policy}")
     if frame_output is not None:
         print(f"Frame output queue: {args.frame_output_queue_depth}")
+    if image_pipeline is not None:
+        print(
+            f"Row CSV    : "
+            f"{'off' if args.no_rows_csv else 'on'} "
+            f"(queue={args.csv_queue_depth}, "
+            f"backpressure={csv_backpressure})"
+        )
     print("Press Ctrl+C to stop.\n")
 
     try:
@@ -302,6 +349,11 @@ def main() -> int:
             pipeline.stop()
             if frame_output is not None:
                 frame_output.close()
+            # Drain the rows.csv writer before the report so its queue/drop
+            # counters describe the whole run rather than the moment before
+            # shutdown.  close() is idempotent; the safety net below re-runs it.
+            if image_pipeline is not None:
+                image_pipeline.close()
             pipeline.print_final_report()
             if frame_output is not None:
                 print("")

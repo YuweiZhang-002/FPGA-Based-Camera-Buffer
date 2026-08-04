@@ -69,7 +69,13 @@ module Camera_Pipeline #(
     output wire [7:0]  debug_cam0_line_flags,
     output wire        debug_cam0_line_end,
     output wire        debug_cam0_length_error_pulse,
-    output wire        debug_cam0_byte_valid
+    output wire        debug_cam0_byte_valid,
+    output wire [15:0] debug_cam1_current_byte_count,
+    output wire [15:0] debug_cam1_last_line_byte_count,
+    output wire [7:0]  debug_cam1_line_flags,
+    output wire        debug_cam1_line_end,
+    output wire        debug_cam1_length_error_pulse,
+    output wire        debug_cam1_byte_valid
 );
 
     // ========================================================================
@@ -77,15 +83,23 @@ module Camera_Pipeline #(
     // ========================================================================
     // Camera_Capture -> Line_Buffer signals。cN_* 的 N 与物理 camera 端口一致；
     // data/valid 是 byte 通道，start/end 是包边界，id/flags 是逐包 metadata。
-    wire [7:0] c0_data, c1_data, c2_data, c3_data;
-    wire       c0_valid, c1_valid, c2_valid, c3_valid;
-    wire       c0_start, c1_start, c2_start, c3_start;
-    wire       c0_end, c1_end, c2_end, c3_end;
+    wire [7:0] c0_data, c2_data, c3_data;
+    wire       c0_valid, c2_valid, c3_valid;
+    wire       c0_start, c2_start, c3_start;
+    wire       c0_end, c2_end, c3_end;
     wire [1:0] c0_id, c1_id, c2_id, c3_id;
-    wire [7:0] c0_flags, c1_flags, c2_flags, c3_flags;
+    wire [7:0] c0_flags, c2_flags, c3_flags;
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] c1_data;
+    (* MARK_DEBUG = "TRUE" *) wire       c1_valid;
+    (* MARK_DEBUG = "TRUE" *) wire       c1_start;
+    (* MARK_DEBUG = "TRUE" *) wire       c1_end;
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] c1_flags;
     wire [15:0] c0_current_byte_count;
     wire [15:0] c0_last_line_byte_count;
     wire        c0_length_error_pulse;
+    wire [15:0] c1_current_byte_count;
+    wire [15:0] c1_last_line_byte_count;
+    wire        c1_length_error_pulse;
 
     // Line_Buffer -> one-hot mux signals。request 是四路持续请求；lbN_ready
     // 只有在该路获得 grant 时才可能为 1，因此未授权 LB 永远不会误弹数据。
@@ -123,7 +137,10 @@ module Camera_Pipeline #(
         .byte_data(c1_data), .byte_valid(c1_valid),
         .line_start(c1_start), .line_end(c1_end),
         .line_cam_id(c1_id), .line_flags(c1_flags),
-        .current_row_idx(), .current_byte_count()
+        .current_row_idx(),
+        .current_byte_count(c1_current_byte_count),
+        .last_line_byte_count(c1_last_line_byte_count),
+        .length_error_pulse(c1_length_error_pulse)
     );
 
     Camera_Capture #(.CAM_ID(CAM2_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
@@ -201,13 +218,15 @@ module Camera_Pipeline #(
     // ========================================================================
     // 组合 mux 的五个 selected_* 必须作为一个整体选择。尤其 cam_id/flags
     // 不能单独延迟，否则会写入另一路 packet 的 offset 4/9。
-    reg [7:0] selected_data;
-    reg       selected_valid;
-    reg       selected_last;
-    reg [1:0] selected_cam_id;
-    reg [7:0] selected_flags;
+    (* MARK_DEBUG = "TRUE" *) reg [7:0] selected_data;
+    (* MARK_DEBUG = "TRUE" *) reg       selected_valid;
+    (* MARK_DEBUG = "TRUE" *) reg       selected_last;
+    (* MARK_DEBUG = "TRUE" *) reg [1:0] selected_cam_id;
+    (* MARK_DEBUG = "TRUE" *) reg [7:0] selected_flags;
 
-    wire replacer_in_ready; // Byte_FIFO ready 经 Byte_Replacer 透明回传
+    (* MARK_DEBUG = "TRUE" *) wire replacer_in_ready; // Byte_FIFO ready 经 Byte_Replacer 透明回传
+    (* MARK_DEBUG = "TRUE" *) wire cam1_selected_valid_dbg =
+        selected_valid && (selected_cam_id == CAM1_ID);
     // released 只能由最后一个 byte 的真实握手产生，不能只检测 last 电平。
     wire released = selected_valid && replacer_in_ready && selected_last;
 
@@ -271,10 +290,10 @@ module Camera_Pipeline #(
     // ========================================================================
     // REPLACER/FIFO-ONLY WIRES -- 只属于末级格式修改和输出缓冲
     // ========================================================================
-    wire [7:0] replaced_data;
-    wire       replaced_valid;
-    wire       replaced_ready;
-    wire       replaced_last;
+    (* MARK_DEBUG = "TRUE" *) wire [7:0] replaced_data;
+    (* MARK_DEBUG = "TRUE" *) wire       replaced_valid;
+    (* MARK_DEBUG = "TRUE" *) wire       replaced_ready;
+    (* MARK_DEBUG = "TRUE" *) wire       replaced_last;
 
     Byte_Replacer u_byte_replacer (
         .sys_clk         (sys_clk),
@@ -324,5 +343,11 @@ module Camera_Pipeline #(
     assign debug_cam0_line_end = c0_end;
     assign debug_cam0_length_error_pulse = c0_length_error_pulse;
     assign debug_cam0_byte_valid = c0_valid;
+    assign debug_cam1_current_byte_count = c1_current_byte_count;
+    assign debug_cam1_last_line_byte_count = c1_last_line_byte_count;
+    assign debug_cam1_line_flags = c1_flags;
+    assign debug_cam1_line_end = c1_end;
+    assign debug_cam1_length_error_pulse = c1_length_error_pulse;
+    assign debug_cam1_byte_valid = c1_valid;
 
 endmodule

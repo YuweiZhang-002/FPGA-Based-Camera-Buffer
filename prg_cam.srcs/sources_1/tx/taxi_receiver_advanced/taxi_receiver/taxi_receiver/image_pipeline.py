@@ -1,27 +1,44 @@
 """Numbered camera-image publication and per-row CSV telemetry.
 
 This is a project-side Layer-5 sink.  It does not alter the 128-byte wire
-format or TAXI.  Parsed rows are appended to ``images/camN/rows.csv`` as they
-arrive.  A row whose raw flags satisfy ``flags & 0x02 == 0x02`` terminates the
+format or TAXI.  Parsed rows are handed to a dedicated CSV writer thread and
+appended to ``images/camN/rows.csv``; only a *reliable* last row terminates the
 human-readable CSV group with one blank line.
 
 Only a fully reassembled frame is published as an image.  The current payload
 is an 80-byte packed threshold row (640 one-bit pixels), so the dependency-free
 image format is binary PGM (P5), with the numeric ``frame_id`` as its stem.
+
+Two properties of this module are diagnostic contracts, not implementation
+details, because attempt2 could not distinguish "the packet never arrived" from
+"the recorder dropped it":
+
+``capture_index``
+    Assigned on the packet-consumer thread, before any queueing.  A gap means
+    the row was dropped by *this* recorder, not by the FPGA or the NIC.
+
+``csv_sequence``
+    Assigned on the writer thread, per camera, immediately before the row is
+    formatted.  It is always contiguous.  A contiguous ``csv_sequence`` next to
+    a gapped ``capture_index`` localises the loss to the CSV queue; a gapped
+    ``row_seq`` next to a contiguous ``capture_index`` exonerates the recorder.
 """
 from __future__ import annotations
 
 import csv
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
+import itertools
 import json
 import os
 from pathlib import Path
+import queue
+import sys
 import threading
 import time
-from typing import Callable, TextIO
+from typing import Any, Callable, TextIO
 import uuid
 
 from .packet_format import (
@@ -43,6 +60,10 @@ from .threshold_recover import (
 
 ROW_CSV_FIELDS = (
     "timestamp",
+    # Recorder-side ordering columns.  See the module docstring: these exist to
+    # separate "lost upstream" from "lost inside this recorder".
+    "capture_index",
+    "csv_sequence",
     "cam_id",
     "frame_id",
     "row_idx",
@@ -74,9 +95,18 @@ ROW_CSV_FIELDS = (
     "vx",
     "vy",
     "parse_ok",
+    # Trust columns.  ``first_row``/``last_row``/``frame_end`` above stay as
+    # raw-flag evidence; these four say whether that evidence may be counted.
+    "layer3_valid",
+    "row_accepted",
+    "reliable_first",
+    "reliable_last",
     "errors",
     "warnings",
 )
+
+
+_CSV_STOP = object()
 
 
 @dataclass
@@ -85,6 +115,61 @@ class _CsvSink:
     writer: csv.DictWriter
     pending_rows: int = 0
     last_flush: float = 0.0
+    # Rows formatted but not yet handed to csv.writerows().
+    batch: list[dict[str, Any]] = field(default_factory=list)
+    # Indices into ``batch`` after which a human-readable blank line belongs.
+    blank_after: list[int] = field(default_factory=list)
+    csv_sequence: int = 0
+    # Duplicate mirror, reset on frame switch.  This deliberately re-derives
+    # acceptance instead of reading FrameReassembler's PacketRecord: an
+    # independent second opinion is what makes a disagreement informative.
+    mirror_frame_id: int | None = None
+    mirror_rows: set[int] = field(default_factory=set)
+
+
+@dataclass(slots=True)
+class _RowEvent:
+    """Everything the writer thread needs, captured in one cheap tuple.
+
+    The parsed result object is referenced, not copied: keeping the consumer
+    thread's work to one allocation plus one ``Queue.put`` is the entire point
+    of moving CSV off that thread.
+    """
+
+    capture_index: int
+    timestamp: float
+    result: Any
+
+
+@dataclass
+class CsvWriterStatistics:
+    queue_capacity: int = 0
+    queue_peak: int = 0
+    rows_submitted: int = 0
+    rows_written: int = 0
+    rows_dropped: int = 0
+    writer_failures: int = 0
+    flush_count: int = 0
+    flush_latency_ms_total: float = 0.0
+    flush_latency_ms_max: float = 0.0
+
+    @property
+    def flush_latency_ms_mean(self) -> float:
+        if self.flush_count == 0:
+            return 0.0
+        return self.flush_latency_ms_total / self.flush_count
+
+
+class CsvBackpressure(str, Enum):
+    """What to do when the bounded CSV queue is full.
+
+    ``DROP`` is the live-capture default: telemetry must never become the
+    reason the image path falls behind.  ``BLOCK`` is the evidence default for
+    offline replay, where a slow disk is not a reason to lose an audit row.
+    """
+
+    DROP = "drop"
+    BLOCK = "block"
 
 
 @dataclass
@@ -138,11 +223,15 @@ class CameraImagePipeline:
         precreate_cameras: tuple[int, ...] = (0, 1),
         csv_flush_rows: int = 256,
         csv_flush_seconds: float = 0.5,
+        enable_row_csv: bool = True,
+        csv_queue_depth: int = 65536,
+        csv_backpressure: CsvBackpressure | str = CsvBackpressure.DROP,
         image_policy: ImagePolicy | str = ImagePolicy.STRICT,
         max_missing_rows: int = 4,
         max_consecutive_missing: int = 2,
         report_interval: float = 1.0,
         report_sink: Callable[[str], None] = print,
+        error_sink: Callable[[str], None] | None = None,
     ) -> None:
         if expected_rows <= 0:
             raise ValueError("expected_rows must be positive")
@@ -150,6 +239,8 @@ class CameraImagePipeline:
             raise ValueError("csv_flush_rows must be positive")
         if csv_flush_seconds <= 0:
             raise ValueError("csv_flush_seconds must be positive")
+        if csv_queue_depth <= 0:
+            raise ValueError("csv_queue_depth must be positive")
         if max_missing_rows < 0:
             raise ValueError("max_missing_rows must be non-negative")
         if max_consecutive_missing < 1:
@@ -169,97 +260,275 @@ class CameraImagePipeline:
         self.report_sink = report_sink
         self.csv_flush_rows = csv_flush_rows
         self.csv_flush_seconds = csv_flush_seconds
+        self.enable_row_csv = enable_row_csv
+        self.csv_queue_depth = csv_queue_depth
+        self.csv_backpressure = CsvBackpressure(csv_backpressure)
+        self.error_sink = error_sink or (
+            lambda message: print(message, file=sys.stderr)
+        )
         self.images_root.mkdir(parents=True, exist_ok=True)
         for cam_id in precreate_cameras:
             self._camera_dir(cam_id).mkdir(parents=True, exist_ok=True)
         self._csv_lock = threading.Lock()
         self._csv_sinks: dict[int, _CsvSink] = {}
         self.stats = ImagePublicationStatistics()
+        self.csv_stats = CsvWriterStatistics(queue_capacity=csv_queue_depth)
         self._rate_started = time.monotonic()
         self._rate_last = self._rate_started
         self._rate_last_counts = (0, 0, 0)
 
-    def record_packet(self, ctx: FrameContext) -> None:
-        """Append one parsed Camera packet to its camera CSV.
+        # P2: rows.csv leaves the packet-consumer hot path.  ``record_packet``
+        # now only stamps a capture index and enqueues; all formatting, all
+        # duplicate bookkeeping and all disk I/O happen on this thread.
+        self._capture_index = itertools.count()
+        self._csv_queue: "queue.Queue[_RowEvent | object]" = queue.Queue(
+            maxsize=csv_queue_depth
+        )
+        self._csv_closed = False
+        self._csv_thread: threading.Thread | None = None
+        if self.enable_row_csv:
+            self._csv_thread = threading.Thread(
+                target=self._run_csv_writer,
+                name="taxi-rows-csv",
+                daemon=True,
+            )
+            self._csv_thread.start()
 
-        Packets with CRC/flag validation errors are intentionally retained as
-        evidence.  Ethernet frames that could not be parsed into a complete
-        128-byte Camera packet have no trustworthy cam_id and cannot be routed
-        into a camN file.
+    def record_packet(self, ctx: FrameContext) -> None:
+        """Hand one parsed Camera packet to the CSV writer thread.
+
+        This runs on the packet-consumer thread and must stay cheap: one
+        counter increment, one small object and one bounded ``put``.  Packets
+        with CRC/flag validation errors are intentionally retained as evidence.
+        Ethernet frames that could not be parsed into a complete 128-byte
+        Camera packet have no trustworthy cam_id and cannot be routed into a
+        camN file.
         """
 
+        if not self.enable_row_csv or self._csv_closed:
+            return
         result = ctx.camera_result
         if result is None or result.packet is None:
             return
+
+        event = _RowEvent(
+            capture_index=next(self._capture_index),
+            timestamp=ctx.frame.timestamp,
+            result=result,
+        )
+        self.csv_stats.rows_submitted += 1
+        if self.csv_backpressure is CsvBackpressure.BLOCK:
+            self._csv_queue.put(event)
+        else:
+            try:
+                self._csv_queue.put_nowait(event)
+            except queue.Full:
+                # Counted, never silent.  A gap in capture_index plus a nonzero
+                # csv_rows_dropped is the signature this column exists for.
+                self.csv_stats.rows_dropped += 1
+                return
+        depth = self._csv_queue.qsize()
+        if depth > self.csv_stats.queue_peak:
+            self.csv_stats.queue_peak = depth
+
+    def flush_rows(self, timeout: float = 30.0) -> bool:
+        """Block until every submitted row has been written and flushed.
+
+        Returns False if the writer thread did not drain within ``timeout``.
+        Tests and shutdown use this instead of sleeping.
+        """
+
+        if self._csv_thread is None:
+            return True
+        deadline = time.monotonic() + timeout
+        while not self._csv_queue.empty():
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.005)
+        with self._csv_lock:
+            now = time.monotonic()
+            for sink in self._csv_sinks.values():
+                self._emit_batch(sink, now)
+        return True
+
+    def close(self) -> None:
+        """Drain the writer thread, then flush and close every camera CSV.
+
+        Idempotent: the CLI calls this once to make the final report truthful
+        and again from its safety-net ``finally``.
+        """
+
+        if self._csv_closed:
+            return
+        self._csv_closed = True
+        thread = self._csv_thread
+        if thread is not None:
+            self._csv_queue.put(_CSV_STOP)
+            thread.join(timeout=30.0)
+            if thread.is_alive():
+                self.error_sink(
+                    "[ROW CSV] writer thread did not stop within 30s; "
+                    "rows.csv may be truncated"
+                )
+            self._csv_thread = None
+        with self._csv_lock:
+            now = time.monotonic()
+            for sink in self._csv_sinks.values():
+                self._emit_batch(sink, now)
+                sink.handle.close()
+            self._csv_sinks.clear()
+
+    # ---- CSV writer thread ------------------------------------------------
+
+    def _run_csv_writer(self) -> None:
+        while True:
+            try:
+                event = self._csv_queue.get(timeout=self.csv_flush_seconds)
+            except queue.Empty:
+                # Idle: make whatever is buffered visible on disk promptly.
+                self._flush_idle_sinks()
+                continue
+            try:
+                if event is _CSV_STOP:
+                    return
+                try:
+                    self._write_row_event(event)  # type: ignore[arg-type]
+                except Exception as exc:  # noqa: BLE001 - keep writer alive
+                    self.csv_stats.writer_failures += 1
+                    self.error_sink(f"[ROW CSV ERROR] {exc}")
+            finally:
+                self._csv_queue.task_done()
+
+    def _flush_idle_sinks(self) -> None:
+        with self._csv_lock:
+            now = time.monotonic()
+            for sink in self._csv_sinks.values():
+                if sink.batch:
+                    self._emit_batch(sink, now)
+
+    def _write_row_event(self, event: _RowEvent) -> None:
+        result = event.result
         packet = result.packet
         header = packet.header
         trailer = packet.trailer
         flags = header.row_flags
         frame_end = (flags & FLAG_LAST_ROW) == FLAG_LAST_ROW
-
-        row = {
-            "timestamp": f"{ctx.frame.timestamp:.9f}",
-            "cam_id": header.cam_id,
-            "frame_id": header.frame_id,
-            "row_idx": header.row_idx,
-            "row_seq": header.row_seq,
-            "row_flags": f"0x{flags:02X}",
-            "first_row": int(bool(flags & FLAG_FIRST_ROW)),
-            "last_row": int(bool(flags & FLAG_LAST_ROW)),
-            "fpga_status": f"0x{header.fpga_status:02X}",
-            "header_check": f"0x{header.header_check:02X}",
-            "frame_overflow": int(packet.frame_overflow),
-            "length_error": int(packet.length_error),
-            "frame_end": int(frame_end),
-            "sync0": f"0x{header.sync0:04X}",
-            "sync1": f"0x{header.sync1:04X}",
-            "sync_ok": int(
-                header.sync0 == SYNC0_DEFAULT
-                and header.sync1 == SYNC1_DEFAULT
-            ),
-            "payload_len": header.payload_len,
-            "payload_len_ok": int(0 < header.payload_len <= ROW_BYTES),
-            "crc_ok": int(packet.crc_ok),
-            "received_crc": f"0x{packet.received_crc:04X}",
-            "calculated_crc": f"0x{packet.calculated_crc:04X}",
-            "trailer_pad_zero": int(not any(trailer.pad)),
-            "m00": trailer.m00,
-            "xc_q4": trailer.xc_q4,
-            "yc_q4": trailer.yc_q4,
-            "x": f"{trailer.xc_q4 / 16.0:.4f}",
-            "y": f"{trailer.yc_q4 / 16.0:.4f}",
-            "vx_q8": trailer.vx_q8,
-            "vy_q8": trailer.vy_q8,
-            "vx": f"{trailer.vx_q8 / 256.0:.6f}",
-            "vy": f"{trailer.vy_q8 / 256.0:.6f}",
-            "parse_ok": int(result.ok),
-            "errors": ";".join(result.errors),
-            "warnings": ";".join(result.warnings),
-        }
+        layer3_valid = bool(result.ok)
 
         csv_path = self._camera_dir(header.cam_id) / "rows.csv"
         with self._csv_lock:
             sink = self._csv_sink(header.cam_id, csv_path)
-            sink.writer.writerow(row)
-            if frame_end:
-                # An actual blank line, not a comma-filled empty CSV record.
-                sink.handle.write("\n")
+
+            # Mirror of FrameReassembler's ``accepted = not errors and not
+            # duplicate``.  The session resets on frame switch, matching the
+            # reassembler's frame_switch close.
+            if sink.mirror_frame_id != header.frame_id:
+                sink.mirror_frame_id = header.frame_id
+                sink.mirror_rows = set()
+            row_accepted = layer3_valid and header.row_idx not in sink.mirror_rows
+            if row_accepted:
+                sink.mirror_rows.add(header.row_idx)
+
+            # A LAST/FIRST bit is only counted when Layer 3 validated the
+            # packet AND the row index is where that bit belongs.  attempt2
+            # had 834 raw LAST bits but only 832 real frame ends: the other
+            # two were 0xFF byte-bleed into row 255's flag byte.
+            reliable_first = (
+                layer3_valid
+                and header.row_idx == 0
+                and bool(flags & FLAG_FIRST_ROW)
+            )
+            reliable_last = (
+                layer3_valid
+                and header.row_idx == self.expected_rows - 1
+                and bool(flags & FLAG_LAST_ROW)
+            )
+
+            sink.csv_sequence += 1
+            row = {
+                "timestamp": f"{event.timestamp:.9f}",
+                "capture_index": event.capture_index,
+                "csv_sequence": sink.csv_sequence,
+                "cam_id": header.cam_id,
+                "frame_id": header.frame_id,
+                "row_idx": header.row_idx,
+                "row_seq": header.row_seq,
+                "row_flags": f"0x{flags:02X}",
+                "first_row": int(bool(flags & FLAG_FIRST_ROW)),
+                "last_row": int(bool(flags & FLAG_LAST_ROW)),
+                "fpga_status": f"0x{header.fpga_status:02X}",
+                "header_check": f"0x{header.header_check:02X}",
+                "frame_overflow": int(packet.frame_overflow),
+                "length_error": int(packet.length_error),
+                "frame_end": int(frame_end),
+                "sync0": f"0x{header.sync0:04X}",
+                "sync1": f"0x{header.sync1:04X}",
+                "sync_ok": int(
+                    header.sync0 == SYNC0_DEFAULT
+                    and header.sync1 == SYNC1_DEFAULT
+                ),
+                "payload_len": header.payload_len,
+                "payload_len_ok": int(0 < header.payload_len <= ROW_BYTES),
+                "crc_ok": int(packet.crc_ok),
+                "received_crc": f"0x{packet.received_crc:04X}",
+                "calculated_crc": f"0x{packet.calculated_crc:04X}",
+                "trailer_pad_zero": int(not any(trailer.pad)),
+                "m00": trailer.m00,
+                "xc_q4": trailer.xc_q4,
+                "yc_q4": trailer.yc_q4,
+                "x": f"{trailer.xc_q4 / 16.0:.4f}",
+                "y": f"{trailer.yc_q4 / 16.0:.4f}",
+                "vx_q8": trailer.vx_q8,
+                "vy_q8": trailer.vy_q8,
+                "vx": f"{trailer.vx_q8 / 256.0:.6f}",
+                "vy": f"{trailer.vy_q8 / 256.0:.6f}",
+                "parse_ok": int(result.ok),
+                "layer3_valid": int(layer3_valid),
+                "row_accepted": int(row_accepted),
+                "reliable_first": int(reliable_first),
+                "reliable_last": int(reliable_last),
+                "errors": ";".join(result.errors),
+                "warnings": ";".join(result.warnings),
+            }
+
+            sink.batch.append(row)
+            if reliable_last:
+                sink.blank_after.append(len(sink.batch) - 1)
             sink.pending_rows += 1
             now = time.monotonic()
             if (
-                frame_end
-                or sink.pending_rows >= self.csv_flush_rows
+                sink.pending_rows >= self.csv_flush_rows
                 or now - sink.last_flush >= self.csv_flush_seconds
             ):
-                self._flush_sink(sink, now)
+                self._emit_batch(sink, now)
 
-    def close(self) -> None:
-        """Flush and close all per-camera CSV files."""
-        with self._csv_lock:
-            for sink in self._csv_sinks.values():
-                sink.handle.flush()
-                sink.handle.close()
-            self._csv_sinks.clear()
+    def _emit_batch(self, sink: _CsvSink, now: float) -> None:
+        """Write the buffered rows with ``writerows`` and flush once.
+
+        Blank lines are real newlines, not comma-filled empty CSV records, so
+        the batch is split around them to keep their position exact.
+        """
+
+        if sink.batch:
+            start = 0
+            for index in sink.blank_after:
+                sink.writer.writerows(sink.batch[start:index + 1])
+                sink.handle.write("\n")
+                start = index + 1
+            if start < len(sink.batch):
+                sink.writer.writerows(sink.batch[start:])
+            self.csv_stats.rows_written += len(sink.batch)
+            sink.batch.clear()
+            sink.blank_after.clear()
+        started = time.perf_counter()
+        sink.handle.flush()
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        self.csv_stats.flush_count += 1
+        self.csv_stats.flush_latency_ms_total += latency_ms
+        if latency_ms > self.csv_stats.flush_latency_ms_max:
+            self.csv_stats.flush_latency_ms_max = latency_ms
+        sink.pending_rows = 0
+        sink.last_flush = now
 
     def archive_frame(self, frame: CompletedFrame) -> Path | None:
         """Publish a COMPLETE image or an explicitly eligible RECOVERED image."""
@@ -640,6 +909,20 @@ class CameraImagePipeline:
             f"{self.stats.pgm_write_success}/"
             f"{self.stats.pgm_write_failures}",
             f"  resolved images root: {self.images_root.resolve()}",
+            "",
+            "ROW CSV WRITER",
+            f"  rows.csv enabled     : {int(self.enable_row_csv)}",
+            f"  backpressure policy  : {self.csv_backpressure.value}",
+            f"  csv_queue_capacity   : {self.csv_stats.queue_capacity}",
+            f"  csv_queue_peak       : {self.csv_stats.queue_peak}",
+            f"  csv_rows_submitted   : {self.csv_stats.rows_submitted}",
+            f"  csv_rows_written     : {self.csv_stats.rows_written}",
+            f"  csv_rows_dropped     : {self.csv_stats.rows_dropped}",
+            f"  csv_writer_failures  : {self.csv_stats.writer_failures}",
+            f"  csv_flush_latency_ms : "
+            f"mean={self.csv_stats.flush_latency_ms_mean:.3f} "
+            f"max={self.csv_stats.flush_latency_ms_max:.3f} "
+            f"count={self.csv_stats.flush_count}",
         )
 
     def _camera_dir(self, cam_id: int) -> Path:
@@ -674,12 +957,6 @@ class CameraImagePipeline:
         )
         self._csv_sinks[cam_id] = sink
         return sink
-
-    @staticmethod
-    def _flush_sink(sink: _CsvSink, now: float) -> None:
-        sink.handle.flush()
-        sink.pending_rows = 0
-        sink.last_flush = now
 
     @staticmethod
     def _atomic_create(path: Path, data: bytes) -> None:
