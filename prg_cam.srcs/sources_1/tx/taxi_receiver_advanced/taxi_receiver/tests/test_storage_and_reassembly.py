@@ -141,6 +141,47 @@ def test_two_cameras_do_not_overwrite_each_other():
     assert cam1.status is FrameStatus.COMPLETE
 
 
+def test_identical_archive_is_idempotent(tmp_path):
+    reassembler = FrameReassembler()
+    storage = StorageAndPipeline(tmp_path)
+    reassembler.on_row(_packet(0, 8, 0, flags=FLAG_FIRST_ROW))
+    completed = reassembler.on_row(_packet(0, 8, 1, flags=FLAG_LAST_ROW))
+
+    first = storage.archive(completed)
+    second = storage.archive(completed)
+
+    assert first == second
+    with (tmp_path / "summary.csv").open(newline="", encoding="utf-8") as f:
+        summary = list(csv.DictReader(f))
+    assert len(summary) == 1
+    assert summary[0]["frame_id"] == "8"
+
+
+def test_rewriting_only_timing_metadata_is_idempotent(tmp_path):
+    reassembler = FrameReassembler()
+    storage = StorageAndPipeline(tmp_path)
+    reassembler.on_row(_packet(0, 9, 0, flags=FLAG_FIRST_ROW))
+    completed = reassembler.on_row(_packet(0, 9, 1, flags=FLAG_LAST_ROW))
+
+    first = storage.archive(completed)
+    metadata_path = first / "metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["started_at_monotonic"] = metadata["started_at_monotonic"] + 100.0
+    metadata["ended_at_monotonic"] = metadata["ended_at_monotonic"] + 100.0
+    metadata["duration_seconds"] = metadata["duration_seconds"] + 1.0
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    second = storage.archive(completed)
+
+    assert second == first
+    with (tmp_path / "summary.csv").open(newline="", encoding="utf-8") as f:
+        summary = list(csv.DictReader(f))
+    assert len(summary) == 1
+
+
 def test_identical_duplicate_is_deduplicated():
     reassembler = FrameReassembler()
     row0 = _packet(0, 2, 0, flags=FLAG_FIRST_ROW)

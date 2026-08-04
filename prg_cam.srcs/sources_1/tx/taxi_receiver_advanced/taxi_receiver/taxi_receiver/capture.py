@@ -20,8 +20,13 @@ not done at module scope. That means:
 from __future__ import annotations
 
 import time
+import threading
 from dataclasses import dataclass
+from ctypes import POINTER, byref, c_ubyte, create_string_buffer, string_at
 from typing import Callable, Iterable, Optional, Protocol
+
+
+DEFAULT_PCAP_BUFFER_SIZE = 8 * 1024 * 1024
 
 
 @dataclass(slots=True)
@@ -64,13 +69,14 @@ def list_interfaces() -> list[str]:
 
 
 class ScapyLiveCapture:
-    """Real Layer 1: wraps scapy's AsyncSniffer.
+    """Real Layer 1: opens an explicit pcap handle so buffer sizing can
+    be applied before activation.
 
-    The sniff callback extracts only src/dst/ethertype/payload/raw
-    bytes -- no CRC math, no struct unpack of the 128-byte body, no
-    printing, no file I/O -- keeping it as light as the original
-    prototype's comment insisted on, while still handing every other
-    layer plain data instead of a scapy Packet.
+    The capture loop extracts only src/dst/ethertype/payload/raw bytes
+    -- no CRC math, no struct unpack of the 128-byte body, no printing,
+    no file I/O -- keeping it as light as the original prototype's
+    comment insisted on, while still handing every other layer plain
+    data instead of a scapy Packet.
     """
 
     def __init__(
@@ -79,75 +85,139 @@ class ScapyLiveCapture:
         ether_type: int = 0x88B5,
         *,
         include_raw: bool = True,
-        pcap_bufsize: int = 524288,
+        pcap_buffer_size: int = DEFAULT_PCAP_BUFFER_SIZE,
+        read_timeout_ms: int = 100,
     ):
         self.interface = interface
         self.ether_type = ether_type
         self.include_raw = include_raw
-        self.pcap_bufsize = pcap_bufsize
+        self.pcap_buffer_size = pcap_buffer_size
+        self.read_timeout_ms = read_timeout_ms
+        self._pcap_handle = None
+        self._capture_thread: Optional[threading.Thread] = None
+        self._stop_requested = threading.Event()
         self._sniffer = None
         self._socket = None
         self._pcap_stats_snapshot: Optional[PcapStatistics] = None
-        self._previous_bufsize: Optional[int] = None
 
     def start(self, on_frame: Callable[[RawEthernetFrame], None]) -> None:
-        from scapy.all import AsyncSniffer
-        from scapy.all import conf
+        from ctypes import byref
         from scapy.layers.l2 import Ether
+        from scapy.libs import winpcapy
 
-        self._previous_bufsize = int(getattr(conf, "bufsize", self.pcap_bufsize))
-        conf.bufsize = self.pcap_bufsize
+        if self._pcap_handle is not None or (
+            self._capture_thread is not None and self._capture_thread.is_alive()
+        ):
+            raise RuntimeError("capture is already running")
 
-        self._socket = conf.L2listen(
-            iface=self.interface,
-            filter=f"ether proto 0x{self.ether_type:04x}",
-            promisc=True,
-            monitor=False,
+        self._stop_requested.clear()
+        errbuf = create_string_buffer(getattr(winpcapy, "PCAP_ERRBUF_SIZE", 256))
+        iface = create_string_buffer(self.interface.encode("utf8"))
+
+        handle = winpcapy.pcap_create(iface, errbuf)
+        if not handle:
+            error = self._decode_error_buffer(errbuf)
+            raise OSError(error or "pcap_create failed")
+
+        self._pcap_handle = handle
+        self._socket = None
+
+        try:
+            self._configure_pcap_handle(winpcapy, handle, errbuf)
+
+            activate_status = winpcapy.pcap_activate(handle)
+            if activate_status < 0:
+                raise OSError(self._pcap_error(winpcapy, handle))
+
+            filter_program = winpcapy.bpf_program()
+            filter_expression = f"ether proto 0x{self.ether_type:04x}".encode("utf8")
+            if winpcapy.pcap_compile(handle, byref(filter_program), filter_expression, 1, 0) != 0:
+                raise OSError(self._pcap_error(winpcapy, handle))
+            try:
+                if winpcapy.pcap_setfilter(handle, byref(filter_program)) != 0:
+                    raise OSError(self._pcap_error(winpcapy, handle))
+            finally:
+                winpcapy.pcap_freecode(byref(filter_program))
+
+            if hasattr(winpcapy, "pcap_setmintocopy"):
+                if winpcapy.pcap_setmintocopy(handle, 0) != 0:
+                    raise OSError(self._pcap_error(winpcapy, handle))
+        except Exception:
+            try:
+                winpcapy.pcap_close(handle)
+            finally:
+                self._pcap_handle = None
+            raise
+
+        def _run_capture() -> None:
+            try:
+                while not self._stop_requested.is_set():
+                    packet_bytes = self._next_packet(winpcapy, handle)
+                    if packet_bytes is None:
+                        continue
+                    try:
+                        eth = Ether(packet_bytes)
+                    except Exception:
+                        continue
+                    on_frame(RawEthernetFrame(
+                        src_mac=eth.src,
+                        dst_mac=eth.dst,
+                        ethertype=int(eth.type),
+                        payload=bytes(eth.payload),
+                        raw_bytes=packet_bytes if self.include_raw else b"",
+                        timestamp=_packet_timestamp(eth),
+                    ))
+            except Exception:
+                self._stop_requested.set()
+
+        self._capture_thread = threading.Thread(
+            target=_run_capture,
+            name=f"pcap-capture-{self.interface}",
+            daemon=True,
         )
-
-        def _callback(packet) -> None:
-            if Ether not in packet:
-                return
-            eth = packet[Ether]
-            on_frame(RawEthernetFrame(
-                src_mac=eth.src,
-                dst_mac=eth.dst,
-                ethertype=int(eth.type),
-                payload=bytes(eth.payload),
-                # The complete second byte copy is needed only when the
-                # optional PCAP recorder is enabled.
-                raw_bytes=bytes(packet) if self.include_raw else b"",
-                timestamp=_packet_timestamp(packet),
-            ))
-
-        self._sniffer = AsyncSniffer(opened_socket=self._socket, prn=_callback, store=False)
-        self._sniffer.start()
+        self._capture_thread.start()
 
     def stop(self) -> None:
-        if self._socket is not None:
+        from scapy.libs import winpcapy
+
+        handle = self._get_pcap_handle()
+        if handle is not None:
             snapshot = self._read_pcap_stats()
             if snapshot is not None:
                 self._pcap_stats_snapshot = snapshot
-        if self._sniffer is not None and self._sniffer.running:
+
+        stop_requested = getattr(self, "_stop_requested", None)
+        if stop_requested is not None:
+            stop_requested.set()
+        if handle is not None and hasattr(winpcapy, "pcap_breakloop"):
+            try:
+                winpcapy.pcap_breakloop(handle)
+            except Exception:
+                pass
+
+        capture_thread = getattr(self, "_capture_thread", None)
+        if capture_thread is not None and capture_thread.is_alive():
+            capture_thread.join(timeout=2.0)
+
+        if handle is not None and hasattr(winpcapy, "pcap_close"):
+            try:
+                winpcapy.pcap_close(handle)
+            finally:
+                self._pcap_handle = None
+        elif handle is not None:
+            self._pcap_handle = None
+
+        if self._sniffer is not None and getattr(self._sniffer, "running", False):
             self._sniffer.stop()
+
         if self._socket is not None:
             try:
                 self._socket.close()
             finally:
                 self._socket = None
-        previous_bufsize = getattr(self, "_previous_bufsize", None)
-        if previous_bufsize is not None:
-            try:
-                from scapy.all import conf
-
-                conf.bufsize = previous_bufsize
-            except Exception:
-                pass
-            finally:
-                self._previous_bufsize = None
 
     def pcap_stats(self) -> Optional[PcapStatistics]:
-        if self._socket is None:
+        if self._get_pcap_handle() is None:
             return self._pcap_stats_snapshot
 
         snapshot = self._read_pcap_stats()
@@ -155,8 +225,42 @@ class ScapyLiveCapture:
             self._pcap_stats_snapshot = snapshot
         return snapshot
 
+    def _get_pcap_handle(self):
+        if getattr(self, "_pcap_handle", None) is not None:
+            return self._pcap_handle
+        socket = getattr(self, "_socket", None)
+        if socket is None:
+            return None
+
+        pcap_fd = getattr(socket, "pcap_fd", None)
+        if pcap_fd is None:
+            return None
+        return getattr(pcap_fd, "pcap", None)
+
+    def _configure_pcap_handle(self, winpcapy, handle, errbuf) -> None:
+        if winpcapy.pcap_set_snaplen(handle, 65535) != 0:
+            raise OSError(self._pcap_error(winpcapy, handle, errbuf))
+        if winpcapy.pcap_set_promisc(handle, 1) != 0:
+            raise OSError(self._pcap_error(winpcapy, handle, errbuf))
+        if winpcapy.pcap_set_timeout(handle, self.read_timeout_ms) != 0:
+            raise OSError(self._pcap_error(winpcapy, handle, errbuf))
+        if winpcapy.pcap_set_buffer_size(handle, self.pcap_buffer_size) != 0:
+            raise OSError(self._pcap_error(winpcapy, handle, errbuf))
+
+    def _next_packet(self, winpcapy, handle) -> Optional[bytes]:
+        header = POINTER(winpcapy.pcap_pkthdr)()
+        packet_data = POINTER(c_ubyte)()
+        result = winpcapy.pcap_next_ex(handle, byref(header), byref(packet_data))
+        if result == 1:
+            caplen = int(header.contents.caplen)
+            return bytes(string_at(packet_data, caplen))
+        if result in (0, -2):
+            return None
+        raise OSError(self._pcap_error(winpcapy, handle))
+
     def _read_pcap_stats(self) -> Optional[PcapStatistics]:
-        if self._socket is None:
+        handle = self._get_pcap_handle()
+        if handle is None:
             return None
 
         from ctypes import byref
@@ -166,12 +270,8 @@ class ScapyLiveCapture:
         except Exception:
             return None
 
-        pcap_handle = getattr(self._socket.pcap_fd, "pcap", None)
-        if pcap_handle is None:
-            return None
-
         stat = winpcapy.pcap_stat()
-        result = winpcapy.pcap_stats(pcap_handle, byref(stat))
+        result = winpcapy.pcap_stats(handle, byref(stat))
         if result != 0:
             return None
 
@@ -183,6 +283,22 @@ class ScapyLiveCapture:
             ps_sent=int(stat.ps_sent) if hasattr(stat, "ps_sent") else None,
             ps_netdrop=int(stat.ps_netdrop) if hasattr(stat, "ps_netdrop") else None,
         )
+
+    def _decode_error_buffer(self, errbuf) -> str:
+        return bytes(errbuf).split(b"\x00", 1)[0].decode("utf-8", errors="replace")
+
+    def _pcap_error(self, winpcapy, handle, errbuf=None) -> str:
+        try:
+            error = winpcapy.pcap_geterr(handle)
+            if error:
+                return bytes(error).split(b"\x00", 1)[0].decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        if errbuf is not None:
+            message = self._decode_error_buffer(errbuf)
+            if message:
+                return message
+        return "pcap operation failed"
 
 
 class SyntheticFrameSource:

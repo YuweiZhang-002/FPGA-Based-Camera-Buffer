@@ -231,54 +231,97 @@ def test_scapy_live_capture_caches_pcap_stats_across_stop(monkeypatch):
     assert fake_socket.closed
 
 
-def test_scapy_live_capture_raises_capture_buffer_size(monkeypatch):
-    fake_conf = SimpleNamespace(bufsize=65536)
+def test_scapy_live_capture_uses_pcap_buffer_size_before_activation(monkeypatch):
+    calls = []
+    fake_handle = object()
 
-    class FakeSocket:
-        def __init__(self):
-            self.pcap_fd = SimpleNamespace(pcap=object())
+    class FakeEther:
+        def __init__(self, raw_bytes):
+            self.src = "00:11:22:33:44:55"
+            self.dst = "66:77:88:99:aa:bb"
+            self.type = 0x88B5
+            self.payload = b"payload"
 
-        def close(self):
-            pass
+    def record(name, return_value=0):
+        def _inner(*args, **kwargs):
+            calls.append((name, args, kwargs))
+            return return_value
 
-    class FakeSniffer:
-        def __init__(self, opened_socket=None, prn=None, store=None):
-            self.opened_socket = opened_socket
-            self.prn = prn
-            self.store = store
-            self.running = False
+        return _inner
 
-        def start(self):
-            self.running = True
+    def fake_next_packet(self, _winpcapy, _handle):
+        raise RuntimeError("stop thread")
 
-        def stop(self):
-            self.running = False
+    fake_winpcapy = types.ModuleType("scapy.libs.winpcapy")
+    fake_winpcapy.PCAP_ERRBUF_SIZE = 256
+    class FakeBpfProgram(Structure):
+        _fields_ = []
 
-    def fake_l2listen(**_kwargs):
-        return FakeSocket()
+    fake_winpcapy.bpf_program = FakeBpfProgram
+    fake_winpcapy.pcap_create = record("pcap_create", fake_handle)
+    fake_winpcapy.pcap_set_snaplen = record("pcap_set_snaplen")
+    fake_winpcapy.pcap_set_promisc = record("pcap_set_promisc")
+    fake_winpcapy.pcap_set_timeout = record("pcap_set_timeout")
+    fake_winpcapy.pcap_set_buffer_size = record("pcap_set_buffer_size")
+    fake_winpcapy.pcap_activate = record("pcap_activate")
+    fake_winpcapy.pcap_compile = record("pcap_compile")
+    fake_winpcapy.pcap_setfilter = record("pcap_setfilter")
+    fake_winpcapy.pcap_freecode = record("pcap_freecode")
+    fake_winpcapy.pcap_setmintocopy = record("pcap_setmintocopy")
+    class FakeStat(Structure):
+        _fields_ = [
+            ("ps_recv", c_ulong),
+            ("ps_drop", c_ulong),
+            ("ps_ifdrop", c_ulong),
+        ]
 
-    scapy_all_module = types.ModuleType("scapy.all")
-    scapy_all_module.AsyncSniffer = FakeSniffer
-    scapy_all_module.conf = fake_conf
-    scapy_layers_module = types.ModuleType("scapy.layers")
-    scapy_layers_l2_module = types.ModuleType("scapy.layers.l2")
-    scapy_layers_l2_module.Ether = object()
-    scapy_all_module.get_if_list = lambda: []
-    scapy_all_module.rdpcap = lambda _path: []
-    fake_conf.L2listen = fake_l2listen
-    monkeypatch.setitem(sys.modules, "scapy", types.ModuleType("scapy"))
-    monkeypatch.setitem(sys.modules, "scapy.all", scapy_all_module)
-    monkeypatch.setitem(sys.modules, "scapy.layers", scapy_layers_module)
-    monkeypatch.setitem(sys.modules, "scapy.layers.l2", scapy_layers_l2_module)
+    fake_winpcapy.pcap_stat = FakeStat
+    fake_winpcapy.pcap_stats = lambda _handle, _stat_ptr: 0
+    fake_winpcapy.pcap_geterr = lambda _handle: b"fake error"
+    fake_winpcapy.pcap_breakloop = record("pcap_breakloop")
+    fake_winpcapy.pcap_close = record("pcap_close")
 
-    capture = ScapyLiveCapture("fake0", pcap_bufsize=524288)
-    capture.start(lambda _frame: None)
+    fake_layers_l2 = types.ModuleType("scapy.layers.l2")
+    fake_layers_l2.Ether = FakeEther
 
-    assert fake_conf.bufsize == 524288
+    fake_scapy_all = types.ModuleType("scapy.all")
+    fake_scapy_all.conf = SimpleNamespace(use_npcap=True)
 
+    fake_scapy_libs = types.ModuleType("scapy.libs")
+    fake_scapy_libs.winpcapy = fake_winpcapy
+    fake_scapy = types.ModuleType("scapy")
+    fake_scapy.all = fake_scapy_all
+    fake_scapy.libs = fake_scapy_libs
+    fake_scapy.layers = types.ModuleType("scapy.layers")
+    fake_scapy.layers.l2 = fake_layers_l2
+
+    monkeypatch.setitem(sys.modules, "scapy", fake_scapy)
+    monkeypatch.setitem(sys.modules, "scapy.all", fake_scapy_all)
+    monkeypatch.setitem(sys.modules, "scapy.libs", fake_scapy_libs)
+    monkeypatch.setitem(sys.modules, "scapy.libs.winpcapy", fake_winpcapy)
+    monkeypatch.setitem(sys.modules, "scapy.layers", fake_scapy.layers)
+    monkeypatch.setitem(sys.modules, "scapy.layers.l2", fake_layers_l2)
+    monkeypatch.setattr(ScapyLiveCapture, "_next_packet", fake_next_packet)
+
+    capture = ScapyLiveCapture(
+        "fake0",
+        ether_type=0x88B5,
+        include_raw=True,
+        pcap_buffer_size=2 * 1024 * 1024,
+        read_timeout_ms=250,
+    )
+    received = []
+
+    capture.start(received.append)
+    time.sleep(0.1)
     capture.stop()
 
-    assert fake_conf.bufsize == 65536
+    names = [name for name, *_ in calls]
+    assert names[0] == "pcap_create"
+    assert names.index("pcap_set_buffer_size") < names.index("pcap_activate")
+    assert names.index("pcap_activate") < names.index("pcap_setfilter")
+    assert names.index("pcap_setfilter") < names.index("pcap_setmintocopy")
+    assert names.index("pcap_setmintocopy") < names.index("pcap_close")
 
 
 def test_pipeline_fixed_mode():

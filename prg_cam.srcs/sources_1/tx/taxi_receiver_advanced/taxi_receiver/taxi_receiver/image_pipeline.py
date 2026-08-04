@@ -602,13 +602,6 @@ class CameraImagePipeline:
             row_csv_ref = "rows.csv"
 
         targets = (pgm_path, raw_path, metadata_path)
-        existing = [str(path) for path in targets if path.exists()]
-        if existing:
-            raise FileExistsError(
-                "refusing to overwrite numbered image artifact(s): "
-                + ", ".join(existing)
-            )
-
         pgm = (
             f"P5\n{recovered.width} {recovered.height}\n255\n".encode("ascii")
             + recovered.pixels
@@ -646,6 +639,22 @@ class CameraImagePipeline:
             "raw_file": raw_path.name,
             "row_csv": row_csv_ref,
         }
+
+        existing = [str(path) for path in targets if path.exists()]
+        if existing:
+            if self._already_published(
+                pgm_path,
+                raw_path,
+                metadata_path,
+                pgm,
+                recovered.pixels,
+                metadata,
+            ):
+                return pgm_path
+            raise FileExistsError(
+                "refusing to overwrite numbered image artifact(s): "
+                + ", ".join(existing)
+            )
 
         # Each visible file appears only after its complete temporary file has
         # been closed.  Existing numbered frames are never silently replaced.
@@ -972,3 +981,35 @@ class CameraImagePipeline:
         finally:
             if temp.exists():
                 temp.unlink()
+
+    @staticmethod
+    def _already_published(
+        pgm_path: Path,
+        raw_path: Path,
+        metadata_path: Path,
+        pgm: bytes,
+        raw: bytes,
+        metadata: dict[str, object],
+    ) -> bool:
+        if not (pgm_path.is_file() and raw_path.is_file() and metadata_path.is_file()):
+            return False
+        try:
+            if pgm_path.read_bytes() != pgm:
+                return False
+            if raw_path.read_bytes() != raw:
+                return False
+            existing_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        return _stable_publication_metadata(existing_metadata) == _stable_publication_metadata(metadata)
+
+
+def _stable_publication_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    volatile_keys = {
+        "timestamp",
+    }
+    return {
+        key: value
+        for key, value in metadata.items()
+        if key not in volatile_keys
+    }

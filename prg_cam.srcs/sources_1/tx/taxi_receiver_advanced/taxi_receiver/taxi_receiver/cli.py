@@ -50,12 +50,12 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--error-directory", type=Path, help="Save malformed payloads as binary files.")
     parser.add_argument("--queue-depth", type=int, default=8192)
     parser.add_argument(
-        "--pcap-bufsize",
+        "--pcap-buffer-size",
         type=int,
-        default=524288,
+        default=8 * 1024 * 1024,
         help=(
-            "Scapy/Npcap capture buffer size in bytes. Default is 524288 "
-            "(8x the previous 65536-byte setting) to absorb short bursts."
+            "Npcap/libpcap kernel buffer size in bytes for live capture. "
+            "This is applied via pcap_set_buffer_size() before activation."
         ),
     )
     parser.add_argument(
@@ -284,7 +284,7 @@ def main() -> int:
             args.interface,
             ether_type=ETHER_TYPE,
             include_raw=pcap_recorder is not None,
-                pcap_bufsize=args.pcap_bufsize,
+            pcap_buffer_size=args.pcap_buffer_size,
         )
     )
 
@@ -322,6 +322,8 @@ def main() -> int:
     print(f"Mode      : {args.mode}")
     print(f"Max stage : {max_stage} (Layer 1-{STAGE_ORDER.index(max_stage) + 2})")
     print(f"EtherType : 0x{ETHER_TYPE:04X}")
+    if args.replay_pcap is None:
+        print(f"Pcap buf  : {args.pcap_buffer_size} bytes")
     print(f"Working dir: {Path.cwd().resolve()}")
     if args.output_root is not None:
         print(f"Archive   : {args.output_root.resolve()}")

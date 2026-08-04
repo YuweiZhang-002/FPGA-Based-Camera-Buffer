@@ -56,25 +56,23 @@ class StorageAndPipeline:
         camera_dir = self.output_root / f"cam_{frame.camera_id}"
         camera_dir.mkdir(parents=True, exist_ok=True)
         final_dir = camera_dir / f"frame_{frame.frame_id}"
+        temp_dir = camera_dir / (
+            f".frame_{frame.frame_id}.{uuid.uuid4().hex}.tmp"
+        )
+        raw = frame.to_bytes()
+        metadata = self._metadata(frame, raw)
+
         if final_dir.exists():
+            if self._already_archived(final_dir, metadata):
+                return final_dir
             raise FileExistsError(
                 f"refusing to overwrite archived frame: {final_dir}"
             )
 
-        temp_dir = camera_dir / (
-            f".frame_{frame.frame_id}.{uuid.uuid4().hex}.tmp"
-        )
         temp_dir.mkdir()
-
-        raw = frame.to_bytes()
         (temp_dir / "image.raw").write_bytes(raw)
         (temp_dir / "metadata.json").write_text(
-            json.dumps(
-                self._metadata(frame, raw),
-                indent=2,
-                sort_keys=True,
-            )
-            + "\n",
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         self._write_packets(temp_dir / "packets.csv", frame)
@@ -89,6 +87,17 @@ class StorageAndPipeline:
         _replace_directory_with_retry(temp_dir, final_dir)
         self._append_summary(frame, final_dir)
         return final_dir
+
+    @staticmethod
+    def _already_archived(final_dir: Path, metadata: dict[str, object]) -> bool:
+        metadata_path = final_dir / "metadata.json"
+        if not metadata_path.is_file():
+            return False
+        try:
+            existing = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        return _stable_metadata(existing) == _stable_metadata(metadata)
 
     def __call__(self, frame: CompletedFrame) -> None:
         self.archive(frame)
@@ -277,3 +286,16 @@ def _replace_directory_with_retry(
                 raise
             time.sleep(delay)
             delay = min(delay * 2, 0.5)
+
+
+def _stable_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    volatile_keys = {
+        "started_at_monotonic",
+        "ended_at_monotonic",
+        "duration_seconds",
+    }
+    return {
+        key: value
+        for key, value in metadata.items()
+        if key not in volatile_keys
+    }
