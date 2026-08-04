@@ -79,18 +79,24 @@ class ScapyLiveCapture:
         ether_type: int = 0x88B5,
         *,
         include_raw: bool = True,
+        pcap_bufsize: int = 524288,
     ):
         self.interface = interface
         self.ether_type = ether_type
         self.include_raw = include_raw
+        self.pcap_bufsize = pcap_bufsize
         self._sniffer = None
         self._socket = None
         self._pcap_stats_snapshot: Optional[PcapStatistics] = None
+        self._previous_bufsize: Optional[int] = None
 
     def start(self, on_frame: Callable[[RawEthernetFrame], None]) -> None:
         from scapy.all import AsyncSniffer
         from scapy.all import conf
         from scapy.layers.l2 import Ether
+
+        self._previous_bufsize = int(getattr(conf, "bufsize", self.pcap_bufsize))
+        conf.bufsize = self.pcap_bufsize
 
         self._socket = conf.L2listen(
             iface=self.interface,
@@ -129,6 +135,16 @@ class ScapyLiveCapture:
                 self._socket.close()
             finally:
                 self._socket = None
+        previous_bufsize = getattr(self, "_previous_bufsize", None)
+        if previous_bufsize is not None:
+            try:
+                from scapy.all import conf
+
+                conf.bufsize = previous_bufsize
+            except Exception:
+                pass
+            finally:
+                self._previous_bufsize = None
 
     def pcap_stats(self) -> Optional[PcapStatistics]:
         if self._socket is None:

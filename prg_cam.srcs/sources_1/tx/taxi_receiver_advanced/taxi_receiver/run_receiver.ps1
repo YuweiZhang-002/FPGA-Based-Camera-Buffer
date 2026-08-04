@@ -9,6 +9,8 @@ param(
 
     [int]$QueueDepth = 65536,
 
+    [int]$PcapBufsize = 524288,
+
     [int]$FrameOutputQueueDepth = 256,
 
     [string]$ImagesRoot = '',
@@ -42,6 +44,7 @@ try {
         --max-missing-rows $MaxMissingRows `
         --max-consecutive-missing $MaxConsecutiveMissing `
         --queue-depth $QueueDepth `
+        --pcap-bufsize $PcapBufsize `
         --frame-output-queue-depth $FrameOutputQueueDepth `
         --output-root $OutputRoot `
         --images-root $ImagesRoot

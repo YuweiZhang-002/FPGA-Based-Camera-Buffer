@@ -4,6 +4,9 @@ import types
 from ctypes import Structure, c_ulong
 from types import SimpleNamespace
 
+import pytest
+
+import taxi_receiver.cli as cli_module
 from taxi_receiver.async_sink import AsyncCallbackDispatcher
 from taxi_receiver.capture import ScapyLiveCapture, SyntheticFrameSource, _packet_timestamp
 from taxi_receiver.packet_format import (
@@ -68,6 +71,60 @@ def test_pipeline_with_reassembler_layer5():
     assert completed_frames[0].camera_id == 0
     assert completed_frames[0].frame_id == 7
     assert completed_frames[0].row_count == 2
+
+
+def test_frame_output_logs_named_callback_failures():
+    messages = []
+    seen = []
+
+    def storage(_frame):
+        seen.append("storage")
+        raise FileExistsError("output already exists")
+
+    def image_publication(_frame):
+        seen.append("image publication")
+        raise ValueError("geometry mismatch")
+
+    dispatcher = AsyncCallbackDispatcher(
+        cli_module._fanout_callbacks(
+            ("storage", storage),
+            ("image publication", image_publication),
+        ),
+        queue_depth=1,
+        name="test-frame-writer",
+        error_sink=messages.append,
+    )
+
+    dispatcher.submit(object())
+    dispatcher.close()
+
+    assert seen == ["storage", "image publication"]
+    assert dispatcher.stats.submitted == 1
+    assert dispatcher.stats.processed == 0
+    assert dispatcher.stats.failures == 1
+    assert len(messages) == 1
+    assert messages[0] == (
+        "[FRAME OUTPUT ERROR] storage failed: output already exists; "
+        "image publication failed: geometry mismatch"
+    )
+
+
+def test_fanout_callbacks_still_accept_plain_callables():
+    calls = []
+
+    def first(value):
+        calls.append(("first", value))
+
+    def second(value):
+        calls.append(("second", value))
+
+    invoke = cli_module._fanout_callbacks(first, second)
+    assert invoke is not None
+
+    marker = object()
+    invoke(marker)
+
+    assert calls == [("first", marker), ("second", marker)]
 
 
 def test_final_report_includes_live_pcap_drop_stats():
@@ -172,6 +229,56 @@ def test_scapy_live_capture_caches_pcap_stats_across_stop(monkeypatch):
     assert after_stop is not None
     assert after_stop.ps_drop == 7
     assert fake_socket.closed
+
+
+def test_scapy_live_capture_raises_capture_buffer_size(monkeypatch):
+    fake_conf = SimpleNamespace(bufsize=65536)
+
+    class FakeSocket:
+        def __init__(self):
+            self.pcap_fd = SimpleNamespace(pcap=object())
+
+        def close(self):
+            pass
+
+    class FakeSniffer:
+        def __init__(self, opened_socket=None, prn=None, store=None):
+            self.opened_socket = opened_socket
+            self.prn = prn
+            self.store = store
+            self.running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    def fake_l2listen(**_kwargs):
+        return FakeSocket()
+
+    scapy_all_module = types.ModuleType("scapy.all")
+    scapy_all_module.AsyncSniffer = FakeSniffer
+    scapy_all_module.conf = fake_conf
+    scapy_layers_module = types.ModuleType("scapy.layers")
+    scapy_layers_l2_module = types.ModuleType("scapy.layers.l2")
+    scapy_layers_l2_module.Ether = object()
+    scapy_all_module.get_if_list = lambda: []
+    scapy_all_module.rdpcap = lambda _path: []
+    fake_conf.L2listen = fake_l2listen
+    monkeypatch.setitem(sys.modules, "scapy", types.ModuleType("scapy"))
+    monkeypatch.setitem(sys.modules, "scapy.all", scapy_all_module)
+    monkeypatch.setitem(sys.modules, "scapy.layers", scapy_layers_module)
+    monkeypatch.setitem(sys.modules, "scapy.layers.l2", scapy_layers_l2_module)
+
+    capture = ScapyLiveCapture("fake0", pcap_bufsize=524288)
+    capture.start(lambda _frame: None)
+
+    assert fake_conf.bufsize == 524288
+
+    capture.stop()
+
+    assert fake_conf.bufsize == 65536
 
 
 def test_pipeline_fixed_mode():

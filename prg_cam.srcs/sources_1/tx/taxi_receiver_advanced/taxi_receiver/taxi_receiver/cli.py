@@ -50,6 +50,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--error-directory", type=Path, help="Save malformed payloads as binary files.")
     parser.add_argument("--queue-depth", type=int, default=8192)
     parser.add_argument(
+        "--pcap-bufsize",
+        type=int,
+        default=524288,
+        help=(
+            "Scapy/Npcap capture buffer size in bytes. Default is 524288 "
+            "(8x the previous 65536-byte setting) to absorb short bursts."
+        ),
+    )
+    parser.add_argument(
         "--frame-output-queue-depth",
         type=int,
         default=256,
@@ -250,8 +259,11 @@ def main() -> int:
         else None
     )
     completed_frame_callback = _fanout_callbacks(
-        storage,
-        image_pipeline.archive_frame if image_pipeline is not None else None,
+        ("storage", storage),
+        (
+            "image publication",
+            image_pipeline.archive_frame if image_pipeline is not None else None,
+        ),
     )
     frame_output = (
         AsyncCallbackDispatcher(
@@ -272,6 +284,7 @@ def main() -> int:
             args.interface,
             ether_type=ETHER_TYPE,
             include_raw=pcap_recorder is not None,
+                pcap_bufsize=args.pcap_bufsize,
         )
     )
 
@@ -289,7 +302,7 @@ def main() -> int:
             frame_output.submit if frame_output is not None else None
         ),
         on_frame_processed=_fanout_callbacks(
-            session_audit,
+            ("session audit", session_audit),
             image_pipeline.record_packet if image_pipeline is not None else None,
         ),
     )
@@ -375,6 +388,16 @@ def main() -> int:
 
     return 0
 
+class _NamedCallbackError(RuntimeError):
+    def __init__(self, failures):
+        self.failures = tuple(failures)
+
+    def __str__(self) -> str:
+        return "; ".join(
+            f"{name} failed: {exc}" for name, exc in self.failures
+        )
+
+
 def _fanout_callbacks(*callbacks):
     """Run every configured observation/storage callback.
 
@@ -384,22 +407,38 @@ def _fanout_callbacks(*callbacks):
     accounting.
     """
 
-    active = tuple(callback for callback in callbacks if callback is not None)
+    active = tuple(
+        normalized
+        for callback in callbacks
+        if (normalized := _normalize_fanout_callback(callback)) is not None
+    )
     if not active:
         return None
 
     def invoke(value) -> None:
-        first_error: Exception | None = None
-        for callback in active:
+        failures = []
+        for name, callback in active:
             try:
                 callback(value)
             except Exception as exc:  # noqa: BLE001 - preserve peer callbacks
-                if first_error is None:
-                    first_error = exc
-        if first_error is not None:
-            raise first_error
+                failures.append((name, exc))
+        if failures:
+            raise _NamedCallbackError(failures)
 
     return invoke
+
+
+def _normalize_fanout_callback(callback):
+    if isinstance(callback, tuple):
+        name, actual_callback = callback
+    else:
+        actual_callback = callback
+        name = getattr(callback, "__name__", callback.__class__.__name__)
+
+    if actual_callback is None:
+        return None
+
+    return name, actual_callback
 
 
 if __name__ == "__main__":
