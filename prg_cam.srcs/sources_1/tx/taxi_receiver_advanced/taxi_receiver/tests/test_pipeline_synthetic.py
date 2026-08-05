@@ -1,13 +1,16 @@
+import threading
 import time
 import sys
 import types
 from ctypes import Structure, c_ulong
 from types import SimpleNamespace
+from pathlib import Path
 
 import pytest
 
 import taxi_receiver.cli as cli_module
 from taxi_receiver.async_sink import AsyncCallbackDispatcher
+from taxi_receiver.camera_lane import CameraLanePool
 from taxi_receiver.capture import ScapyLiveCapture, SyntheticFrameSource, _packet_timestamp
 from taxi_receiver.packet_format import (
     FLAG_FIRST_ROW,
@@ -17,6 +20,8 @@ from taxi_receiver.packet_format import (
 )
 from taxi_receiver.pipeline import TaxiReceiverPipeline
 from taxi_receiver.reassembler import FrameReassembler, FrameStatus
+from taxi_receiver.session_audit import SessionAuditLogger
+from taxi_receiver.storage import StorageAndPipeline
 
 from .synthetic import make_camera_frame, make_fixed_frame, make_raw_frame
 
@@ -235,13 +240,6 @@ def test_scapy_live_capture_uses_pcap_buffer_size_before_activation(monkeypatch)
     calls = []
     fake_handle = object()
 
-    class FakeEther:
-        def __init__(self, raw_bytes):
-            self.src = "00:11:22:33:44:55"
-            self.dst = "66:77:88:99:aa:bb"
-            self.type = 0x88B5
-            self.payload = b"payload"
-
     def record(name, return_value=0):
         def _inner(*args, **kwargs):
             calls.append((name, args, kwargs))
@@ -282,7 +280,6 @@ def test_scapy_live_capture_uses_pcap_buffer_size_before_activation(monkeypatch)
     fake_winpcapy.pcap_close = record("pcap_close")
 
     fake_layers_l2 = types.ModuleType("scapy.layers.l2")
-    fake_layers_l2.Ether = FakeEther
 
     fake_scapy_all = types.ModuleType("scapy.all")
     fake_scapy_all.conf = SimpleNamespace(use_npcap=True)
@@ -438,8 +435,185 @@ def test_slow_frame_storage_is_decoupled_from_capture_queue():
     assert dispatcher.stats.queue_peak > 0
 
 
+def test_split_by_camera_routes_each_camera_into_its_own_lane(tmp_path):
+    frames = [
+        make_camera_frame(
+            cam_id=0,
+            frame_id=10,
+            row_idx=0,
+            row_seq=0,
+            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+        ),
+        make_camera_frame(
+            cam_id=1,
+            frame_id=20,
+            row_idx=0,
+            row_seq=0,
+            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+        ),
+    ]
+
+    archive_root = tmp_path / "archive"
+    images_root = tmp_path / "images"
+    storage = StorageAndPipeline(archive_root)
+    session_audit = SessionAuditLogger(archive_root)
+
+    pipeline = TaxiReceiverPipeline(
+        frame_source=SyntheticFrameSource(frames),
+        mode="camera",
+        max_stage="reassemble",
+        reassembler=FrameReassembler(expected_rows=1),
+        queue_depth=8,
+        report_interval=999,
+        sink=lambda *_: None,
+        split_by_camera=True,
+    )
+    lane_pool = CameraLanePool(
+        monitor=pipeline.monitor,
+        output_root=archive_root,
+        images_root=images_root,
+        enable_row_csv=True,
+        expected_rows=1,
+        bit_order="msb_first",
+        image_policy="strict",
+        max_missing_rows=0,
+        max_consecutive_missing=1,
+        report_interval=999,
+        csv_queue_depth=8,
+        csv_backpressure="drop",
+        frame_output_queue_depth=8,
+        lane_queue_depth=4,
+        session_audit=session_audit,
+        storage=storage,
+        report_sink=lambda *_: None,
+        error_sink=lambda *_: None,
+    )
+    pipeline.on_frame_processed = lane_pool.submit
+
+    pipeline.start()
+    pipeline.stop()
+    lane_pool.close()
+    session_audit.close()
+    storage.close()
+
+    assert pipeline.monitor.stats.camera(0).packets == 1
+    assert pipeline.monitor.stats.camera(1).packets == 1
+    assert pipeline.monitor.stats.camera(0).capture_queue_drops == 0
+    assert pipeline.monitor.stats.camera(1).capture_queue_drops == 0
+    assert (images_root / "cam0" / "10.pgm").is_file()
+    assert (images_root / "cam1" / "20.pgm").is_file()
+    report_lines = lane_pool.report_lines()
+    assert any("CAMERA LANE 0" in line for line in report_lines)
+    assert any("CAMERA LANE 1" in line for line in report_lines)
+
+
 def test_packet_timestamp_prefers_captured_packet_time():
     class DummyPacket:
         time = 123.456
 
     assert _packet_timestamp(DummyPacket()) == 123.456
+
+
+def test_setting_on_completed_frame_after_construction_reaches_the_stage():
+    # ReassemblyStage captures this callback at construction.  Assigning the
+    # plain attribute afterwards left the stage holding None, so frames
+    # completed during the run were silently unpublished and only the
+    # stop()-time flush reached the sink.
+    frames = [
+        make_camera_frame(
+            cam_id=0, frame_id=1, row_idx=0, row_seq=0, row_flags=FLAG_FIRST_ROW
+        ),
+        make_camera_frame(
+            cam_id=0, frame_id=1, row_idx=1, row_seq=1, row_flags=FLAG_LAST_ROW
+        ),
+        make_camera_frame(
+            cam_id=0, frame_id=2, row_idx=0, row_seq=2, row_flags=FLAG_FIRST_ROW
+        ),
+        make_camera_frame(
+            cam_id=0, frame_id=2, row_idx=1, row_seq=3, row_flags=FLAG_LAST_ROW
+        ),
+    ]
+    published = []
+    pipeline = TaxiReceiverPipeline(
+        frame_source=SyntheticFrameSource(frames),
+        mode="camera",
+        max_stage="reassemble",
+        reassembler=FrameReassembler(expected_rows=2),
+        queue_depth=8,
+        lossless_input=True,
+        report_interval=999,
+        sink=lambda *_: None,
+    )
+    pipeline.on_completed_frame = published.append
+
+    pipeline.start()
+    pipeline.stop()
+
+    assert [frame.frame_id for frame in published] == [1, 2]
+    assert all(
+        stage.on_completed_frame is not None
+        for stage in pipeline._reassembly_stages
+    )
+
+
+def test_dispatcher_records_how_long_submit_was_blocked():
+    release = threading.Event()
+
+    def slow(_item):
+        release.wait(2.0)
+
+    dispatcher = AsyncCallbackDispatcher(
+        slow, queue_depth=1, error_sink=lambda *_: None
+    )
+    try:
+        dispatcher.submit("first")   # taken by the worker
+        dispatcher.submit("second")  # fills the queue
+        blocker = threading.Thread(target=dispatcher.submit, args=("third",))
+        blocker.start()
+        time.sleep(0.25)
+        release.set()
+        blocker.join(timeout=5.0)
+        assert not blocker.is_alive()
+    finally:
+        release.set()
+        dispatcher.close()
+
+    assert dispatcher.stats.submit_blocked_count >= 1
+    assert dispatcher.stats.submit_blocked_seconds > 0.0
+    assert any(
+        "submit blocked" in line for line in dispatcher.report_lines()
+    )
+
+
+def test_dispatcher_disables_itself_after_repeated_failures():
+    # 2767 identical tracebacks is not evidence; it is a second bottleneck.
+    errors = []
+
+    def always_fails(_item):
+        raise RuntimeError("sink is broken")
+
+    dispatcher = AsyncCallbackDispatcher(
+        always_fails,
+        queue_depth=32,
+        max_consecutive_failures=5,
+        error_report_limit=3,
+        error_sink=errors.append,
+    )
+    try:
+        for index in range(40):
+            dispatcher.submit(index)
+            if dispatcher.stats.disabled:
+                break
+        for index in range(10):
+            dispatcher.submit(f"after-{index}")
+    finally:
+        dispatcher.close()
+
+    assert dispatcher.stats.disabled
+    # The breaker stops new submissions; whatever the producer already queued
+    # still drains through the broken sink, so failures is bounded by the
+    # backlog rather than exactly the threshold.
+    assert dispatcher.stats.failures >= 5
+    assert dispatcher.stats.dropped_after_disable == 10
+    assert sum("FRAME OUTPUT ERROR" in message for message in errors) == 3
+    assert any("FRAME OUTPUT DISABLED" in message for message in errors)

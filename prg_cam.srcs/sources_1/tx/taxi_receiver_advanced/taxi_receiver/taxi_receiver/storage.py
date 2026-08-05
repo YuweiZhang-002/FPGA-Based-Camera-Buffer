@@ -41,16 +41,54 @@ SUMMARY_FIELDS = (
 )
 
 
-class StorageAndPipeline:
-    """Archive callback suitable for ``on_completed_frame``."""
+class StaleArchiveRootError(RuntimeError):
+    """Raised at startup when an archive root already holds frame data.
 
-    def __init__(self, output_root: str | Path):
+    ``frame_id`` restarts near zero on every RP2350A power-on, so a reused root
+    makes every single frame collide with a different run's data.  That is what
+    turned a 150 s live run into 2767 submitted / 0 processed frames: the
+    collision was only discovered per frame, inside the output worker, long
+    after the run had started.  Detect it once, before capture begins.
+    """
+
+
+class StorageAndPipeline:
+    """Archive callback suitable for ``on_completed_frame``.
+
+    ``collision_policy`` decides what happens when a frame directory already
+    exists with different content.  ``"suffix"`` (the default) publishes it as
+    ``frame_<id>.dup<k>`` and counts it, because raising inside the bounded
+    output worker turns a naming problem into a total publication outage.
+    """
+
+    def __init__(
+        self,
+        output_root: str | Path,
+        *,
+        collision_policy: str = "suffix",
+    ):
+        if collision_policy not in ("suffix", "error"):
+            raise ValueError("collision_policy must be 'suffix' or 'error'")
         self.output_root = Path(output_root)
         self.output_root.mkdir(parents=True, exist_ok=True)
+        self.collision_policy = collision_policy
         self.summary_path = self.output_root / "summary.csv"
+        self.frames_archived = 0
+        self.frames_idempotent = 0
+        self.frames_renamed_on_collision = 0
         self._summary_lock = threading.Lock()
         self._summary_handle: TextIO | None = None
         self._summary_writer: csv.DictWriter | None = None
+
+    def report_lines(self) -> tuple[str, ...]:
+        return (
+            "FRAME ARCHIVE",
+            f"  archive root        : {self.output_root}",
+            f"  collision policy    : {self.collision_policy}",
+            f"  frames archived     : {self.frames_archived}",
+            f"  already identical   : {self.frames_idempotent}",
+            f"  renamed on collision: {self.frames_renamed_on_collision}",
+        )
 
     def archive(self, frame: CompletedFrame) -> Path:
         camera_dir = self.output_root / f"cam_{frame.camera_id}"
@@ -64,10 +102,14 @@ class StorageAndPipeline:
 
         if final_dir.exists():
             if self._already_archived(final_dir, metadata):
+                self.frames_idempotent += 1
                 return final_dir
-            raise FileExistsError(
-                f"refusing to overwrite archived frame: {final_dir}"
-            )
+            if self.collision_policy == "error":
+                raise FileExistsError(
+                    f"refusing to overwrite archived frame: {final_dir}"
+                )
+            final_dir = self._next_free_suffix(final_dir)
+            self.frames_renamed_on_collision += 1
 
         temp_dir.mkdir()
         (temp_dir / "image.raw").write_bytes(raw)
@@ -86,7 +128,18 @@ class StorageAndPipeline:
         # leaves a visibly temporary directory, never a half-valid frame_N.
         _replace_directory_with_retry(temp_dir, final_dir)
         self._append_summary(frame, final_dir)
+        self.frames_archived += 1
         return final_dir
+
+    @staticmethod
+    def _next_free_suffix(final_dir: Path) -> Path:
+        for index in range(1, 10_000):
+            candidate = final_dir.with_name(f"{final_dir.name}.dup{index}")
+            if not candidate.exists():
+                return candidate
+        raise FileExistsError(
+            f"exhausted duplicate suffixes for archived frame: {final_dir}"
+        )
 
     @staticmethod
     def _already_archived(final_dir: Path, metadata: dict[str, object]) -> bool:
@@ -254,6 +307,55 @@ class StorageAndPipeline:
             ),
             "output_path": str(output_path),
         }
+
+
+def archive_root_has_frames(output_root: Path) -> bool:
+    """True if this root already holds archived frame directories.
+
+    The search is recursive on purpose: a root populated by an earlier
+    ``run-subdir`` run keeps its frames at ``<root>/run_*/cam_*/frame_*``, so a
+    single-level check would report a stale root as empty.
+    """
+    if not output_root.is_dir():
+        return False
+    for camera_dir in output_root.rglob("cam_*"):
+        if not camera_dir.is_dir():
+            continue
+        if next(camera_dir.glob("frame_*"), None) is not None:
+            return True
+    return False
+
+
+def resolve_archive_root(
+    output_root: Path,
+    *,
+    policy: str,
+    run_id: str,
+) -> Path:
+    """Apply the stale-root policy and return the root to archive into.
+
+    ``policy`` values:
+      ``run-subdir`` (default) -- always archive into ``<root>/run_<run_id>``,
+        so re-running a live capture can never collide with an earlier run.
+      ``require-empty`` -- fail fast if the root already holds frame data.
+      ``reuse`` -- the historical behaviour; keep writing into the same root
+        and let ``collision_policy`` deal with the consequences.
+    """
+    if policy == "run-subdir":
+        return output_root / f"run_{run_id}"
+    if policy == "require-empty":
+        if archive_root_has_frames(output_root):
+            raise StaleArchiveRootError(
+                f"archive root already contains frame data: {output_root}. "
+                "frame_id restarts at every board power-on, so reusing this "
+                "root makes every frame collide. Use "
+                "--archive-root-policy run-subdir, or point --output-root at "
+                "a fresh directory."
+            )
+        return output_root
+    if policy == "reuse":
+        return output_root
+    raise ValueError(f"unknown archive root policy: {policy!r}")
 
 
 def _replace_directory_with_retry(

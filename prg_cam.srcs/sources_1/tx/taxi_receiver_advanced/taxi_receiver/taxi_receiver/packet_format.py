@@ -21,6 +21,7 @@ big-endian header/trailer metadata and little-endian CRC16.
 """
 from __future__ import annotations
 
+import binascii
 import struct
 from dataclasses import dataclass
 from typing import Optional
@@ -133,31 +134,23 @@ class CameraRowPacket:
     length_error: bool
 
 
-def _build_crc16_table() -> tuple[int, ...]:
-    table: list[int] = []
-    for value in range(256):
-        crc = value << 8
-        for _ in range(8):
-            crc = (
-                ((crc << 1) ^ 0x1021)
-                if crc & 0x8000
-                else (crc << 1)
-            ) & 0xFFFF
-        table.append(crc)
-    return tuple(table)
+def peek_camera_id(raw_ethernet_frame: bytes) -> Optional[int]:
+    """Return the on-wire cam_id byte if the Ethernet frame is long enough.
 
-
-_CRC16_CCITT_FALSE_TABLE = _build_crc16_table()
+    The current protocol places cam_id at Ethernet payload offset 4, which is
+    absolute frame offset 18 once the 14-byte Ethernet header is included.
+    This helper intentionally does not validate the full camera header; it is
+    just the cheap routing hint needed by the capture thread.
+    """
+    if len(raw_ethernet_frame) <= 18:
+        return None
+    return raw_ethernet_frame[18]
 
 
 def crc16_ccitt_false(data: bytes, initial: int = 0xFFFF) -> int:
     """CRC-16-CCITT (False): poly=0x1021, init=0xFFFF, refin=false,
     refout=false, xorout=0x0000 -- matches the FPGA crc16_byte core."""
-    crc = initial & 0xFFFF
-    for value in data:
-        index = ((crc >> 8) ^ value) & 0xFF
-        crc = ((crc << 8) ^ _CRC16_CCITT_FALSE_TABLE[index]) & 0xFFFF
-    return crc
+    return binascii.crc_hqx(data, initial & 0xFFFF)
 
 
 def parse_camera_row(payload: bytes) -> CameraRowPacket:

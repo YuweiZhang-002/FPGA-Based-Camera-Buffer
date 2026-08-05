@@ -2,6 +2,8 @@ import csv
 import json
 import time
 
+import pytest
+
 import taxi_receiver.storage as storage_module
 from taxi_receiver.camera_parser import parse_camera_mode
 from taxi_receiver.capture import SyntheticFrameSource
@@ -313,3 +315,86 @@ def test_pipeline_archives_completed_frame(tmp_path):
     output = tmp_path / "cam_2" / "frame_9"
     assert output.is_dir()
     assert (output / "image.raw").stat().st_size == 160
+
+
+def test_differing_frame_collision_is_published_as_a_duplicate(tmp_path):
+    # frame_id restarts near zero at every board power-on.  Raising here used
+    # to happen inside the bounded output worker, which turned a naming
+    # collision into a total publication outage (2767 submitted / 0 processed).
+    storage = StorageAndPipeline(tmp_path)
+    first_reassembler = FrameReassembler()
+    first_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x11))
+    first = first_reassembler.on_row(_packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x11))
+
+    second_reassembler = FrameReassembler()
+    second_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x22))
+    second = second_reassembler.on_row(
+        _packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x22)
+    )
+
+    first_path = storage.archive(first)
+    second_path = storage.archive(second)
+
+    assert first_path.name == "frame_21"
+    assert second_path.name == "frame_21.dup1"
+    assert storage.frames_archived == 2
+    assert storage.frames_renamed_on_collision == 1
+    assert first_path.joinpath("image.raw").read_bytes() != (
+        second_path.joinpath("image.raw").read_bytes()
+    )
+
+
+def test_error_collision_policy_still_raises(tmp_path):
+    storage = StorageAndPipeline(tmp_path, collision_policy="error")
+    first_reassembler = FrameReassembler()
+    first_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x11))
+    first = first_reassembler.on_row(_packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x11))
+    second_reassembler = FrameReassembler()
+    second_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x22))
+    second = second_reassembler.on_row(
+        _packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x22)
+    )
+
+    storage.archive(first)
+    with pytest.raises(FileExistsError):
+        storage.archive(second)
+
+
+def test_run_subdir_policy_isolates_every_run(tmp_path):
+    first = storage_module.resolve_archive_root(
+        tmp_path, policy="run-subdir", run_id="20260805_120000"
+    )
+    second = storage_module.resolve_archive_root(
+        tmp_path, policy="run-subdir", run_id="20260805_130000"
+    )
+    assert first != second
+    assert first.parent == tmp_path
+
+
+def test_require_empty_policy_refuses_a_root_that_already_has_frames(tmp_path):
+    assert not storage_module.archive_root_has_frames(tmp_path)
+    (tmp_path / "cam_0" / "frame_21").mkdir(parents=True)
+    assert storage_module.archive_root_has_frames(tmp_path)
+
+    with pytest.raises(storage_module.StaleArchiveRootError):
+        storage_module.resolve_archive_root(
+            tmp_path, policy="require-empty", run_id="ignored"
+        )
+    # reuse is still available for callers that really want the old behaviour.
+    assert (
+        storage_module.resolve_archive_root(
+            tmp_path, policy="reuse", run_id="ignored"
+        )
+        == tmp_path
+    )
+
+
+def test_require_empty_sees_frames_nested_under_a_previous_run_subdir(tmp_path):
+    # A root populated by an earlier run-subdir run keeps its frames at
+    # <root>/run_*/cam_*/frame_*.  A single-level check called that root empty.
+    (tmp_path / "run_20260805_120000" / "cam_1" / "frame_22").mkdir(parents=True)
+    assert storage_module.archive_root_has_frames(tmp_path)
+    with pytest.raises(storage_module.StaleArchiveRootError):
+        storage_module.resolve_archive_root(
+            tmp_path, policy="require-empty", run_id="ignored"
+        )

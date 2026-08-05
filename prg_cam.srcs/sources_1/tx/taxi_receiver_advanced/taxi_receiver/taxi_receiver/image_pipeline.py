@@ -32,6 +32,7 @@ from enum import Enum
 import hashlib
 import itertools
 import json
+import multiprocessing as mp
 import os
 from pathlib import Path
 import queue
@@ -141,6 +142,143 @@ class _RowEvent:
     result: Any
 
 
+@dataclass(slots=True)
+class _PublishedFrameEnvelope:
+    """A completed frame flattened for the publication process (S2).
+
+    ``rows_blob`` is one contiguous ``expected_rows * ROW_BYTES`` buffer instead
+    of a dict of 480 small ``bytes`` objects, so the transfer is a single large
+    pickle rather than hundreds of tiny ones.
+
+    ``present_rows`` is mandatory, not a convenience.  ``to_bytes()`` zero-fills
+    absent rows, so a blob alone cannot distinguish "row missing" from "row of
+    zero pixels".  Dropping it would make the recovery gate in the child see
+    every frame as complete and publish zero-filled rows as real data.
+    """
+
+    camera_id: int
+    frame_id: int
+    row_count: int
+    expected_rows: int
+    had_overflow: bool
+    status: str
+    close_reason: str
+    started_at: float
+    ended_at: float
+    saw_first: bool
+    saw_last: bool
+    rows_blob: bytes
+    present_rows: bytes
+    missing_rows: tuple[int, ...]
+
+
+@dataclass(slots=True)
+class _PublisherStop:
+    """Picklable shutdown sentinel.
+
+    A bare ``object()`` sentinel does not survive the queue: ``spawn`` gives the
+    child its own module instance, so the unpickled sentinel fails an ``is``
+    comparison against the child's own, the worker never returns, and shutdown
+    degrades into two 30 s timeouts with the final image counters lost.
+    """
+
+
+def _frame_to_envelope(frame: CompletedFrame) -> _PublishedFrameEnvelope:
+    expected_rows = frame.expected_rows or frame.row_count
+    rows_blob = frame.to_bytes(expected_rows)
+    present = bytearray(expected_rows)
+    for row_index in frame.rows:
+        if 0 <= row_index < expected_rows:
+            present[row_index] = 1
+    return _PublishedFrameEnvelope(
+        camera_id=frame.camera_id,
+        frame_id=frame.frame_id,
+        row_count=frame.row_count,
+        expected_rows=expected_rows,
+        had_overflow=frame.had_overflow,
+        status=frame.status.value,
+        close_reason=frame.close_reason,
+        started_at=frame.started_at,
+        ended_at=frame.ended_at,
+        saw_first=frame.saw_first,
+        saw_last=frame.saw_last,
+        rows_blob=rows_blob,
+        present_rows=bytes(present),
+        missing_rows=tuple(frame.missing_rows),
+    )
+
+
+def _envelope_to_frame(envelope: _PublishedFrameEnvelope) -> CompletedFrame:
+    rows: dict[int, bytes] = {}
+    for row_index in range(envelope.expected_rows):
+        if not envelope.present_rows[row_index]:
+            continue
+        start = row_index * ROW_BYTES
+        rows[row_index] = envelope.rows_blob[start:start + ROW_BYTES]
+    return CompletedFrame(
+        camera_id=envelope.camera_id,
+        frame_id=envelope.frame_id,
+        row_count=envelope.row_count,
+        rows=rows,
+        missing_rows=list(envelope.missing_rows),
+        had_overflow=envelope.had_overflow,
+        status=FrameStatus(envelope.status),
+        close_reason=envelope.close_reason,
+        expected_rows=envelope.expected_rows,
+        packet_records=[],
+        errors=[],
+        duplicate_packets=0,
+        conflicting_duplicates=0,
+        started_at=envelope.started_at,
+        ended_at=envelope.ended_at,
+        saw_first=envelope.saw_first,
+        saw_last=envelope.saw_last,
+    )
+
+
+def _run_image_publication_worker(
+    images_root: str,
+    expected_rows: int,
+    bit_order: BitOrder,
+    image_policy: ImagePolicy,
+    max_missing_rows: int,
+    max_consecutive_missing: int,
+    report_interval: float,
+    work_queue,
+    result_queue,
+) -> None:
+    pipeline = CameraImagePipeline(
+        images_root,
+        expected_rows=expected_rows,
+        bit_order=bit_order,
+        image_policy=image_policy,
+        max_missing_rows=max_missing_rows,
+        max_consecutive_missing=max_consecutive_missing,
+        report_interval=report_interval,
+        enable_row_csv=False,
+        publish_async=False,
+        report_sink=print,
+        error_sink=lambda message: print(message, file=sys.stderr),
+    )
+    published = 0
+    failures = 0
+    while True:
+        item = work_queue.get()
+        if isinstance(item, _PublisherStop):
+            pipeline.close()
+            result_queue.put((pipeline.stats, published, failures))
+            return
+        try:
+            pipeline.archive_frame(_envelope_to_frame(item))
+            published += 1
+        except Exception as exc:  # noqa: BLE001 - keep the child alive
+            failures += 1
+            print(
+                f"[IMAGE PUBLISH ERROR] CAM{getattr(item, 'camera_id', '?')}: {exc}",
+                file=sys.stderr,
+            )
+
+
 @dataclass
 class CsvWriterStatistics:
     queue_capacity: int = 0
@@ -170,6 +308,20 @@ class CsvBackpressure(str, Enum):
 
     DROP = "drop"
     BLOCK = "block"
+
+
+@dataclass
+class PublisherProcessStatistics:
+    """Parent-side view of the S2 publication process."""
+
+    enabled: bool = False
+    queue_capacity: int = 0
+    submitted: int = 0
+    published: int = 0
+    failures: int = 0
+    submit_blocked_seconds: float = 0.0
+    submit_blocked_count: int = 0
+    stats_returned: bool = False
 
 
 @dataclass
@@ -232,6 +384,8 @@ class CameraImagePipeline:
         report_interval: float = 1.0,
         report_sink: Callable[[str], None] = print,
         error_sink: Callable[[str], None] | None = None,
+        publish_async: bool = False,
+        publisher_queue_depth: int = 256,
     ) -> None:
         if expected_rows <= 0:
             raise ValueError("expected_rows must be positive")
@@ -247,6 +401,8 @@ class CameraImagePipeline:
             raise ValueError("max_consecutive_missing must be positive")
         if report_interval <= 0:
             raise ValueError("report_interval must be positive")
+        if publish_async and publisher_queue_depth <= 0:
+            raise ValueError("publisher_queue_depth must be positive")
         self.images_root = Path(images_root)
         self.expected_rows = expected_rows
         self.bit_order = BitOrder(bit_order)
@@ -263,6 +419,8 @@ class CameraImagePipeline:
         self.enable_row_csv = enable_row_csv
         self.csv_queue_depth = csv_queue_depth
         self.csv_backpressure = CsvBackpressure(csv_backpressure)
+        self.publish_async = publish_async
+        self.publisher_queue_depth = publisher_queue_depth
         self.error_sink = error_sink or (
             lambda message: print(message, file=sys.stderr)
         )
@@ -276,6 +434,40 @@ class CameraImagePipeline:
         self._rate_started = time.monotonic()
         self._rate_last = self._rate_started
         self._rate_last_counts = (0, 0, 0)
+        self._publisher_context: mp.context.BaseContext | None = None
+        self._publisher_queue = None
+        self._publisher_result_queue = None
+        self._publisher_process: mp.Process | None = None
+        self._publisher_stats: ImagePublicationStatistics | None = None
+        self.publisher_stats = PublisherProcessStatistics(
+            enabled=self.publish_async,
+            queue_capacity=publisher_queue_depth if self.publish_async else 0,
+        )
+        if self.publish_async:
+            self._publisher_context = mp.get_context("spawn")
+            self._publisher_queue = self._publisher_context.Queue(
+                maxsize=self.publisher_queue_depth
+            )
+            self._publisher_result_queue = self._publisher_context.Queue(
+                maxsize=1
+            )
+            self._publisher_process = self._publisher_context.Process(
+                target=_run_image_publication_worker,
+                name="taxi-image-publisher",
+                args=(
+                    str(self.images_root),
+                    self.expected_rows,
+                    self.bit_order,
+                    self.image_policy,
+                    self.max_missing_rows,
+                    self.max_consecutive_missing,
+                    self.report_interval,
+                    self._publisher_queue,
+                    self._publisher_result_queue,
+                ),
+                daemon=True,
+            )
+            self._publisher_process.start()
 
         # P2: rows.csv leaves the packet-consumer hot path.  ``record_packet``
         # now only stamps a capture index and enqueues; all formatting, all
@@ -361,6 +553,35 @@ class CameraImagePipeline:
         if self._csv_closed:
             return
         self._csv_closed = True
+        if self._publisher_process is not None:
+            assert self._publisher_queue is not None
+            assert self._publisher_result_queue is not None
+            self._publisher_queue.put(_PublisherStop())
+            try:
+                (
+                    self._publisher_stats,
+                    published,
+                    failures,
+                ) = self._publisher_result_queue.get(timeout=120.0)
+                self.publisher_stats.published = published
+                self.publisher_stats.failures = failures
+                self.publisher_stats.stats_returned = True
+            except Exception:
+                self.error_sink(
+                    "[IMAGE PUBLISH] child process did not report final stats "
+                    "within 120s; final image counters may be stale"
+                )
+            self._publisher_process.join(timeout=30.0)
+            if self._publisher_process.is_alive():
+                self.error_sink(
+                    "[IMAGE PUBLISH] child process did not stop within 30s; "
+                    "image publication may be truncated"
+                )
+            if self._publisher_stats is not None:
+                # The parent never touched these counters in async mode, so the
+                # child's copy is the only truthful version.
+                self.stats = self._publisher_stats
+            self._publisher_process = None
         thread = self._csv_thread
         if thread is not None:
             self._csv_queue.put(_CSV_STOP)
@@ -532,6 +753,26 @@ class CameraImagePipeline:
 
     def archive_frame(self, frame: CompletedFrame) -> Path | None:
         """Publish a COMPLETE image or an explicitly eligible RECOVERED image."""
+
+        if self.publish_async:
+            # Every frame goes across, not only COMPLETE ones.  Recovery
+            # assessment plus a ZERO_FILL unpack is the most expensive path in
+            # this module, so leaving non-complete frames in the caller's
+            # thread would keep exactly the work S2 exists to move.
+            if self._publisher_queue is None:
+                raise RuntimeError("image publication process is not available")
+            envelope = _frame_to_envelope(frame)
+            self.publisher_stats.submitted += 1
+            started = time.monotonic()
+            self._publisher_queue.put(envelope)
+            blocked = time.monotonic() - started
+            # An mp.Queue feeder makes put() nearly free until the bound is hit,
+            # so a growing blocked total is the signal that the child, not the
+            # caller, has become the ceiling.
+            if blocked > 0.001:
+                self.publisher_stats.submit_blocked_seconds += blocked
+                self.publisher_stats.submit_blocked_count += 1
+            return None
 
         decision: RecoveryDecision | None = None
         if frame.status is FrameStatus.COMPLETE:
@@ -892,9 +1133,26 @@ class CameraImagePipeline:
             )
             or "none"
         )
+        publisher_lines: tuple[str, ...] = ()
+        if self.publisher_stats.enabled:
+            publisher = self.publisher_stats
+            publisher_lines = (
+                f"  publish mode        : process "
+                f"(queue={publisher.queue_capacity})",
+                f"  publisher submitted : {publisher.submitted}",
+                f"  publisher published : {publisher.published}",
+                f"  publisher failures  : {publisher.failures}",
+                f"  publisher stats ok  : {int(publisher.stats_returned)}",
+                f"  publisher blocked   : "
+                f"{publisher.submit_blocked_seconds:.3f} s "
+                f"over {publisher.submit_blocked_count} waits",
+            )
+        else:
+            publisher_lines = ("  publish mode        : in-thread",)
         return (
             "IMAGE PUBLICATION",
             f"  image policy        : {self.image_policy.value}",
+            *publisher_lines,
             f"  complete frames seen: {self.stats.completed_frames_seen}",
             f"  noncomplete skipped : {self.stats.noncomplete_frames_skipped}",
             f"  recovery failures   : {self.stats.recovery_failures}",

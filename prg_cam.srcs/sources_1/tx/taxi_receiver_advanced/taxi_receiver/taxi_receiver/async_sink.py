@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import queue
 import sys
 import threading
+import time
 from typing import Callable, Generic, TypeVar
 
 
@@ -18,6 +19,14 @@ class AsyncCallbackStatistics:
     processed: int = 0
     failures: int = 0
     queue_peak: int = 0
+    # How long the producer sat blocked in submit() because the bounded queue
+    # was full.  queue_peak == capacity only proves the queue filled once; this
+    # is the number that says whether the sink is the throughput ceiling.
+    submit_blocked_seconds: float = 0.0
+    submit_blocked_count: int = 0
+    consecutive_failures: int = 0
+    disabled: bool = False
+    dropped_after_disable: int = 0
 
 
 class AsyncCallbackDispatcher(Generic[T]):
@@ -36,11 +45,19 @@ class AsyncCallbackDispatcher(Generic[T]):
         queue_depth: int = 256,
         name: str = "taxi-frame-output",
         error_sink: Callable[[str], None] | None = None,
+        max_consecutive_failures: int = 50,
+        error_report_limit: int = 20,
     ) -> None:
         if queue_depth <= 0:
             raise ValueError("queue_depth must be positive")
+        if max_consecutive_failures <= 0:
+            raise ValueError("max_consecutive_failures must be positive")
         self.callback = callback
         self.queue_depth = queue_depth
+        self.name = name
+        self.max_consecutive_failures = max_consecutive_failures
+        self.error_report_limit = error_report_limit
+        self._reported_errors = 0
         self.error_sink = error_sink or (
             lambda message: print(message, file=sys.stderr)
         )
@@ -59,7 +76,16 @@ class AsyncCallbackDispatcher(Generic[T]):
     def submit(self, item: T) -> None:
         if self._closed:
             raise RuntimeError("async callback dispatcher is closed")
-        self._queue.put(item)
+        if self.stats.disabled:
+            self.stats.dropped_after_disable += 1
+            return
+        try:
+            self._queue.put_nowait(item)
+        except queue.Full:
+            started = time.monotonic()
+            self._queue.put(item)
+            self.stats.submit_blocked_seconds += time.monotonic() - started
+            self.stats.submit_blocked_count += 1
         self.stats.submitted += 1
         self.stats.queue_peak = max(
             self.stats.queue_peak,
@@ -84,6 +110,11 @@ class AsyncCallbackDispatcher(Generic[T]):
             f"  frames submitted    : {self.stats.submitted}",
             f"  frames processed    : {self.stats.processed}",
             f"  callback failures   : {self.stats.failures}",
+            f"  sink disabled       : {int(self.stats.disabled)}",
+            f"  dropped after disable: {self.stats.dropped_after_disable}",
+            f"  submit blocked      : "
+            f"{self.stats.submit_blocked_seconds:.3f} s "
+            f"over {self.stats.submit_blocked_count} waits",
         )
 
     def _run(self) -> None:
@@ -96,8 +127,26 @@ class AsyncCallbackDispatcher(Generic[T]):
                     self.callback(item)  # type: ignore[arg-type]
                 except Exception as exc:  # noqa: BLE001 - isolate sink failure
                     self.stats.failures += 1
-                    self.error_sink(f"[FRAME OUTPUT ERROR] {exc}")
+                    self.stats.consecutive_failures += 1
+                    # 2767 identical tracebacks on stderr is not evidence, it is
+                    # a second bottleneck: console writes are synchronous.
+                    if self._reported_errors < self.error_report_limit:
+                        self._reported_errors += 1
+                        self.error_sink(f"[FRAME OUTPUT ERROR] {exc}")
+                    if (
+                        not self.stats.disabled
+                        and self.stats.consecutive_failures
+                        >= self.max_consecutive_failures
+                    ):
+                        self.stats.disabled = True
+                        self.error_sink(
+                            f"[FRAME OUTPUT DISABLED] {self.name}: "
+                            f"{self.stats.consecutive_failures} consecutive "
+                            "failures; no further frames will be submitted. "
+                            "Fix the sink and rerun."
+                        )
                 else:
                     self.stats.processed += 1
+                    self.stats.consecutive_failures = 0
             finally:
                 self._queue.task_done()

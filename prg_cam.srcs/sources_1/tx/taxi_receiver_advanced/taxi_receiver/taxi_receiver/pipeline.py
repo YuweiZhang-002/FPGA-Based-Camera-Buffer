@@ -43,6 +43,7 @@ class TaxiReceiverPipeline:
         error_recorder: Optional[ErrorFrameRecorder] = None,
         queue_depth: int = 8192,
         lossless_input: bool = False,
+        split_by_camera: bool = False,
         report_interval: float = 1.0,
         sink: Callable[[str], None] = print,
         on_completed_frame: Optional[Callable[[CompletedFrame], None]] = None,
@@ -59,10 +60,17 @@ class TaxiReceiverPipeline:
         # capture keeps the bounded, non-blocking behaviour so NIC overload is
         # visible as an explicit capture-drop statistic.
         self.lossless_input = lossless_input
+        self.split_by_camera = split_by_camera
         # Layer-5 extension hook: fires whenever the (optional)
         # reassembler completes a frame. Inert unless a real
         # reassembler is in play.
-        self.on_completed_frame = on_completed_frame
+        #
+        # Assigned through the property below because ReassemblyStage captures
+        # this callback at construction time.  Setting the plain attribute
+        # after __init__ used to leave the stage holding None, so every frame
+        # completed during the run was silently unpublished and only the
+        # stop()-time flush reached the sink.
+        self._on_completed_frame = on_completed_frame
         # Fires after every frame finishes the chain, whatever depth
         # that chain runs to -- the debugging hook for the "add layers
         # one at a time" bring-up workflow.
@@ -70,14 +78,17 @@ class TaxiReceiverPipeline:
 
         self.monitor = StreamMonitor(report_interval=report_interval, sink=sink)
         self.monitor.configure_capture_queue(queue_depth)
-
         # Either take the caller's hand-built chain as-is, or build one
         # declaratively from max_stage. Either way, from here on this
         # class only ever does `for stage in self.stages: ...`.
+        if self.split_by_camera and mode != "camera":
+            raise ValueError("split_by_camera requires camera mode")
+
+        stage_max = "parse" if self.split_by_camera else max_stage
         self.stages: list[Stage] = stages if stages is not None else build_stage_chain(
             mode=mode,
             monitor=self.monitor,
-            max_stage=max_stage,
+            max_stage=stage_max,
             pcap_recorder=pcap_recorder,
             error_recorder=error_recorder,
             reassembler=reassembler or NullReassembler(),
@@ -96,6 +107,19 @@ class TaxiReceiverPipeline:
         # enqueue work after the drain gate has already been satisfied.
         self._source_stopped = False
         self._worker = threading.Thread(target=self._run_worker, name="taxi-worker", daemon=True)
+
+    @property
+    def on_completed_frame(self) -> Optional[Callable[[CompletedFrame], None]]:
+        return self._on_completed_frame
+
+    @on_completed_frame.setter
+    def on_completed_frame(
+        self,
+        callback: Optional[Callable[[CompletedFrame], None]],
+    ) -> None:
+        self._on_completed_frame = callback
+        for stage in self._reassembly_stages:
+            stage.on_completed_frame = callback
 
     def start(self) -> None:
         self._worker.start()
@@ -172,7 +196,6 @@ class TaxiReceiverPipeline:
     def _on_frame(self, frame: RawEthernetFrame) -> None:
         if self._source_stopped:
             # A late Npcap/scapy callback during shutdown. Accepting it would
-            # add an unfinished task after stop() already drained the queue.
             return
         self.monitor.record_ethernet_frame()
         if self.lossless_input:
@@ -180,7 +203,8 @@ class TaxiReceiverPipeline:
                 try:
                     self._queue.put(frame, timeout=0.2)
                     self.monitor.record_capture_queue_depth(
-                        self._queue.qsize()
+                        self._queue.qsize(),
+                        camera_id=frame.camera_id,
                     )
                     return
                 except queue.Full:
@@ -188,9 +212,12 @@ class TaxiReceiverPipeline:
             return
         try:
             self._queue.put_nowait(frame)
-            self.monitor.record_capture_queue_depth(self._queue.qsize())
+            self.monitor.record_capture_queue_depth(
+                self._queue.qsize(),
+                camera_id=frame.camera_id,
+            )
         except queue.Full:
-            self.monitor.record_dropped_capture()
+            self.monitor.record_dropped_capture(frame.camera_id)
 
     # ---- worker thread: run every frame through the stage chain -------
 

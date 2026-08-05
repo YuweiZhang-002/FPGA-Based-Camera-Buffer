@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from ctypes import POINTER, byref, c_ubyte, create_string_buffer, string_at
 from typing import Callable, Iterable, Optional, Protocol
 
+from .packet_format import peek_camera_id
+
 
 DEFAULT_PCAP_BUFFER_SIZE = 8 * 1024 * 1024
 
@@ -49,6 +51,7 @@ class RawEthernetFrame:
     payload: bytes
     raw_bytes: bytes  # full L2 frame, kept only for optional pcap recording
     timestamp: float
+    camera_id: Optional[int] = None
 
 
 class FrameSource(Protocol):
@@ -61,6 +64,26 @@ def _packet_timestamp(packet) -> float:
     if packet_time is None:
         return time.time()
     return float(packet_time)
+
+
+def _packet_timestamp_from_header(header) -> float:
+    packet_header = getattr(header, "contents", header)
+    timestamp = getattr(packet_header, "ts", None)
+    if timestamp is not None:
+        seconds = getattr(timestamp, "tv_sec", None)
+        micros = getattr(timestamp, "tv_usec", None)
+        if seconds is not None and micros is not None:
+            return float(seconds) + float(micros) / 1_000_000.0
+
+    seconds = getattr(packet_header, "tv_sec", None)
+    micros = getattr(packet_header, "tv_usec", None)
+    if seconds is not None and micros is not None:
+        return float(seconds) + float(micros) / 1_000_000.0
+
+    packet_time = getattr(packet_header, "time", None)
+    if packet_time is not None:
+        return float(packet_time)
+    return time.time()
 
 
 def list_interfaces() -> list[str]:
@@ -140,7 +163,8 @@ class ScapyLiveCapture:
                 winpcapy.pcap_freecode(byref(filter_program))
 
             if hasattr(winpcapy, "pcap_setmintocopy"):
-                if winpcapy.pcap_setmintocopy(handle, 0) != 0:
+                mintocopy = max(64 * 1024, min(self.pcap_buffer_size // 128, 256 * 1024))
+                if winpcapy.pcap_setmintocopy(handle, mintocopy) != 0:
                     raise OSError(self._pcap_error(winpcapy, handle))
         except Exception:
             try:
@@ -152,20 +176,22 @@ class ScapyLiveCapture:
         def _run_capture() -> None:
             try:
                 while not self._stop_requested.is_set():
-                    packet_bytes = self._next_packet(winpcapy, handle)
-                    if packet_bytes is None:
+                    packet = self._next_packet(winpcapy, handle)
+                    if packet is None:
                         continue
-                    try:
-                        eth = Ether(packet_bytes)
-                    except Exception:
+                    packet_bytes, timestamp = packet
+                    if len(packet_bytes) < 14:
                         continue
+                    src_mac = ":".join(f"{octet:02x}" for octet in packet_bytes[6:12])
+                    dst_mac = ":".join(f"{octet:02x}" for octet in packet_bytes[0:6])
                     on_frame(RawEthernetFrame(
-                        src_mac=eth.src,
-                        dst_mac=eth.dst,
-                        ethertype=int(eth.type),
-                        payload=bytes(eth.payload),
+                        src_mac=src_mac,
+                        dst_mac=dst_mac,
+                        ethertype=int.from_bytes(packet_bytes[12:14], "big"),
+                        camera_id=peek_camera_id(packet_bytes),
+                        payload=packet_bytes[14:],
                         raw_bytes=packet_bytes if self.include_raw else b"",
-                        timestamp=_packet_timestamp(eth),
+                        timestamp=timestamp,
                     ))
             except Exception:
                 self._stop_requested.set()
@@ -247,13 +273,13 @@ class ScapyLiveCapture:
         if winpcapy.pcap_set_buffer_size(handle, self.pcap_buffer_size) != 0:
             raise OSError(self._pcap_error(winpcapy, handle, errbuf))
 
-    def _next_packet(self, winpcapy, handle) -> Optional[bytes]:
+    def _next_packet(self, winpcapy, handle) -> Optional[tuple[bytes, float]]:
         header = POINTER(winpcapy.pcap_pkthdr)()
         packet_data = POINTER(c_ubyte)()
         result = winpcapy.pcap_next_ex(handle, byref(header), byref(packet_data))
         if result == 1:
             caplen = int(header.contents.caplen)
-            return bytes(string_at(packet_data, caplen))
+            return bytes(string_at(packet_data, caplen)), _packet_timestamp_from_header(header)
         if result in (0, -2):
             return None
         raise OSError(self._pcap_error(winpcapy, handle))
@@ -349,6 +375,7 @@ class PcapReplayFrameSource:
                 src_mac=eth.src,
                 dst_mac=eth.dst,
                 ethertype=int(eth.type),
+                camera_id=peek_camera_id(bytes(packet)),
                 payload=bytes(eth.payload),
                 raw_bytes=bytes(packet),
                 timestamp=_packet_timestamp(packet),

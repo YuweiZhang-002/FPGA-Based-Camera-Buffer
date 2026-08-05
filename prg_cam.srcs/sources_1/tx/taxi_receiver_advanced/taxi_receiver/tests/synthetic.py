@@ -21,6 +21,7 @@ def make_raw_frame(
     dst_mac: str = "ff:ff:ff:ff:ff:ff",
     ethertype: int = ETHER_TYPE,
     timestamp: float | None = None,
+    camera_id: int | None = None,
 ) -> RawEthernetFrame:
     header = (
         bytes.fromhex(dst_mac.replace(":", ""))
@@ -31,6 +32,7 @@ def make_raw_frame(
         src_mac=src_mac,
         dst_mac=dst_mac,
         ethertype=ethertype,
+        camera_id=camera_id,
         payload=payload,
         raw_bytes=header + payload,
         timestamp=time.time() if timestamp is None else timestamp,
@@ -54,7 +56,7 @@ def make_camera_frame(
         row_flags=row_flags, row_seq=row_seq, payload=payload,
         corrupt_crc=corrupt_crc,
     )
-    return make_raw_frame(raw)
+    return make_raw_frame(raw, camera_id=cam_id)
 
 
 def make_fixed_frame(corrupt: bool = False) -> RawEthernetFrame:

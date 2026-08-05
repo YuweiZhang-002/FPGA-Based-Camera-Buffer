@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import BinaryIO, Callable, Iterator, Optional
 
 from .capture import RawEthernetFrame
+from .packet_format import peek_camera_id
 
 
 LINKTYPE_ETHERNET = 1
@@ -92,6 +93,7 @@ def decode_ethernet_frame(raw: bytes, timestamp: float = 0.0) -> RawEthernetFram
         src_mac=_mac_string(raw[6:12]),
         dst_mac=_mac_string(raw[0:6]),
         ethertype=int.from_bytes(raw[12:14], "big"),
+        camera_id=peek_camera_id(raw),
         payload=raw[14:],
         raw_bytes=raw,
         timestamp=timestamp,

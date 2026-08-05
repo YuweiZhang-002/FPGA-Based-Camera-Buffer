@@ -294,3 +294,105 @@ def test_recovered_output_only_uses_recovered_directory(tmp_path):
     assert (recovered / "image.raw").is_file()
     assert (recovered / "metadata.json").is_file()
     assert not (tmp_path / "images" / "cam0" / "100.pgm").exists()
+
+
+def test_publication_envelope_round_trip_preserves_missing_rows():
+    # to_bytes() zero-fills absent rows, so the blob alone cannot tell "row
+    # missing" from "row of zero pixels".  Without present_rows/missing_rows the
+    # child process would see every frame as complete and publish zero-filled
+    # rows as real data.
+    from taxi_receiver.image_pipeline import (
+        _envelope_to_frame,
+        _frame_to_envelope,
+    )
+
+    rows = {0: bytes([0xAA]) * ROW_BYTES, 2: bytes(ROW_BYTES)}
+    frame = CompletedFrame(
+        camera_id=1,
+        frame_id=77,
+        row_count=2,
+        rows=dict(rows),
+        missing_rows=[1],
+        had_overflow=False,
+        status=FrameStatus.PARTIAL,
+        close_reason="frame_switch",
+        expected_rows=3,
+        saw_first=True,
+        saw_last=False,
+    )
+
+    restored = _envelope_to_frame(_frame_to_envelope(frame))
+
+    assert restored.camera_id == 1
+    assert restored.frame_id == 77
+    assert restored.status is FrameStatus.PARTIAL
+    assert restored.missing_rows == [1]
+    # Row 1 stays absent; row 2 is a genuine all-zero row and must be kept.
+    assert sorted(restored.rows) == [0, 2]
+    assert restored.rows[0] == rows[0]
+    assert restored.rows[2] == rows[2]
+    assert restored.to_bytes(3) == frame.to_bytes(3)
+
+
+def test_publisher_stop_sentinel_survives_pickling():
+    # A bare object() sentinel unpickles into a different object in a spawned
+    # child, so `item is _PUBLISHER_STOP` never matched: the worker hung until
+    # two 30 s timeouts expired and the final image counters were lost.
+    import pickle
+
+    from taxi_receiver.image_pipeline import _PublisherStop
+
+    assert isinstance(
+        pickle.loads(pickle.dumps(_PublisherStop())), _PublisherStop
+    )
+
+
+def test_process_publication_matches_in_thread_publication(tmp_path):
+    """S2 must be a placement change only, byte for byte."""
+    rows = {
+        index: bytes([(index * 7) & 0xFF]) * ROW_BYTES
+        for index in range(4)
+    }
+    outputs = {}
+    for mode in ("thread", "process"):
+        root = tmp_path / mode
+        pipeline = CameraImagePipeline(
+            root,
+            expected_rows=4,
+            enable_row_csv=False,
+            report_interval=1e9,
+            publish_async=(mode == "process"),
+            report_sink=lambda *_: None,
+            error_sink=lambda *_: None,
+        )
+        try:
+            pipeline.archive_frame(
+                CompletedFrame(
+                    camera_id=0,
+                    frame_id=5,
+                    row_count=4,
+                    rows=dict(rows),
+                    missing_rows=[],
+                    had_overflow=False,
+                    status=FrameStatus.COMPLETE,
+                    close_reason="last_row",
+                    expected_rows=4,
+                    saw_first=True,
+                    saw_last=True,
+                )
+            )
+        finally:
+            pipeline.close()
+        if mode == "process":
+            assert pipeline.publisher_stats.stats_returned
+            assert pipeline.publisher_stats.published == 1
+            assert pipeline.publisher_stats.failures == 0
+        assert pipeline.stats.images_complete == 1
+        outputs[mode] = {
+            path.name: path.read_bytes()
+            for path in sorted((root / "cam0").iterdir())
+            if path.suffix in (".pgm", ".raw")
+        }
+
+    assert outputs["thread"] == outputs["process"]
+    assert set(outputs["thread"]) == {"5.pgm", "5.raw"}

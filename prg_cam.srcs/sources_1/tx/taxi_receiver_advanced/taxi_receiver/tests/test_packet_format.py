@@ -1,3 +1,7 @@
+import binascii
+
+import pytest
+
 from taxi_receiver.packet_format import (
     ByteStreamFramer,
     FLAG_FRAME_OVERFLOW,
@@ -7,6 +11,7 @@ from taxi_receiver.packet_format import (
     FPGA_STATUS_LENGTH_ERROR,
     PACKET_LEN,
     ROW_BYTES,
+    crc16_ccitt_false,
     build_camera_row,
     parse_camera_row,
 )
@@ -105,6 +110,20 @@ def test_corrupt_crc_detected():
     )
     pkt = parse_camera_row(raw)
     assert not pkt.crc_ok
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"",
+        b"\x00",
+        b"\x00\x01",
+        bytes(range(80)),
+        bytes(range(126)),
+    ],
+)
+def test_crc16_ccitt_false_matches_binascii_crc_hqx(data):
+    assert crc16_ccitt_false(data) == binascii.crc_hqx(data, 0xFFFF)
 
 
 def test_byte_stream_framer_resyncs_and_extracts_packets():

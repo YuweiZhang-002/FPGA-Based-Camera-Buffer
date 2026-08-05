@@ -4,10 +4,12 @@ import argparse
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 
 from .async_sink import AsyncCallbackDispatcher
 from .capture import ScapyLiveCapture, list_interfaces
+from .camera_lane import DEFAULT_CAMERA_IDS, CameraLanePool, PublishPolicy
 from .eth_validate import ETHER_TYPE
 from .image_pipeline import CameraImagePipeline, ImagePolicy
 from .pcap_stdlib import StdlibPcapReplayFrameSource
@@ -16,7 +18,11 @@ from .reassembler import FrameReassembler, NullReassembler
 from .recorder import ErrorFrameRecorder, PcapRecorder
 from .session_audit import SessionAuditLogger
 from .stages import STAGE_ORDER
-from .storage import StorageAndPipeline
+from .storage import (
+    StaleArchiveRootError,
+    StorageAndPipeline,
+    resolve_archive_root,
+)
 
 
 def print_interfaces() -> None:
@@ -145,6 +151,85 @@ def build_argument_parser() -> argparse.ArgumentParser:
             "rejects two or more consecutive missing rows."
         ),
     )
+    parser.add_argument(
+        "--split-by-camera",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help=(
+            "Run one reassembly/publication lane per camera (S1). auto "
+            "(default): on for camera mode with an archive or images root. "
+            "off restores the single shared worker, which is what an A/B "
+            "comparison needs."
+        ),
+    )
+    parser.add_argument(
+        "--camera-ids",
+        default=",".join(str(cam) for cam in DEFAULT_CAMERA_IDS),
+        help=(
+            "Comma-separated cam_id allowlist for lane routing. cam_id is "
+            "read from an untrusted wire byte, so any value outside this set "
+            "is counted as unroutable instead of creating a lane."
+        ),
+    )
+    parser.add_argument(
+        "--publish-frames",
+        choices=tuple(policy.value for policy in PublishPolicy),
+        default=PublishPolicy.COMPLETE.value,
+        help=(
+            "Which completed frames reach storage/image publication. "
+            "complete (default) skips partial frames, which otherwise cost a "
+            "full serialisation and recovery assessment per frame. Use "
+            "eligible with --image-policy recover-zero-fill."
+        ),
+    )
+    parser.add_argument(
+        "--publish-images",
+        choices=("process", "thread"),
+        default="process",
+        help=(
+            "S2. process (default) runs image publication in a dedicated "
+            "process per camera, so recovery unpacking, PGM encoding and RAW "
+            "writing leave the GIL. thread keeps it on the lane's output "
+            "thread, which is the configuration to A/B against."
+        ),
+    )
+    parser.add_argument(
+        "--publisher-queue-depth",
+        type=int,
+        default=256,
+        help="Bounded frame queue between each lane and its publisher process.",
+    )
+    parser.add_argument(
+        "--session-audit",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help=(
+            "Per-packet session_audit.csv. It is written synchronously on the "
+            "consumer thread and is nearly a subset of rows.csv, so auto "
+            "means off for live capture and on for offline replay."
+        ),
+    )
+    parser.add_argument(
+        "--archive-root-policy",
+        choices=("run-subdir", "require-empty", "reuse"),
+        default="run-subdir",
+        help=(
+            "How --output-root is resolved. run-subdir (default) archives "
+            "into <root>/run_<timestamp> so a rerun cannot collide with an "
+            "earlier run; frame_id restarts at every board power-on. "
+            "require-empty fails fast instead. reuse is the old behaviour."
+        ),
+    )
+    parser.add_argument(
+        "--archive-collision-policy",
+        choices=("suffix", "error"),
+        default="suffix",
+        help=(
+            "What an existing, differing frame directory does: suffix "
+            "(default) publishes frame_<id>.dup<k>; error raises inside the "
+            "output worker, which can disable the whole sink."
+        ),
+    )
     parser.add_argument("--frame-timeout", type=float, default=2.0)
     parser.add_argument(
         "--reassemble", action="store_true",
@@ -223,14 +308,38 @@ def main() -> int:
         if max_stage == "reassemble"
         else NullReassembler()
     )
+    # frame_id restarts near zero at every board power-on, so an archive root
+    # is resolved once, before capture, instead of discovering the collision
+    # per frame inside the bounded output worker.
+    archive_root = None
+    if args.output_root is not None:
+        try:
+            archive_root = resolve_archive_root(
+                args.output_root,
+                policy=args.archive_root_policy,
+                run_id=time.strftime("%Y%m%d_%H%M%S"),
+            )
+        except StaleArchiveRootError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 6
     storage = (
-        StorageAndPipeline(args.output_root)
-        if args.output_root is not None
+        StorageAndPipeline(
+            archive_root,
+            collision_policy=args.archive_collision_policy,
+        )
+        if archive_root is not None
         else None
     )
+    # session_audit.csv is a per-packet CSV written synchronously on the
+    # consumer thread, and rows.csv already carries nearly the same columns
+    # from a dedicated writer thread.  Live capture therefore defaults to off.
+    session_audit_enabled = (
+        args.session_audit == "on"
+        or (args.session_audit == "auto" and args.replay_pcap is not None)
+    )
     session_audit = (
-        SessionAuditLogger(args.output_root)
-        if args.output_root is not None
+        SessionAuditLogger(archive_root)
+        if archive_root is not None and session_audit_enabled
         else None
     )
     # Offline replay already applies lossless backpressure to the capture
@@ -242,37 +351,34 @@ def main() -> int:
         if args.csv_backpressure != "auto"
         else ("block" if args.replay_pcap is not None else "drop")
     )
-    image_pipeline = (
-        CameraImagePipeline(
-            args.images_root,
-            expected_rows=args.expected_rows,
-            bit_order=args.bit_order,
-            image_policy=args.image_policy,
-            max_missing_rows=args.max_missing_rows,
-            max_consecutive_missing=args.max_consecutive_missing,
-            report_interval=args.report_interval,
-            enable_row_csv=not args.no_rows_csv,
-            csv_queue_depth=args.csv_queue_depth,
-            csv_backpressure=csv_backpressure,
+    image_pipeline = None
+    frame_output = None
+    try:
+        camera_ids = tuple(
+            int(token) for token in args.camera_ids.split(",") if token.strip()
         )
-        if args.images_root is not None
-        else None
-    )
-    completed_frame_callback = _fanout_callbacks(
-        ("storage", storage),
-        (
-            "image publication",
-            image_pipeline.archive_frame if image_pipeline is not None else None,
-        ),
-    )
-    frame_output = (
-        AsyncCallbackDispatcher(
-            completed_frame_callback,
-            queue_depth=args.frame_output_queue_depth,
+    except ValueError:
+        print(
+            f"Error: --camera-ids must be integers: {args.camera_ids!r}",
+            file=sys.stderr,
         )
-        if completed_frame_callback is not None
-        else None
-    )
+        return 2
+    if not camera_ids:
+        print("Error: --camera-ids must not be empty.", file=sys.stderr)
+        return 2
+    has_output_sink = args.output_root is not None or args.images_root is not None
+    if args.split_by_camera == "on":
+        if args.mode != "camera":
+            print(
+                "Error: --split-by-camera on requires --mode camera.",
+                file=sys.stderr,
+            )
+            return 2
+        split_by_camera = True
+    elif args.split_by_camera == "off":
+        split_by_camera = False
+    else:
+        split_by_camera = args.mode == "camera" and has_output_sink
     frame_source = (
         StdlibPcapReplayFrameSource(
             args.replay_pcap,
@@ -297,15 +403,102 @@ def main() -> int:
         error_recorder=error_recorder,
         queue_depth=args.queue_depth,
         lossless_input=args.replay_pcap is not None,
+        split_by_camera=split_by_camera,
         report_interval=args.report_interval,
-        on_completed_frame=(
-            frame_output.submit if frame_output is not None else None
-        ),
-        on_frame_processed=_fanout_callbacks(
+        on_completed_frame=None,
+        on_frame_processed=None,
+    )
+
+    lane_queue_depth = max(1, args.queue_depth // 2)
+    camera_lane_pool = (
+        CameraLanePool(
+            monitor=pipeline.monitor,
+            output_root=archive_root,
+            images_root=args.images_root,
+            enable_row_csv=not args.no_rows_csv,
+            expected_rows=args.expected_rows,
+            bit_order=args.bit_order,
+            image_policy=args.image_policy,
+            max_missing_rows=args.max_missing_rows,
+            max_consecutive_missing=args.max_consecutive_missing,
+            report_interval=args.report_interval,
+            csv_queue_depth=args.csv_queue_depth,
+            csv_backpressure=csv_backpressure,
+            frame_output_queue_depth=args.frame_output_queue_depth,
+            lane_queue_depth=lane_queue_depth,
+            session_audit=session_audit,
+            storage=storage,
+            camera_ids=camera_ids,
+            # A lane queue that drops would void the "offline replay is a
+            # complete audit" guarantee the capture queue already honours.
+            lossless=args.replay_pcap is not None,
+            publish_policy=args.publish_frames,
+            publish_async=args.publish_images == "process",
+            publisher_queue_depth=args.publisher_queue_depth,
+            report_sink=print,
+            error_sink=lambda message: print(message, file=sys.stderr),
+        )
+        if split_by_camera
+        else None
+    )
+    if camera_lane_pool is not None:
+        pipeline.on_frame_processed = camera_lane_pool.submit
+    else:
+        image_pipeline = (
+            CameraImagePipeline(
+                args.images_root,
+                expected_rows=args.expected_rows,
+                bit_order=args.bit_order,
+                image_policy=args.image_policy,
+                max_missing_rows=args.max_missing_rows,
+                max_consecutive_missing=args.max_consecutive_missing,
+                report_interval=args.report_interval,
+                enable_row_csv=not args.no_rows_csv,
+                csv_queue_depth=args.csv_queue_depth,
+                csv_backpressure=csv_backpressure,
+                publish_async=args.publish_images == "process",
+                publisher_queue_depth=args.publisher_queue_depth,
+                error_sink=lambda message: print(message, file=sys.stderr),
+            )
+            if args.images_root is not None
+            else None
+        )
+        completed_frame_callback = _fanout_callbacks(
+            ("storage", storage),
+            (
+                "image publication",
+                image_pipeline.archive_frame if image_pipeline is not None else None,
+            ),
+        )
+        frame_output = (
+            AsyncCallbackDispatcher(
+                completed_frame_callback,
+                queue_depth=args.frame_output_queue_depth,
+                error_sink=lambda message: print(message, file=sys.stderr),
+            )
+            if completed_frame_callback is not None
+            else None
+        )
+        # The publish filter is a property of the sink boundary, not of the
+        # lane split, so the shared path applies exactly the same policy.
+        publish_policy = PublishPolicy(args.publish_frames)
+        shared_publish_skipped = 0
+
+        def _publish_completed_frame(frame) -> None:
+            nonlocal shared_publish_skipped
+            if not publish_policy.accepts(frame):
+                shared_publish_skipped += 1
+                return
+            assert frame_output is not None
+            frame_output.submit(frame)
+
+        pipeline.on_completed_frame = (
+            _publish_completed_frame if frame_output is not None else None
+        )
+        pipeline.on_frame_processed = _fanout_callbacks(
             ("session audit", session_audit),
             image_pipeline.record_packet if image_pipeline is not None else None,
-        ),
-    )
+        )
 
     stop_requested = threading.Event()
 
@@ -325,14 +518,38 @@ def main() -> int:
     if args.replay_pcap is None:
         print(f"Pcap buf  : {args.pcap_buffer_size} bytes")
     print(f"Working dir: {Path.cwd().resolve()}")
-    if args.output_root is not None:
-        print(f"Archive   : {args.output_root.resolve()}")
+    if archive_root is not None:
+        print(f"Archive   : {archive_root.resolve()}")
+        print(
+            f"Archive policy: root={args.archive_root_policy} "
+            f"collision={args.archive_collision_policy}"
+        )
     if args.images_root is not None:
         print(f"Images    : {args.images_root.resolve()}")
         print(f"Image policy: {args.image_policy}")
-    if frame_output is not None:
-        print(f"Frame output queue: {args.frame_output_queue_depth}")
-    if image_pipeline is not None:
+    print(
+        f"Publish   : {args.publish_frames} via {args.publish_images}"
+        f" (publisher queue={args.publisher_queue_depth})"
+    )
+    print(
+        f"Session audit: {'on' if session_audit is not None else 'off'}"
+        f"{'' if args.output_root is not None else ' (needs --output-root)'}"
+    )
+    if split_by_camera:
+        print(
+            f"Split cam : on (cam_ids={','.join(str(c) for c in camera_ids)}, "
+            f"lane queue={lane_queue_depth}, "
+            f"frame-output={args.frame_output_queue_depth})"
+        )
+        print(
+            f"Row CSV    : {'off' if args.no_rows_csv else 'on'} per cam "
+            f"(queue={args.csv_queue_depth}, backpressure={csv_backpressure})"
+        )
+    else:
+        print("Split cam : off (single shared worker)")
+        print(
+            f"Frame output queue: {args.frame_output_queue_depth}"
+        )
         print(
             f"Row CSV    : "
             f"{'off' if args.no_rows_csv else 'on'} "
@@ -362,23 +579,34 @@ def main() -> int:
     finally:
         try:
             pipeline.stop()
+            if camera_lane_pool is not None:
+                camera_lane_pool.close()
             if frame_output is not None:
                 frame_output.close()
-            # Drain the rows.csv writer before the report so its queue/drop
-            # counters describe the whole run rather than the moment before
-            # shutdown.  close() is idempotent; the safety net below re-runs it.
-            if image_pipeline is not None:
-                image_pipeline.close()
             pipeline.print_final_report()
-            if frame_output is not None:
+            if storage is not None:
                 print("")
-                for line in frame_output.report_lines():
+                for line in storage.report_lines():
                     print(line)
-            if image_pipeline is not None:
+            if camera_lane_pool is not None:
                 print("")
+                for line in camera_lane_pool.report_lines():
+                    print(line)
+            elif image_pipeline is not None:
+                # Drain the rows.csv writer before the report so its queue/drop
+                # counters describe the whole run rather than the moment before
+                # shutdown.  close() is idempotent; the safety net below re-runs it.
+                image_pipeline.close()
+                print("")
+                if frame_output is not None:
+                    for line in frame_output.report_lines():
+                        print(line)
+                    print("")
                 for line in image_pipeline.report_lines():
                     print(line)
         finally:
+            if camera_lane_pool is not None:
+                camera_lane_pool.close()
             if frame_output is not None:
                 frame_output.close()
             if session_audit is not None:
@@ -387,6 +615,33 @@ def main() -> int:
                 image_pipeline.close()
             if storage is not None:
                 storage.close()
+
+    # A run whose output sink failed every single frame used to exit 0 and look
+    # like a success.  Report it, so a wrapper script or CI can see it.
+    # A run whose sink failed on every frame used to exit 0 and look like a
+    # success.  Each sink is judged on its own, since one broken sink no longer
+    # implies the others failed.
+    named_dispatchers: list[tuple[str, AsyncCallbackDispatcher]] = []
+    if camera_lane_pool is not None:
+        for lane in camera_lane_pool.lanes:
+            for name, dispatcher in lane.frame_outputs.items():
+                named_dispatchers.append((f"cam{lane.camera_id}/{name}", dispatcher))
+    elif frame_output is not None:
+        named_dispatchers.append(("shared", frame_output))
+
+    broken = [
+        name
+        for name, dispatcher in named_dispatchers
+        if dispatcher.stats.disabled
+        or (dispatcher.stats.submitted > 0 and dispatcher.stats.processed == 0)
+    ]
+    if broken:
+        print(
+            "Error: output sink(s) published nothing or were disabled after "
+            f"repeated failures: {', '.join(broken)}.",
+            file=sys.stderr,
+        )
+        return 7
 
     return 0
 
