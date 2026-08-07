@@ -125,7 +125,6 @@ class ScapyLiveCapture:
 
     def start(self, on_frame: Callable[[RawEthernetFrame], None]) -> None:
         from ctypes import byref
-        from scapy.layers.l2 import Ether
         from scapy.libs import winpcapy
 
         if self._pcap_handle is not None or (
