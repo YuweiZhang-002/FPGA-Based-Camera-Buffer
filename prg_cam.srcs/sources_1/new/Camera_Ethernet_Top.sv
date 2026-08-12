@@ -18,6 +18,7 @@ module Camera_Ethernet_Top #(
     // Keep physically routed but disconnected cam1 pins from creating false
     // HREF/PCLK events. Set this generic only after cam1 is wired and verified.
     parameter bit     ENABLE_CAM1 = 1'b1,
+    parameter bit     CAMERA_CRC_ENABLE = 1'b1,
     parameter integer CAMERA_LINES_PER_FRAME = 480
 ) (
     input  wire       CLK100MHZ,
@@ -236,6 +237,7 @@ module Camera_Ethernet_Top #(
     Camera_Pipeline #(
         .LINES_PER_FRAME   (CAMERA_LINES_PER_FRAME),
         .PACKET_FIFO_DEPTH (512),
+        .CRC_ENABLE        (CAMERA_CRC_ENABLE),
         .ENABLE_CAM1       (ENABLE_CAM1)
     ) u_camera_pipeline (
         .sys_clk                  (logic_clk),

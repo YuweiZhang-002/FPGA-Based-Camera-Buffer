@@ -16,7 +16,7 @@ from taxi_receiver.camera_lane import (
     PublishPolicy,
 )
 from taxi_receiver.capture import SyntheticFrameSource
-from taxi_receiver.packet_format import FLAG_FIRST_ROW, FLAG_LAST_ROW
+from taxi_receiver.packet_format import FLAG_LAST_ROW
 from taxi_receiver.pipeline import TaxiReceiverPipeline
 from taxi_receiver.reassembler import (
     CompletedFrame,
@@ -106,7 +106,7 @@ def test_lossless_lane_queue_blocks_instead_of_dropping():
             frame_id=index,
             row_idx=0,
             row_seq=index,
-            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+            row_flags=FLAG_LAST_ROW,
         )
         for index in range(200)
     ]
@@ -202,7 +202,7 @@ def test_partial_frames_are_not_handed_to_the_sinks():
             frame_id=2,
             row_idx=0,
             row_seq=1,
-            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+            row_flags=FLAG_LAST_ROW,
         ),
     ]
     monitor = quiet_monitor()
@@ -247,7 +247,7 @@ def test_a_broken_sink_does_not_disable_a_healthy_one(tmp_path):
             frame_id=index,
             row_idx=0,
             row_seq=index,
-            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+            row_flags=FLAG_LAST_ROW,
         )
         for index in range(30)
     ]

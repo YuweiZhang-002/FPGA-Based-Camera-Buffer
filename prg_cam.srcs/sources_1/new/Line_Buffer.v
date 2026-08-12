@@ -38,7 +38,7 @@ module Line_Buffer #(
     input  wire       capture_line_start, // href 上升事件：尝试预留一个 slot
     input  wire       capture_line_end,   // href 下降事件：提交或结束丢弃
     input  wire [1:0] capture_cam_id,     // 行包所属相机 ID
-    input  wire [7:0] capture_flags,      // FIRST/LAST/LENGTH_ERROR 等行属性
+    input  wire [7:0] capture_flags,      // FPGA receiver diagnostic status
 
     // Arbitration interface. request is a level, not a one-cycle pulse, and
     // remains asserted while at least one committed packet is owned by this LB.
@@ -88,11 +88,10 @@ module Line_Buffer #(
     // ========================================================================
     // RX-ONLY FLAGS / REGISTERS -- 仅 RX agent 写入或判断
     // ========================================================================
-    // RP2350A wire protocol: bit0=overflow, bit1=last, bit2=first-valid-row.
-    // Byte_Replacer stores this FPGA status byte in reserved[0]/offset 13, so
-    // it remains disjoint from the MCU row_flags byte at offset 9.
-    localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h01;
-    localparam [7:0] PKT_ROW_FLAG_LENGTH_ERROR = 8'h08;
+    // Offset 13 is the FPGA receiver diagnostic status byte.  It remains
+    // disjoint from RP2354 sender_row_flags at offset 9.
+    localparam [7:0] FPGA_STATUS_FRAME_OVERFLOW = 8'h01;
+    localparam [7:0] FPGA_STATUS_LENGTH_ERROR   = 8'h08;
 
     reg [SLOT_W-1:0] wr_ptr;           // 下一个将预留/提交的 slot
     reg [8:0] wr_count;                // 当前 href 已保存的真实 byte 数
@@ -130,12 +129,10 @@ module Line_Buffer #(
                          (used_count < LINE_SLOTS);
     wire drop_event    = capture_line_start && !rx_reserved &&
                          (used_count >= LINE_SLOTS);
-    // A malformed-length row is never converted into a padded, CRC-valid
-    // packet.  It releases its reservation and is represented downstream by
-    // the source row_seq gap, which the receiver can recover with zero-fill.
-    wire discard_event = capture_line_end && rx_reserved &&
-                         ((capture_flags & PKT_ROW_FLAG_LENGTH_ERROR) != 0);
-    wire commit_event  = capture_line_end && rx_reserved && !discard_event;
+    // Length-invalid rows remain observable.  The slot is committed with its
+    // status metadata; TX pads short rows with zero and truncates long rows to
+    // PACKET_BYTES.  Python rejects the row payload while retaining the audit.
+    wire commit_event  = capture_line_end && rx_reserved;
     wire release_event = tx_valid && tx_ready && tx_packet_last;
 
     // ========================================================================
@@ -189,8 +186,8 @@ module Line_Buffer #(
     //   drop_event    : no slot reserved; report overflow only.
     //   reserve_event : reserve wr_ptr and optionally store the first byte.
     //   rx_reserved   : accept later bytes; line_end commits metadata and wr_ptr.
-    // Malformed-length packets are discarded at line_end; valid packets retain
-    // the fixed 128-byte TX contract.
+    // Every reserved line commits.  tx_length normalizes malformed input to the
+    // fixed 128-byte TX contract without losing its diagnostic status.
     // -------------------------------------------------------------------------
     // Synchronous reset is intentional in both memory-owning agents. Vivado
     // cannot infer block RAM when a memory port sits in an asynchronous-reset
@@ -223,17 +220,13 @@ module Line_Buffer #(
                 if (capture_valid && (wr_count < PACKET_BYTES))
                     wr_count <= wr_count + 1'b1;
 
-                if (capture_line_end && discard_event) begin
-                    // Reuse the same wr_ptr slot.  Occupancy accounting removes
-                    // this reservation below; no request or packet is exposed.
-                    wr_count <= 9'd0;
-                end else if (capture_line_end) begin
+                if (capture_line_end) begin
                     // metadata 只在 commit 时写一次。若 line_end 与最后一个
                     // valid 同拍，length 需把本拍 byte 计入。
                     cam_id_mem[wr_ptr] <= capture_cam_id;
                     flags_mem[wr_ptr]  <= capture_flags |
                                           (frame_overflow_pending
-                                           ? PKT_ROW_FLAG_FRAME_OVFLOW
+                                           ? FPGA_STATUS_FRAME_OVERFLOW
                                            : 8'd0);
                     length_mem[wr_ptr] <= wr_count +
                                           ((capture_valid &&
@@ -264,8 +257,8 @@ module Line_Buffer #(
     // 持有一个必须保持到 ready 的 byte。该编码与 Byte_FIFO.out_valid_r 相同。
     // 获得 grant 后固定从 rd_ptr 发送 128 bytes；同步 BRAM 读与 ready/valid
     // 输出寄存器形成紧凑的预取端口。
-    // The length guard in the RX agent prevents short/long rows from reaching
-    // this TX path, so every committed slot has the fixed packet length.
+    // tx_length records the captured prefix.  The data mux below pads a short
+    // row and naturally truncates a long row because output_index stops at 127.
     // -------------------------------------------------------------------------
     // See RX note above: synchronous reset preserves the BRAM read template.
     always @(posedge sys_clk) begin
@@ -319,14 +312,9 @@ module Line_Buffer #(
             used_count      <= 3'd0;
             committed_count <= 3'd0;
         end else begin
-            case ({reserve_event, release_event, discard_event})
-                3'b100: used_count <= used_count + 1'b1;
-                3'b010,
-                3'b001: used_count <= used_count - 1'b1;
-                // One reservation plus one release is net zero.  A discard and
-                // TX release can coincide, in which case two slots leave.
-                3'b110: used_count <= used_count;
-                3'b011: used_count <= used_count - 2'd2;
+            case ({reserve_event, release_event})
+                2'b10: used_count <= used_count + 1'b1;
+                2'b01: used_count <= used_count - 1'b1;
                 default: used_count <= used_count;
             endcase
 

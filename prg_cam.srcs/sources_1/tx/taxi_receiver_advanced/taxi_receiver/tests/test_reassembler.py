@@ -1,7 +1,6 @@
 from taxi_receiver.camera_parser import parse_camera_mode
 from taxi_receiver.reassembler import FrameReassembler, NullReassembler
 from taxi_receiver.packet_format import (
-    FLAG_FIRST_ROW,
     FLAG_LAST_ROW,
     ROW_BYTES,
     build_camera_row,
@@ -30,7 +29,7 @@ def _parsed_fill(cam_id, frame_id, row_idx, row_seq, flags, fill):
 
 def test_null_reassembler_never_completes():
     reassembler = NullReassembler()
-    pkt = _parsed(0, 1, 0, FLAG_FIRST_ROW | FLAG_LAST_ROW)
+    pkt = _parsed(0, 1, 0, FLAG_LAST_ROW)
     assert reassembler.on_row(pkt) is None
     assert reassembler.flush() == []
 
@@ -38,7 +37,7 @@ def test_null_reassembler_never_completes():
 def test_frame_reassembler_completes_on_last_row():
     reassembler = FrameReassembler()
 
-    assert reassembler.on_row(_parsed(0, 1, 0, FLAG_FIRST_ROW)) is None
+    assert reassembler.on_row(_parsed(0, 1, 0, 0)) is None
     assert reassembler.on_row(_parsed(0, 1, 1, 0)) is None
     completed = reassembler.on_row(_parsed(0, 1, 2, FLAG_LAST_ROW))
 
@@ -55,7 +54,7 @@ def test_frame_reassembler_completes_on_last_row():
 
 def test_frame_reassembler_reports_missing_rows():
     reassembler = FrameReassembler()
-    reassembler.on_row(_parsed(0, 1, 0, FLAG_FIRST_ROW))
+    reassembler.on_row(_parsed(0, 1, 0, 0))
     # row 1 lost
     assert reassembler.on_row(_parsed(0, 1, 2, FLAG_LAST_ROW)) is None
     completed = reassembler.flush()[0]
@@ -66,7 +65,7 @@ def test_frame_reassembler_reports_missing_rows():
 
 def test_flush_closes_in_progress_frames():
     reassembler = FrameReassembler()
-    reassembler.on_row(_parsed(0, 1, 0, FLAG_FIRST_ROW))
+    reassembler.on_row(_parsed(0, 1, 0, 0))
     completed = reassembler.flush()
 
     assert len(completed) == 1
@@ -79,7 +78,7 @@ def test_bad_sync_does_not_create_or_rotate_sessions():
     reassembler = FrameReassembler(expected_rows=2)
 
     reassembler.on_row(
-        _parsed_fill(0, 10, 0, 100, FLAG_FIRST_ROW, 0x11)
+        _parsed_fill(0, 10, 0, 100, 0, 0x11)
     )
     bogus = _parsed_fill(0, 50000, 1, 101, FLAG_LAST_ROW, 0x22)
     assert reassembler.on_row(bogus, errors=("bad_sync",)) is None
@@ -98,7 +97,7 @@ def test_bad_sync_does_not_create_or_rotate_sessions():
 
 def test_crc_error_does_not_create_session():
     reassembler = FrameReassembler(expected_rows=1)
-    packet = _parsed(1, 77, 0, FLAG_FIRST_ROW | FLAG_LAST_ROW)
+    packet = _parsed(1, 77, 0, FLAG_LAST_ROW)
 
     assert reassembler.on_row(packet, errors=("crc_error",)) is None
     assert reassembler.flush() == []
@@ -110,7 +109,7 @@ def test_frame_switch_never_reuses_previous_frame_rows():
     reassembler = FrameReassembler(expected_rows=2)
 
     reassembler.on_row(
-        _parsed_fill(0, 10, 0, 100, FLAG_FIRST_ROW, 0x11)
+        _parsed_fill(0, 10, 0, 100, 0, 0x11)
     )
     first = reassembler.on_row(
         _parsed_fill(0, 10, 1, 101, FLAG_LAST_ROW, 0x22)
@@ -122,7 +121,7 @@ def test_frame_switch_never_reuses_previous_frame_rows():
         _parsed_fill(0, 11, 1, 103, FLAG_LAST_ROW, 0x44)
     ) is None
     switched = reassembler.on_row(
-        _parsed_fill(0, 12, 0, 104, FLAG_FIRST_ROW, 0x55)
+        _parsed_fill(0, 12, 0, 104, 0, 0x55)
     )
     assert switched is not None
     assert switched.frame_id == 11

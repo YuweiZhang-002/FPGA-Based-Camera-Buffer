@@ -2,7 +2,6 @@ import json
 
 from taxi_receiver.image_pipeline import CameraImagePipeline, ImagePolicy
 from taxi_receiver.packet_format import (
-    FLAG_FIRST_ROW,
     FLAG_FRAME_OVERFLOW,
     FLAG_LAST_ROW,
     ROW_BYTES,
@@ -34,8 +33,6 @@ def _frame(
     records = []
     for row_idx in sorted(rows):
         flags = 0
-        if row_idx == 0:
-            flags |= FLAG_FIRST_ROW
         if row_idx == EXPECTED_ROWS - 1 and last_seen:
             flags |= FLAG_LAST_ROW
         row_seq = (

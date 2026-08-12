@@ -2,7 +2,7 @@
 
 Layer 1-3 stays on the single shared worker: EtherType validation, the 128-byte
 fixed-length check and CRC/parse.  Everything from Layer 5 upwards -- session
-reassembly, rows.csv, recovery assessment and image/archive publication -- runs
+reassembly, rows_v2.csv, recovery assessment and publication -- runs
 on one dedicated thread per camera, each owning its own reassembler, CSV sink,
 output dispatcher and image pipeline.
 
@@ -121,7 +121,7 @@ class CameraLaneConfig:
     frame_output_queue_depth: int
     lane_queue_depth: int
     # Shared, thread-safe sinks.  Both are deliberately NOT per-lane: storage
-    # keeps one summary.csv and session audit keeps one session_audit.csv for
+    # keeps one summary_v2.csv and one session_audit_v2.csv for
     # the whole run.  They serialise internally, so enabling either one
     # partially re-couples the lanes; session audit in particular writes
     # synchronously on the lane thread.
@@ -336,6 +336,7 @@ class CameraLane:
                 capture_timestamp=ctx.frame.timestamp,
                 now=time.monotonic(),
             )
+            ctx.packet_record = self._reassembler.last_packet_record
             self._emit(completed)
             drain = getattr(self._reassembler, "drain_completed", None)
             if drain is not None:

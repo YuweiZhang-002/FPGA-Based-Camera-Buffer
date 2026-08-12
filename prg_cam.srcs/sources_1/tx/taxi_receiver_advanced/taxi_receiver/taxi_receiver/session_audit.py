@@ -20,20 +20,19 @@ AUDIT_FIELDS = (
     "cam_id",
     "frame_id",
     "row_idx",
-    "row_flags_raw",
-    "row_flags_effective",
-    "fpga_status",
-    "header_check",
+    "sender_row_flags_raw",
+    "sender_row2_marker",
+    "fpga_status_raw",
+    "fpga_length_error",
+    "fpga_crc_error",
     "payload_len",
     "row_seq",
+    "crc_mode",
+    "crc_checked",
     "crc_ok",
-    "m00",
-    "xc_q4",
-    "yc_q4",
-    "vx_q8",
-    "vy_q8",
     "validation_status",
     "reject_reason",
+    "row_accepted",
 )
 
 _COUNTER_MAX = 0xFFFF
@@ -43,11 +42,6 @@ _WRAP_LOW = 0x0FFF
 
 class SessionAuditLogger:
     """Write one CSV row for every processed capture record.
-
-    ``row_flags_effective`` is an audit-only compatibility view: it propagates
-    FPGA LENGTH_ERROR (fpga_status bit 3) from the first contaminated row through
-    the remainder of the same ``(cam_id, frame_id)``. Raw MCU flags are never
-    modified and fpga_status is recorded in its own column.
 
     A large, non-wrap rollback of either frame_id or row_seq is treated as a
     new power-on session.  The CSV is then reopened with ``"w"`` so evidence
@@ -70,7 +64,7 @@ class SessionAuditLogger:
             raise ValueError("flush_interval_seconds must be positive")
 
         self.output_root = Path(output_root)
-        self.path = self.output_root / "session_audit.csv"
+        self.path = self.output_root / "session_audit_v2.csv"
         self.rollback_threshold = rollback_threshold
         self.flush_every_rows = flush_every_rows
         self.flush_interval_seconds = flush_interval_seconds
@@ -79,8 +73,6 @@ class SessionAuditLogger:
         self._writer: Optional[csv.DictWriter] = None
         self._max_frame_id: dict[int, int] = {}
         self._max_row_seq: dict[int, int] = {}
-        self._active_frame_id: dict[int, int] = {}
-        self._contaminated: dict[int, bool] = {}
         self._pending_rows = 0
         self._last_flush = time.monotonic()
         self.reset_count = 0
@@ -99,13 +91,18 @@ class SessionAuditLogger:
                 self._write_row(
                     {
                         "timestamp": _format_timestamp(ctx.frame.timestamp),
-                        **{name: "" for name in AUDIT_FIELDS[1:]},
+                        **{name: "" for name in AUDIT_FIELDS[1:-3]},
+                        "validation_status": "UNPARSED",
+                        "reject_reason": (
+                            result.reason if result is not None else
+                            ctx.stop_reason or "no_camera_packet"
+                        ),
+                        "row_accepted": 0,
                     }
                 )
                 return
 
             header = packet.header
-            trailer = packet.trailer
             cam_id = header.cam_id
             frame_id = header.frame_id
             row_seq = header.row_seq
@@ -120,18 +117,21 @@ class SessionAuditLogger:
                     self._start_new_session(initial=False)
                 self._update_counter_maxima(cam_id, frame_id, row_seq)
 
-            if self._active_frame_id.get(cam_id) != frame_id:
-                self._active_frame_id[cam_id] = frame_id
-                self._contaminated[cam_id] = False
-
             row_flags_raw = header.row_flags
-            if packet.length_error:
-                self._contaminated[cam_id] = True
-            row_flags_effective = (
-                row_flags_raw | 0x08
-                if self._contaminated.get(cam_id, False)
-                else row_flags_raw
-            )
+            if result.errors:
+                reject_reason = ";".join(result.errors)
+            elif (
+                ctx.packet_record is not None
+                and ctx.packet_record.conflicting_duplicate
+            ):
+                reject_reason = "conflicting_duplicate"
+            elif (
+                ctx.packet_record is not None
+                and ctx.packet_record.duplicate
+            ):
+                reject_reason = "duplicate_row"
+            else:
+                reject_reason = ""
 
             self._write_row(
                 {
@@ -139,25 +139,27 @@ class SessionAuditLogger:
                     "cam_id": cam_id,
                     "frame_id": frame_id,
                     "row_idx": header.row_idx,
-                    "row_flags_raw": f"0x{row_flags_raw:02X}",
-                    "row_flags_effective": f"0x{row_flags_effective:02X}",
-                    "fpga_status": f"0x{header.fpga_status:02X}",
-                    "header_check": f"0x{header.header_check:02X}",
+                    "sender_row_flags_raw": f"0x{row_flags_raw:02X}",
+                    "sender_row2_marker": int(packet.sender_row2_marker),
+                    "fpga_status_raw": f"0x{header.fpga_status_raw:02X}",
+                    "fpga_length_error": int(packet.fpga_length_error),
+                    "fpga_crc_error": int(packet.fpga_crc_error),
                     "payload_len": header.payload_len,
                     "row_seq": row_seq,
-                    "crc_ok": int(packet.crc_ok),
-                    "m00": trailer.m00,
-                    "xc_q4": trailer.xc_q4,
-                    "yc_q4": trailer.yc_q4,
-                    "vx_q8": trailer.vx_q8,
-                    "vy_q8": trailer.vy_q8,
-                    "validation_status": (
-                        "PASS" if result is not None and result.ok else "FAIL"
+                    "crc_mode": result.crc_mode,
+                    "crc_checked": int(result.crc_checked),
+                    "crc_ok": (
+                        "" if result.crc_ok is None else int(result.crc_ok)
                     ),
-                    "reject_reason": (
-                        ""
-                        if result is None or result.ok
-                        else ";".join(result.errors)
+                    "validation_status": (
+                        "PASS" if result.ok else
+                        "DIAGNOSTIC_REJECT" if result.parsed_ok else
+                        "PROTOCOL_REJECT"
+                    ),
+                    "reject_reason": reject_reason,
+                    "row_accepted": int(
+                        ctx.packet_record is not None
+                        and ctx.packet_record.accepted
                     ),
                 }
             )
@@ -185,8 +187,6 @@ class SessionAuditLogger:
 
         self._max_frame_id.clear()
         self._max_row_seq.clear()
-        self._active_frame_id.clear()
-        self._contaminated.clear()
         if not initial:
             self.reset_count += 1
 

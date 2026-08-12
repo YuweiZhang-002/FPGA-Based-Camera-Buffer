@@ -13,7 +13,7 @@ from taxi_receiver.async_sink import AsyncCallbackDispatcher
 from taxi_receiver.camera_lane import CameraLanePool
 from taxi_receiver.capture import ScapyLiveCapture, SyntheticFrameSource, _packet_timestamp
 from taxi_receiver.packet_format import (
-    FLAG_FIRST_ROW,
+    CRC_MODE_PLACEHOLDER,
     FLAG_LAST_ROW,
     ROW_BYTES,
     build_camera_row,
@@ -46,11 +46,46 @@ def test_pipeline_camera_mode_end_to_end():
     assert pipeline.monitor.stats.camera(1).packets == 4
 
 
+def test_crc_mode_propagates_from_cli_and_pipeline_to_parser():
+    args = cli_module.build_argument_parser().parse_args(
+        ["--interface", "synthetic", "--crc-mode", "placeholder"]
+    )
+    assert args.crc_mode == CRC_MODE_PLACEHOLDER
+
+    raw = build_camera_row(
+        cam_id=0,
+        frame_id=1,
+        row_idx=0,
+        row_flags=FLAG_LAST_ROW,
+        row_seq=0,
+        payload=bytes(ROW_BYTES),
+        crc_mode=CRC_MODE_PLACEHOLDER,
+    )
+    seen = []
+    pipeline = TaxiReceiverPipeline(
+        frame_source=SyntheticFrameSource([make_raw_frame(raw)]),
+        mode="camera",
+        crc_mode=args.crc_mode,
+        max_stage="parse",
+        report_interval=999,
+        sink=lambda *_: None,
+        on_frame_processed=seen.append,
+    )
+    pipeline.start()
+    pipeline.stop()
+
+    assert len(seen) == 1
+    result = seen[0].camera_result
+    assert result is not None and result.ok
+    assert result.crc_mode == CRC_MODE_PLACEHOLDER
+    assert not result.crc_checked and result.crc_ok is None
+
+
 def test_pipeline_with_reassembler_layer5():
     frames = [
         make_camera_frame(
             cam_id=0, frame_id=7, row_idx=0, row_seq=0,
-            row_flags=FLAG_FIRST_ROW,
+            row_flags=0,
         ),
         make_camera_frame(
             cam_id=0, frame_id=7, row_idx=1, row_seq=1,
@@ -377,7 +412,7 @@ def test_slow_frame_storage_is_decoupled_from_capture_queue():
             frame_id=index,
             row_idx=0,
             row_seq=index,
-            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+            row_flags=FLAG_LAST_ROW,
         )
         for index in range(100)
     ]
@@ -442,14 +477,14 @@ def test_split_by_camera_routes_each_camera_into_its_own_lane(tmp_path):
             frame_id=10,
             row_idx=0,
             row_seq=0,
-            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+            row_flags=FLAG_LAST_ROW,
         ),
         make_camera_frame(
             cam_id=1,
             frame_id=20,
             row_idx=0,
             row_seq=0,
-            row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+            row_flags=FLAG_LAST_ROW,
         ),
     ]
 
@@ -521,13 +556,13 @@ def test_setting_on_completed_frame_after_construction_reaches_the_stage():
     # stop()-time flush reached the sink.
     frames = [
         make_camera_frame(
-            cam_id=0, frame_id=1, row_idx=0, row_seq=0, row_flags=FLAG_FIRST_ROW
+            cam_id=0, frame_id=1, row_idx=0, row_seq=0, row_flags=0
         ),
         make_camera_frame(
             cam_id=0, frame_id=1, row_idx=1, row_seq=1, row_flags=FLAG_LAST_ROW
         ),
         make_camera_frame(
-            cam_id=0, frame_id=2, row_idx=0, row_seq=2, row_flags=FLAG_FIRST_ROW
+            cam_id=0, frame_id=2, row_idx=0, row_seq=2, row_flags=0
         ),
         make_camera_frame(
             cam_id=0, frame_id=2, row_idx=1, row_seq=3, row_flags=FLAG_LAST_ROW

@@ -24,7 +24,8 @@ from typing import Callable, Optional, Protocol
 from .camera_parser import CameraModeResult, FixedModeResult, parse_camera_mode, parse_fixed_mode
 from .capture import RawEthernetFrame
 from .eth_validate import ETHER_TYPE, ValidationResult, validate_ethernet_frame
-from .reassembler import CompletedFrame, NullReassembler, RowReassembler
+from .packet_format import CRC_MODE_ENABLED, normalize_crc_mode
+from .reassembler import CompletedFrame, NullReassembler, PacketRecord, RowReassembler
 from .recorder import ErrorFrameRecorder, PcapRecorder
 from .stream_monitor import StreamMonitor
 
@@ -45,6 +46,7 @@ class FrameContext:
     validation: Optional[ValidationResult] = None
     fixed_result: Optional[FixedModeResult] = None
     camera_result: Optional[CameraModeResult] = None
+    packet_record: Optional[PacketRecord] = None
     completed_frame: Optional[CompletedFrame] = None
     stopped_at: Optional[str] = None
     stop_reason: Optional[str] = None
@@ -99,9 +101,16 @@ class ParsingStage:
     still meaningful telemetry for Layer 4, not a reason to stop."""
     name = "parse"
 
-    def __init__(self, mode: str, error_recorder: Optional[ErrorFrameRecorder] = None):
+    def __init__(
+        self,
+        mode: str,
+        error_recorder: Optional[ErrorFrameRecorder] = None,
+        *,
+        crc_mode: str = CRC_MODE_ENABLED,
+    ):
         self.mode = mode
         self.error_recorder = error_recorder
+        self.crc_mode = normalize_crc_mode(crc_mode)
 
     def process(self, ctx: FrameContext) -> bool:
         if self.mode == "fixed":
@@ -110,7 +119,10 @@ class ParsingStage:
             if not result.ok and self.error_recorder is not None:
                 self.error_recorder.save(f"fixed_{result.reason}", ctx.frame.payload)
         else:
-            result = parse_camera_mode(ctx.frame.payload)
+            result = parse_camera_mode(
+                ctx.frame.payload,
+                crc_mode=self.crc_mode,
+            )
             ctx.camera_result = result
             if not result.ok and self.error_recorder is not None:
                 self.error_recorder.save(f"camera_{result.reason}", ctx.frame.payload)
@@ -156,6 +168,7 @@ class ReassemblyStage:
             capture_timestamp=ctx.frame.timestamp,
             now=time.monotonic(),
         )
+        ctx.packet_record = getattr(self.reassembler, "last_packet_record", None)
         self._emit(completed, ctx)
         drain = getattr(self.reassembler, "drain_completed", None)
         if drain is not None:
@@ -194,6 +207,7 @@ def build_stage_chain(
     error_recorder: Optional[ErrorFrameRecorder] = None,
     reassembler: Optional[RowReassembler] = None,
     on_completed_frame: Optional[Callable[[CompletedFrame], None]] = None,
+    crc_mode: str = CRC_MODE_ENABLED,
 ) -> list[Stage]:
     """Declarative "Layer 1-N" builder.
 
@@ -220,7 +234,13 @@ def build_stage_chain(
         stages.append(PcapRecordingStage(pcap_recorder))
 
     if depth >= 1:
-        stages.append(ParsingStage(mode, error_recorder=error_recorder))
+        stages.append(
+            ParsingStage(
+                mode,
+                error_recorder=error_recorder,
+                crc_mode=crc_mode,
+            )
+        )
     if depth >= 2:
         stages.append(MonitoringStage(monitor))
     if depth >= 3:

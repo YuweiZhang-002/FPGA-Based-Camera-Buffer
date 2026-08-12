@@ -75,7 +75,7 @@ python -m taxi_receiver.cli --interface "\Device\NPF_{...}" --mode camera `
 共享 worker (Layer1-3 结束)
     → CameraLanePool.submit(): 按 cam_id 路由，白名单外计 unroutable
     → 每相机 queue.Queue(--queue-depth / 2)              [边界②]
-    → CameraLane 线程: FrameReassembler → rows.csv 队列  [边界③]
+    → CameraLane 线程: FrameReassembler → rows_v2.csv 队列  [边界③]
                        → PublishPolicy 闸门
     → 每 sink 一个 AsyncCallbackDispatcher(--frame-output-queue-depth)  [边界④]
     → CameraImagePipeline.archive_frame()
@@ -138,9 +138,9 @@ S1 单独的吞吐收益是 **−5%**（多一次队列跳转与线程交接）�
 | Sink | 开关 | 产出 | 每帧代价 |
 |---|---|---|---|
 | images | `--images-root` | `camN/<frame_id>.pgm/.raw/.json` | 位展开 + 编码 + 3 文件（已进子进程） |
-| storage | `--output-root` | `cam_N/frame_<id>/` 4 个文件 + `summary.csv` | `to_bytes` + sha256 + mkdir + 4 文件 + `os.replace` + 每帧 flush |
-| rows.csv | 默认开，`--no-rows-csv` 关 | `camN/rows.csv` | 1 次 `put`（写在独立线程） |
-| session_audit.csv | `--session-audit` | `session_audit.csv` | **同步写在 lane 线程上** |
+| storage | `--output-root` | `cam_N/frame_<id>/` 4 个文件 + `summary_v2.csv` | `to_bytes` + sha256 + mkdir + 4 文件 + `os.replace` + 每帧 flush |
+| rows_v2.csv | 默认开，`--no-rows-csv` 关 | `camN/rows_v2.csv` | 1 次 `put`（写在独立线程） |
+| session_audit_v2.csv | `--session-audit` | `session_audit_v2.csv` | **同步写在 lane 线程上** |
 
 ### 【工程原因】
 
@@ -149,14 +149,14 @@ S1 单独的吞吐收益是 **−5%**（多一次队列跳转与线程交接）�
   退避重试到 0.5 s。同样帧率下 replay 阻塞 0 s、live 阻塞 220 s，差别只在文件系统。
 - **`frame_id` 每次上电从 ~20 重启。** 复用同一个 archive root 会让每帧都撞上一次运行的目录。
   这曾导致 2,767 提交 / 0 成功的整场发布中断 —— 而当时退出码还是 0。
-- **`session_audit.csv` 与 `rows.csv` 约 90% 重复**，前者却是同步落盘在关键路径上。
+- **`session_audit_v2.csv` 与 `rows_v2.csv` 高度重复**，前者却是同步落盘在关键路径上。
 
 ### 【量化收益】
 
 - archive root 改为 `run_<时间戳>` 子目录后，跨运行冲突 **2,767 → 0**。
 - 冲突不再在 sink 线程抛异常（改写 `frame_<id>.dup<k>` 并计数），单个坏 sink 不再拖垮健康 sink：
   实测 storage 48/48 失败时 images 仍 48/48 成功。
-- live 默认关闭 `session_audit.csv`，从 lane 线程摘掉一张 44 MB / 150 s 的同步 CSV。
+- live 默认关闭 `session_audit_v2.csv`，从 lane 线程摘掉同步 CSV。
 - stderr 从 2,767 条重复 traceback 降到每 sink 20 条上限（控制台写是同步慢操作，本身就是第二个瓶颈）。
 
 ### 命令
@@ -229,7 +229,7 @@ python -m taxi_receiver.cli --interface "\Device\NPF_{...}" --mode camera `
 | `ps_drop` | Npcap 内核缓冲 → 用户态 | 与 `Capture queue drops` **同时**看：队列没满而 ps_drop 大 = capture 线程 GIL 饥饿 | 降低单包成本（第 1 节）；`--pcap-buffer-size` 只是缓解 |
 | `Capture queue drops` | capture 线程 → 共享 worker | `Capture queue peak == capacity` | 共享 worker 的 L2/L3 成本 |
 | `Lane queue drops` | 共享 worker → lane | `lane peak == capacity` | **去看 `submit blocked`**，几乎总是下游 sink |
-| `csv_rows_dropped` | lane → rows.csv writer | `csv_queue_peak` 接近容量 | `--csv-queue-depth` 或 `--no-rows-csv` |
+| `csv_rows_dropped` | lane → rows_v2.csv writer | `csv_queue_peak` 接近容量 | `--csv-queue-depth` 或 `--no-rows-csv` |
 
 判断某个 sink 是不是天花板，只看一个数：
 
@@ -304,8 +304,8 @@ CAMERA LANE 0
 ### 遥测与取证
 | CLI | ps1 | 默认 | 作用 |
 |---|---|---|---|
-| `--no-rows-csv` | `-NoRowsCsv` | 开着 | 关掉每包 rows.csv |
-| `--csv-queue-depth` | — | 65536 | rows.csv 队列 |
+| `--no-rows-csv` | `-NoRowsCsv` | 开着 | 关掉每包 rows_v2.csv |
+| `--csv-queue-depth` | — | 65536 | rows_v2.csv 队列 |
 | `--csv-backpressure` | — | `auto` | auto = replay 阻塞 / live 丢弃 |
 | `--session-audit` | `-SessionAudit` | `auto` | auto = live 关 / replay 开；需 `--output-root`；**同步写** |
 | `--output-root` | `-OutputRoot` | 无 | frame archive；最贵的 sink |

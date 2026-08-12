@@ -24,6 +24,7 @@ import threading
 from typing import Callable, Optional
 
 from .capture import FrameSource, RawEthernetFrame
+from .packet_format import CRC_MODE_ENABLED, normalize_crc_mode
 from .reassembler import CompletedFrame, NullReassembler, RowReassembler
 from .recorder import ErrorFrameRecorder, PcapRecorder
 from .stages import FrameContext, ReassemblyStage, Stage, build_stage_chain
@@ -36,6 +37,7 @@ class TaxiReceiverPipeline:
         frame_source: FrameSource,
         mode: str = "camera",
         *,
+        crc_mode: str = CRC_MODE_ENABLED,
         max_stage: str = "monitor",
         stages: Optional[list[Stage]] = None,
         reassembler: Optional[RowReassembler] = None,
@@ -53,6 +55,7 @@ class TaxiReceiverPipeline:
             raise ValueError("queue_depth must be positive")
         self.frame_source = frame_source
         self.mode = mode
+        self.crc_mode = normalize_crc_mode(crc_mode)
         self.sink = sink
         self.pcap_recorder = pcap_recorder
         # Offline replay must apply backpressure instead of dropping evidence
@@ -93,6 +96,7 @@ class TaxiReceiverPipeline:
             error_recorder=error_recorder,
             reassembler=reassembler or NullReassembler(),
             on_completed_frame=on_completed_frame,
+            crc_mode=self.crc_mode,
         )
         # Kept explicitly (rather than duck-typed in stop()) so flush()
         # is only ever called on stages that are actually a
@@ -134,7 +138,7 @@ class TaxiReceiverPipeline:
         # while `frame_source.stop()` is still unwinding, the worker wins the
         # "empty" check and exits, and the frames enqueued after that never get
         # `task_done()` -- so the `queue.join()` below blocks forever and the
-        # Final Report / rows.csv flush never happen.  Observed as a hard hang
+        # Final Report / rows_v2.csv flush never happen. Observed as a hard hang
         # with CPU pinned at 0 and three threads in Wait.
         #
         # Correct sequence: silence the producer, drain what it left, and only

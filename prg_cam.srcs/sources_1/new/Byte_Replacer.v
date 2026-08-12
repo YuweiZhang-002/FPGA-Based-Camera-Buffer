@@ -2,47 +2,53 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: Byte_Replacer
 //
-// MODIFIED (2026-07-17): replaces Packet_Formatter in the active data path.
-// The incoming stream is already one complete fixed 128-byte packet, so this
-// module does not construct headers, split payloads or generate row sequences.
-// It changes only the fields FPGA owns and recomputes the packet-tail CRC:
+// Packet-preserving transform in the active camera path:
+//   offset 4       FPGA-assigned cam_id
+//   offset 9       RP2354 sender flags, byte-exact and never patched here
+//   offset 13      FPGA receiver diagnostic status byte
+//   offset 126/127 CRC high/low, or explicit FF/FF placeholder
 //
-//   offset 4   cam_id       = {6'd0, in_cam_id}
-//   offset 9   row_flags    = original MCU byte, unchanged
-//   offset 13  reserved[0]  = FPGA capture status (in_row_flags)
-//   offset 126 CRC low byte
-//   offset 127 CRC high byte and packet_last
-//
-// CRC covers the MODIFIED bytes at offsets 0..125.  The implementation matches
-// the supplied C code: initial 16'hFFFF, polynomial 16'h1021, MSB first, no
-// reflection and no final XOR.  Index and CRC advance only on valid/ready
-// handshakes, so downstream backpressure cannot move a replacement position.
+// Each bank owns its bytes, cam_id and status until its final output handshake.
+// The MCU ingress tail is accepted without comparison while the MCU emits the
+// FF/FF placeholder. CRC_ENABLE controls only the FPGA egress CRC: enabled
+// regenerates offsets 126/127 after all patches; disabled emits FF/FF.
 //////////////////////////////////////////////////////////////////////////////////
 module Byte_Replacer #(
-    parameter integer PACKET_BYTES     = 128, // 固定输出包长
-    parameter integer CAM_ID_OFFSET    = 4,   // pkt_row_header_t.cam_id
-    parameter integer FPGA_STATUS_OFFSET = 13, // pkt_row_header_t.reserved[0]
-    parameter integer CRC_LOW_OFFSET   = 126, // 小端 CRC 低字节
-    parameter integer CRC_HIGH_OFFSET  = 127  // 小端 CRC 高字节/包尾
+    parameter integer PACKET_BYTES       = 128,
+    parameter integer CAM_ID_OFFSET      = 4,
+    parameter integer FPGA_STATUS_OFFSET = 13,
+    parameter integer CRC_HIGH_OFFSET    = 126,
+    parameter integer CRC_LOW_OFFSET     = 127,
+    parameter         CRC_ENABLE         = 1'b1
 )(
-    input  wire       sys_clk,          // CRC 和位置计数所在时钟域
-    input  wire       rst,              // 高有效异步复位
+    input  wire       sys_clk,
+    input  wire       rst,
 
-    input  wire [7:0] in_data,          // Line_Buffer 当前 byte
-    input  wire       in_valid,         // in_data/metadata 有效
-    output wire       in_ready,         // 由下游 ready 直接回传
-    input  wire       in_packet_last,   // 上游包边界，用于异常情况下重同步
-    input  wire [1:0] in_cam_id,        // 被仲裁通道 ID，写入 offset 4
-    input  wire [7:0] in_row_flags,     // FPGA-only status, written to offset 13
+    input  wire [7:0] in_data,
+    input  wire       in_valid,
+    output wire       in_ready,
+    input  wire       in_packet_last,
+    input  wire [1:0] in_cam_id,
+    input  wire [7:0] in_fpga_status,
 
-    output wire [7:0] out_data,         // 替换字段/CRC 后的 byte
-    output wire       out_valid,        // 与 in_valid 同步的透明 valid
-    input  wire       out_ready,        // Byte_FIFO 是否可写
-    output wire       out_packet_last   // offset 127 时置位
+    output wire [7:0] out_data,
+    output wire       out_valid,
+    input  wire       out_ready,
+    output wire       out_packet_last
 );
 
-    // 对单个 byte 执行 8 轮 CRC-16-CCITT 更新。这里使用组合函数，
-    // crc_reg 只在真实握手时锁存函数结果，stall 不会重复累计同一 byte。
+    localparam [7:0] FPGA_STATUS_LENGTH_ERROR = 8'h08;
+
+    localparam [1:0] BUF_FREE    = 2'd0;
+    localparam [1:0] BUF_CAPTURE = 2'd1;
+    localparam [1:0] BUF_READY   = 2'd2;
+    localparam [1:0] BUF_OUTPUT  = 2'd3;
+
+    // Packet storage is deliberately declared before all functions.  The RAM
+    // write process has no reset and the output side is read-only.
+    reg [7:0] packet0 [0:PACKET_BYTES-1];
+    reg [7:0] packet1 [0:PACKET_BYTES-1];
+
     function [15:0] crc16_byte;
         input [15:0] crc_in;
         input [7:0]  data_in;
@@ -60,55 +66,162 @@ module Byte_Replacer #(
         end
     endfunction
 
-    // ========================================================================
-    // SHARED TRANSFORM FLAGS -- 组合替换/输出和时序 CRC/index 块共同使用
-    // ========================================================================
-    (* MARK_DEBUG = "TRUE" *) reg [6:0] byte_index; // 当前呈现在接口上的 byte offset：0..127
-    reg [15:0] crc_reg;    // 已接收 offset 0..byte_index-1 的累计 CRC
+    reg [1:0] buffer_state0;
+    reg [1:0] buffer_state1;
+    reg [1:0] buffer_cam_id0;
+    reg [1:0] buffer_cam_id1;
+    reg [7:0] buffer_status0;
+    reg [7:0] buffer_status1;
 
-    // ========================================================================
-    // COMBINATIONAL-ONLY WIRES -- 不保存状态，只描述当前 byte 的变换/握手
-    // ========================================================================
-    // 先形成最终 header byte，再把同一个值同时送往输出和 CRC，确保 CRC
-    // 校验的是接收端实际看到的 cam_id/flags，而不是修改前的数据。
-    // row_flags(offset 9) is deliberately transparent so MCU corruption and
-    // FPGA-generated status can be distinguished from one another on the wire.
-    wire [7:0] header_patched_data =
-        (byte_index == CAM_ID_OFFSET)      ? {6'd0, in_cam_id} :
-        (byte_index == FPGA_STATUS_OFFSET) ? in_row_flags :
-                                              in_data;
+    reg       capture_sel;
+    reg       capture_active;
+    reg [6:0] capture_index;
+    reg [1:0] capture_cam_id_latched;
+    reg [7:0] capture_status_latched;
+    reg       capture_boundary_error;
 
-    wire transfer_fire = in_valid && in_ready; // 唯一允许 index/CRC 前进的条件
+    reg       next_output_sel;
+    reg       output_sel;
+    reg       output_active;
+    (* MARK_DEBUG = "TRUE" *) reg [6:0] output_index;
+    reg [15:0] output_crc;
 
-    // 本模块没有额外输出缓存，是完全组合的 ready/valid 变换级。
-    assign in_ready  = out_ready;
-    assign out_valid = in_valid;
+    wire capture_buffer_free = capture_sel
+        ? (buffer_state1 == BUF_FREE)
+        : (buffer_state0 == BUF_FREE);
+    wire capture_transfer_fire = in_valid && in_ready;
+    wire output_transfer_fire = out_valid && out_ready;
+    wire [6:0] capture_write_index = capture_active
+        ? capture_index : 7'd0;
 
-    // CRC 两个位置不再使用原包尾内容；先低字节再高字节，与 MCU 结构一致。
-    assign out_data = (byte_index == CRC_LOW_OFFSET)  ? crc_reg[7:0]  :
-                      (byte_index == CRC_HIGH_OFFSET) ? crc_reg[15:8] :
-                                                        header_patched_data;
+    // Once a packet starts, its selected Line_Buffer can always finish.  After
+    // both banks fill, ready drops before Arbitration can release another owner.
+    assign in_ready = capture_active || capture_buffer_free;
 
-    // Line_Buffer always emits a fixed-size packet.  Deriving packet_last from
-    // the index makes the boundary explicit; in_packet_last is checked below as
-    // a defensive resynchronization condition.
-    assign out_packet_last = in_valid && (byte_index == PACKET_BYTES - 1);
+    always @(posedge sys_clk) begin
+        if (capture_transfer_fire) begin
+            if (capture_sel)
+                packet1[capture_write_index] <= in_data;
+            else
+                packet0[capture_write_index] <= in_data;
+        end
+    end
+
+    wire capture_length_error =
+        ((capture_status_latched & FPGA_STATUS_LENGTH_ERROR) != 0) ||
+        capture_boundary_error ||
+        ((capture_index == PACKET_BYTES - 1) && !in_packet_last);
+    wire [7:0] finalized_status =
+        capture_status_latched |
+        (capture_length_error ? FPGA_STATUS_LENGTH_ERROR : 8'd0);
+
+    wire [7:0] buffered_output_data = output_sel
+        ? packet1[output_index] : packet0[output_index];
+    wire [1:0] output_cam_id = output_sel
+        ? buffer_cam_id1 : buffer_cam_id0;
+    wire [7:0] output_status = output_sel
+        ? buffer_status1 : buffer_status0;
+    wire [7:0] patched_output_data =
+        (output_index == CAM_ID_OFFSET) ? {6'd0, output_cam_id} :
+        (output_index == FPGA_STATUS_OFFSET) ? output_status :
+        buffered_output_data;
+
+    assign out_valid = output_active;
+    assign out_packet_last = output_active &&
+                             (output_index == PACKET_BYTES - 1);
+    assign out_data = !output_active ? 8'd0 :
+        (output_index == CRC_HIGH_OFFSET) ?
+            ((CRC_ENABLE != 0) ? output_crc[15:8] : 8'hFF) :
+        (output_index == CRC_LOW_OFFSET) ?
+            ((CRC_ENABLE != 0) ? output_crc[7:0] : 8'hFF) :
+        patched_output_data;
 
     always @(posedge sys_clk or posedge rst) begin
         if (rst) begin
-            byte_index <= 7'd0;
-            crc_reg    <= 16'hFFFF;
-        end else if (transfer_fire) begin
-            // 只覆盖 0..125；CRC 字段本身不参与 CRC 计算。
-            if (byte_index < CRC_LOW_OFFSET)
-                crc_reg <= crc16_byte(crc_reg, header_patched_data);
+            buffer_state0 <= BUF_FREE;
+            buffer_state1 <= BUF_FREE;
+            buffer_cam_id0 <= 2'd0;
+            buffer_cam_id1 <= 2'd0;
+            buffer_status0 <= 8'd0;
+            buffer_status1 <= 8'd0;
 
-            // 优先使用任一包尾条件复位，防止异常上游 last 令下一包错位。
-            if (in_packet_last || (byte_index == PACKET_BYTES - 1)) begin
-                byte_index <= 7'd0;
-                crc_reg    <= 16'hFFFF;
-            end else begin
-                byte_index <= byte_index + 1'b1;
+            capture_sel <= 1'b0;
+            capture_active <= 1'b0;
+            capture_index <= 7'd0;
+            capture_cam_id_latched <= 2'd0;
+            capture_status_latched <= 8'd0;
+            capture_boundary_error <= 1'b0;
+
+            next_output_sel <= 1'b0;
+            output_sel <= 1'b0;
+            output_active <= 1'b0;
+            output_index <= 7'd0;
+            output_crc <= 16'hFFFF;
+        end else begin
+            if (capture_transfer_fire) begin
+                if (!capture_active) begin
+                    capture_active <= 1'b1;
+                    capture_index <= 7'd1;
+                    capture_cam_id_latched <= in_cam_id;
+                    capture_status_latched <= in_fpga_status;
+                    capture_boundary_error <= in_packet_last;
+                    if (capture_sel)
+                        buffer_state1 <= BUF_CAPTURE;
+                    else
+                        buffer_state0 <= BUF_CAPTURE;
+                end else if (capture_index == PACKET_BYTES - 1) begin
+                    if (capture_sel) begin
+                        buffer_cam_id1 <= capture_cam_id_latched;
+                        buffer_status1 <= finalized_status;
+                        buffer_state1 <= BUF_READY;
+                    end else begin
+                        buffer_cam_id0 <= capture_cam_id_latched;
+                        buffer_status0 <= finalized_status;
+                        buffer_state0 <= BUF_READY;
+                    end
+                    capture_sel <= ~capture_sel;
+                    capture_active <= 1'b0;
+                    capture_index <= 7'd0;
+                    capture_boundary_error <= 1'b0;
+                end else begin
+                    capture_index <= capture_index + 1'b1;
+                    if (in_packet_last)
+                        capture_boundary_error <= 1'b1;
+                end
+            end
+
+            if (!output_active) begin
+                if (!next_output_sel && (buffer_state0 == BUF_READY)) begin
+                    output_sel <= 1'b0;
+                    output_active <= 1'b1;
+                    output_index <= 7'd0;
+                    output_crc <= 16'hFFFF;
+                    buffer_state0 <= BUF_OUTPUT;
+                end else if (next_output_sel &&
+                             (buffer_state1 == BUF_READY)) begin
+                    output_sel <= 1'b1;
+                    output_active <= 1'b1;
+                    output_index <= 7'd0;
+                    output_crc <= 16'hFFFF;
+                    buffer_state1 <= BUF_OUTPUT;
+                end
+            end else if (output_transfer_fire) begin
+                if (output_index < CRC_HIGH_OFFSET)
+                    output_crc <= crc16_byte(output_crc,
+                                             patched_output_data);
+
+                if (output_index == PACKET_BYTES - 1) begin
+                    if (output_sel)
+                        buffer_state1 <= BUF_FREE;
+                    else
+                        buffer_state0 <= BUF_FREE;
+                    next_output_sel <= ~output_sel;
+                    output_active <= 1'b0;
+                    output_index <= 7'd0;
+                    output_crc <= 16'hFFFF;
+                end else begin
+                    output_index <= output_index + 1'b1;
+                end
             end
         end
     end

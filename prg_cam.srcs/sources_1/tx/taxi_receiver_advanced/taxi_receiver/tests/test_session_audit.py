@@ -37,11 +37,6 @@ def _context(
         payload=bytes([row_idx & 0xFF]) * ROW_BYTES,
         sync0=sync0,
         corrupt_crc=corrupt_crc,
-        m00=1234,
-        xc_q4=12,
-        yc_q4=34,
-        vx_q8=-5,
-        vy_q8=6,
     )
     frame = RawEthernetFrame(
         src_mac="02:00:00:00:00:02",
@@ -63,32 +58,28 @@ def _rows(path):
         return list(csv.DictReader(handle))
 
 
-def test_length_error_propagates_without_mutating_raw_flags(tmp_path):
+def test_length_error_is_per_packet_without_mutating_sender_flags(tmp_path):
     audit = SessionAuditLogger(tmp_path)
     audit(_context(row_idx=0, row_flags=0x00, row_seq=100))
     audit(_context(row_idx=1, row_flags=0x00, fpga_status=0x08, row_seq=101))
     audit(_context(row_idx=2, row_flags=0x00, row_seq=102))
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
-    assert [row["row_flags_raw"] for row in rows] == [
+    rows = _rows(tmp_path / "session_audit_v2.csv")
+    assert [row["sender_row_flags_raw"] for row in rows] == [
         "0x00",
         "0x00",
         "0x00",
     ]
-    assert [row["row_flags_effective"] for row in rows] == [
-        "0x00",
-        "0x08",
-        "0x08",
-    ]
-    assert [row["fpga_status"] for row in rows] == [
+    assert [row["fpga_status_raw"] for row in rows] == [
         "0x00",
         "0x08",
         "0x00",
     ]
+    assert [row["fpga_length_error"] for row in rows] == ["0", "1", "0"]
 
 
-def test_new_frame_and_different_camera_clear_contamination(tmp_path):
+def test_new_frame_and_different_camera_keep_status_independent(tmp_path):
     audit = SessionAuditLogger(tmp_path)
     audit(_context(
         cam_id=0, frame_id=10, row_flags=0x00,
@@ -98,10 +89,10 @@ def test_new_frame_and_different_camera_clear_contamination(tmp_path):
     audit(_context(cam_id=0, frame_id=11, row_flags=0x00, row_seq=101))
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
-    assert rows[0]["row_flags_effective"] == "0x08"
-    assert rows[1]["row_flags_effective"] == "0x00"
-    assert rows[2]["row_flags_effective"] == "0x00"
+    rows = _rows(tmp_path / "session_audit_v2.csv")
+    assert [row["fpga_status_raw"] for row in rows] == [
+        "0x08", "0x00", "0x00"
+    ]
 
 
 def test_large_non_wrap_rollback_overwrites_csv(tmp_path):
@@ -110,7 +101,7 @@ def test_large_non_wrap_rollback_overwrites_csv(tmp_path):
     audit(_context(frame_id=1, row_seq=2, timestamp=2.0))
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
+    rows = _rows(tmp_path / "session_audit_v2.csv")
     assert len(rows) == 1
     assert rows[0]["timestamp"] == "2.000000000"
     assert rows[0]["frame_id"] == "1"
@@ -123,7 +114,7 @@ def test_normal_16_bit_wrap_does_not_overwrite_csv(tmp_path):
     audit(_context(frame_id=0, row_seq=0, timestamp=2.0))
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
+    rows = _rows(tmp_path / "session_audit_v2.csv")
     assert len(rows) == 2
     assert audit.reset_count == 0
 
@@ -143,14 +134,14 @@ def test_layer3_failure_is_still_audited(tmp_path):
     audit(bad_crc)
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
+    rows = _rows(tmp_path / "session_audit_v2.csv")
     assert len(rows) == 2
     assert rows[0]["frame_id"] == "10"
     assert rows[0]["crc_ok"] == "1"
-    assert rows[0]["validation_status"] == "FAIL"
+    assert rows[0]["validation_status"] == "PROTOCOL_REJECT"
     assert rows[0]["reject_reason"] == "bad_sync"
     assert rows[1]["crc_ok"] == "0"
-    assert rows[1]["validation_status"] == "FAIL"
+    assert rows[1]["validation_status"] == "PROTOCOL_REJECT"
     assert rows[1]["reject_reason"] == "crc_error"
 
 
@@ -168,7 +159,7 @@ def test_bad_packet_metadata_does_not_trigger_session_overwrite(tmp_path):
     audit(bad)
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
+    rows = _rows(tmp_path / "session_audit_v2.csv")
     assert len(rows) == 2
     assert audit.reset_count == 0
 
@@ -195,10 +186,12 @@ def test_bad_length_without_packet_still_writes_row(tmp_path):
     audit(ctx)
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
+    rows = _rows(tmp_path / "session_audit_v2.csv")
     assert len(rows) == 1
     assert rows[0]["timestamp"] == "3.000000000"
     assert rows[0]["frame_id"] == ""
+    assert rows[0]["validation_status"] == "UNPARSED"
+    assert rows[0]["reject_reason"] == "bad_length"
 
 
 def test_pipeline_audits_packet_when_later_stage_raises(tmp_path):
@@ -223,7 +216,7 @@ def test_pipeline_audits_packet_when_later_stage_raises(tmp_path):
     pipeline.stop()
     audit.close()
 
-    rows = _rows(tmp_path / "session_audit.csv")
+    rows = _rows(tmp_path / "session_audit_v2.csv")
     assert len(rows) == 1
     assert rows[0]["frame_id"] == "22"
     assert pipeline.monitor.stats.parser_errors == 0

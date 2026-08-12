@@ -48,6 +48,12 @@ class PacketRecord:
     accepted: bool
     duplicate: bool = False
     conflicting_duplicate: bool = False
+    fpga_status_raw: int = 0
+    fpga_length_error: bool = False
+    fpga_crc_error: bool = False
+    crc_mode: str = "enabled"
+    crc_checked: bool = True
+    crc_ok: Optional[bool] = None
     errors: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
 
@@ -159,6 +165,7 @@ class FrameReassembler:
         self._timeout_seconds = timeout_seconds
         self._configured_expected_rows = expected_rows
         self._pending: list[CompletedFrame] = []
+        self.last_packet_record: Optional[PacketRecord] = None
         self.stats = ReassemblyStatistics()
 
     def on_row(
@@ -171,6 +178,7 @@ class FrameReassembler:
         now: Optional[float] = None,
     ) -> Optional[CompletedFrame]:
         event_time = time.monotonic() if now is None else now
+        self.last_packet_record = None
         self._pending.extend(self.expire(event_time))
 
         # Do not use identity fields from a packet whose sync or CRC failed.
@@ -250,10 +258,17 @@ class FrameReassembler:
             accepted=accepted,
             duplicate=duplicate,
             conflicting_duplicate=conflict,
+            fpga_status_raw=packet.header.fpga_status_raw,
+            fpga_length_error=packet.fpga_length_error,
+            fpga_crc_error=packet.fpga_crc_error,
+            crc_mode=packet.crc_mode,
+            crc_checked=packet.crc_checked,
+            crc_ok=packet.crc_ok,
             errors=errors,
             warnings=warnings,
         )
         session.packet_records.append(record)
+        self.last_packet_record = record
 
         if errors:
             session.errors.append(

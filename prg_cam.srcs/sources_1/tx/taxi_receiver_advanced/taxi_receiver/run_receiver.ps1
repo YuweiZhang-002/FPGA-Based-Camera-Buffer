@@ -2,10 +2,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Interface,
 
-    # Optional.  The frame archive (image.raw + packets.csv + summary.csv per
+    # Optional. The frame archive (image.raw + packets.csv + summary_v2.csv per
     # frame) is evidence tooling, not the image path, and it is the most
     # expensive sink in the receiver.  Leave it unset for a throughput run;
-    # --images-root alone still produces RAW/PGM images and rows.csv.
+    # --images-root alone still produces RAW/PGM images and rows_v2.csv.
     [string]$OutputRoot = '',
 
     [int]$ExpectedRows = 480,
@@ -43,8 +43,8 @@ param(
 
     [int]$PublisherQueueDepth = 256,
 
-    # session_audit.csv is written synchronously on the consumer thread and is
-    # nearly a subset of rows.csv.  'auto' means off for live capture.
+    # session_audit_v2.csv is synchronous and overlaps rows_v2.csv. 'auto'
+    # means off for live capture.
     [ValidateSet('auto', 'on', 'off')]
     [string]$SessionAudit = 'auto',
 
@@ -55,6 +55,9 @@ param(
 
     [ValidateSet('suffix', 'error')]
     [string]$ArchiveCollisionPolicy = 'suffix',
+
+    [ValidateSet('enabled', 'placeholder')]
+    [string]$CrcMode = 'enabled',
 
     [switch]$NoRowsCsv,
 
@@ -74,6 +77,7 @@ $receiverArgs = @(
     '-m', 'taxi_receiver.cli',
     '--interface', $Interface,
     '--mode', 'camera',
+    '--crc-mode', $CrcMode,
     '--max-stage', 'reassemble',
     '--expected-rows', $ExpectedRows,
     '--image-policy', $ImagePolicy,

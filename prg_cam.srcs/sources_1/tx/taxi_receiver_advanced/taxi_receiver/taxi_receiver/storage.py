@@ -1,4 +1,4 @@
-"""Atomic Layer-5 frame archive for :mod:`taxi_receiver.reassembler`.
+"""Atomic Layer-5 frame archive with versioned ``summary_v2.csv`` output.
 
 One completed session is written into a temporary sibling directory and
 renamed only after every required file is closed.  Unknown image geometry
@@ -21,6 +21,7 @@ from .reassembler import CompletedFrame
 
 
 SUMMARY_FIELDS = (
+    "schema_version",
     "camera_id",
     "frame_id",
     "status",
@@ -32,6 +33,9 @@ SUMMARY_FIELDS = (
     "conflicting_duplicates",
     "missing_rows",
     "crc_errors",
+    "fpga_crc_errors",
+    "crc_checked_packets",
+    "crc_unchecked_packets",
     "length_errors",
     "overflow_errors",
     "other_errors",
@@ -72,7 +76,7 @@ class StorageAndPipeline:
         self.output_root = Path(output_root)
         self.output_root.mkdir(parents=True, exist_ok=True)
         self.collision_policy = collision_policy
-        self.summary_path = self.output_root / "summary.csv"
+        self.summary_path = self.output_root / "summary_v2.csv"
         self.frames_archived = 0
         self.frames_idempotent = 0
         self.frames_renamed_on_collision = 0
@@ -188,7 +192,7 @@ class StorageAndPipeline:
             "height": None,
             "pixel_format": None,
             "rendered_image": None,
-            "protocol": "legacy-v0-observed",
+            "protocol": "rp2354-camera-row-v1",
         }
 
     @staticmethod
@@ -200,6 +204,12 @@ class StorageAndPipeline:
             "row_seq",
             "payload_len",
             "row_flags",
+            "fpga_status_raw",
+            "fpga_length_error",
+            "fpga_crc_error",
+            "crc_mode",
+            "crc_checked",
+            "crc_ok",
             "accepted",
             "duplicate",
             "conflicting_duplicate",
@@ -218,6 +228,14 @@ class StorageAndPipeline:
                         "row_seq": record.row_seq,
                         "payload_len": record.payload_len,
                         "row_flags": f"0x{record.row_flags:02x}",
+                        "fpga_status_raw": f"0x{record.fpga_status_raw:02x}",
+                        "fpga_length_error": int(record.fpga_length_error),
+                        "fpga_crc_error": int(record.fpga_crc_error),
+                        "crc_mode": record.crc_mode,
+                        "crc_checked": int(record.crc_checked),
+                        "crc_ok": (
+                            "" if record.crc_ok is None else int(record.crc_ok)
+                        ),
                         "accepted": int(record.accepted),
                         "duplicate": int(record.duplicate),
                         "conflicting_duplicate": int(
@@ -255,7 +273,7 @@ class StorageAndPipeline:
                 header = next(csv.reader(handle), [])
             if tuple(header) != SUMMARY_FIELDS:
                 raise ValueError(
-                    "existing summary.csv schema does not match current "
+                    "existing summary_v2.csv schema does not match current "
                     f"receiver: {self.summary_path}"
                 )
 
@@ -283,8 +301,15 @@ class StorageAndPipeline:
             for record in frame.packet_records
             for error in record.errors
         ]
-        known = {"crc_error", "length_error", "frame_overflow"}
+        known = {
+            "crc_error",
+            "fpga_crc_error",
+            "fpga_length_error",
+            "sender_overflow",
+            "fpga_frame_overflow",
+        }
         return {
+            "schema_version": 2,
             "camera_id": frame.camera_id,
             "frame_id": frame.frame_id,
             "status": frame.status.value,
@@ -296,8 +321,18 @@ class StorageAndPipeline:
             "conflicting_duplicates": frame.conflicting_duplicates,
             "missing_rows": len(frame.missing_rows),
             "crc_errors": packet_errors.count("crc_error"),
-            "length_errors": packet_errors.count("length_error"),
-            "overflow_errors": packet_errors.count("frame_overflow"),
+            "fpga_crc_errors": packet_errors.count("fpga_crc_error"),
+            "crc_checked_packets": sum(
+                record.crc_checked for record in frame.packet_records
+            ),
+            "crc_unchecked_packets": sum(
+                not record.crc_checked for record in frame.packet_records
+            ),
+            "length_errors": packet_errors.count("fpga_length_error"),
+            "overflow_errors": (
+                packet_errors.count("sender_overflow")
+                + packet_errors.count("fpga_frame_overflow")
+            ),
             "other_errors": sum(error not in known for error in packet_errors),
             "warning_count": sum(
                 len(record.warnings) for record in frame.packet_records

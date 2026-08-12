@@ -38,7 +38,7 @@ module Camera_Capture #(
     output reg        line_start,  // href 上升沿单周期脉冲：重置/预留 LB 写 slot
     output reg        line_end,    // href 下降沿单周期脉冲：提交 LB 写 slot
     output wire [1:0] line_cam_id, // 常量 CAM_ID，与行包 metadata 一起提交
-    output reg  [7:0] line_flags,  // 行结束时计算，LB 按 slot 保存
+    output reg  [7:0] line_flags,  // FPGA receiver diagnostic status byte
 
     output wire [15:0] current_row_idx,       // 调试：当前行编号，0 起始
     output wire [15:0] current_byte_count,    // 调试：当前 href 已观察到的 byte 数
@@ -46,20 +46,14 @@ module Camera_Capture #(
     output reg         length_error_pulse     // 与 LENGTH_ERROR 判定同拍的单周期脉冲
 );
 
-    // FPGA-generated status is separate from the MCU row_flags byte.
-    // Byte_Replacer writes this byte to reserved[0] at wire offset 13.
+    // FPGA-generated status is separate from sender_row_flags at offset 9.
+    // Byte_Replacer writes this diagnostic byte to wire offset 13.
     // ========================================================================
     // SHARED PROTOCOL FLAGS -- Capture 生成，Line_Buffer/Byte_Replacer 解释
     // ========================================================================
-    // row_flags 位定义（高四位完全保留给上游协议）：
-    // bit0 FRAME_OVFLOW : 本模块只声明含义，真正由看得到容量的 Line_Buffer 设置。
-    // bit1 LAST_ROW     : 由 RP2350A packet_generator 写入。
-    // bit2 FIRST_ROW    : 由 RP2350A packet_generator 写入，表示首个有效行。
-    // bit3 LENGTH_ERROR : href 内 pclk 数不是 PACKET_BYTES。
-    localparam [7:0] PKT_ROW_FLAG_FRAME_OVFLOW = 8'h01;
-    localparam [7:0] PKT_ROW_FLAG_LAST_ROW     = 8'h02;
-    localparam [7:0] PKT_ROW_FLAG_FIRST_ROW    = 8'h04;
-    localparam [7:0] PKT_ROW_FLAG_LENGTH_ERROR = 8'h08;
+    localparam [7:0] FPGA_STATUS_FRAME_OVERFLOW = 8'h01;
+    localparam [7:0] FPGA_STATUS_LENGTH_ERROR   = 8'h08;
+    localparam [7:0] FPGA_STATUS_CRC_ERROR      = 8'h10;
 
     // ========================================================================
     // COHERENT ASYNC FRONT-END (MODIFIED 2026-07-24)
@@ -272,7 +266,7 @@ module Camera_Capture #(
                 // 已由 RP2350A 固件 packet_generator() 正确写入包内 offset 9。
                 // Byte_Replacer 保持 offset 9 原样，并把此状态独立写入 offset 13。
                 line_flags <= (byte_count == PACKET_BYTES)
-                              ? 8'd0 : PKT_ROW_FLAG_LENGTH_ERROR;
+                              ? 8'd0 : FPGA_STATUS_LENGTH_ERROR;
 
                 // row_idx 仅保留用于 current_row_idx 调试输出与无 VSYNC 帧回卷；
                 // 不再参与 line_flags。
@@ -284,10 +278,8 @@ module Camera_Capture #(
         end
     end
 
-    // This constant is documented beside the other flags even though ownership
-    // belongs to Line_Buffer, where an actual lack of storage can be observed.
-    wire _unused_flag_definition =
-        ^{PKT_ROW_FLAG_FIRST_ROW, PKT_ROW_FLAG_LAST_ROW,
-          PKT_ROW_FLAG_FRAME_OVFLOW};
+    // FRAME_OVERFLOW is asserted by Line_Buffer. CRC_ERROR remains a reserved
+    // offset-13 allocation while MCU ingress CRC comparison is disabled;
+    // Camera_Capture does not drive either bit.
 
 endmodule

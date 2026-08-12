@@ -24,7 +24,12 @@ class CameraStatistics:
     packets: int = 0
     crc_errors: int = 0
     length_errors: int = 0
+    fpga_crc_errors: int = 0
     frame_overflow_packets: int = 0
+    bad_sync_packets: int = 0
+    bad_payload_len_packets: int = 0
+    bad_trailer_sync_packets: int = 0
+    bad_packets: int = 0
 
     # Layer-1 shared capture queue, attributed by the cheap offset-18 cam_id
     # peek.  Kept separate from the per-camera lane queue below: they are two
@@ -39,11 +44,17 @@ class CameraStatistics:
     sequence_gaps: int = 0
     duplicate_packets: int = 0
     out_of_order_packets: int = 0
+    duplicate_rows: int = 0
+    row_jumps: int = 0
+    missing_rows: int = 0
 
     first_row_packets: int = 0
     last_row_packets: int = 0
 
     last_sequence: Optional[int] = None
+    observed_frame_id: Optional[int] = None
+    last_row_idx: Optional[int] = None
+    observed_rows: set[int] = field(default_factory=set)
 
 
 @dataclass
@@ -55,6 +66,10 @@ class GlobalStatistics:
     bad_ethernet_length: int = 0
     bad_fixed_payload: int = 0
     bad_crc: int = 0
+    bad_sync: int = 0
+    bad_payload_len: int = 0
+    bad_trailer_sync: int = 0
+    bad_packets: int = 0
     parser_errors: int = 0
     processing_errors: int = 0
 
@@ -165,6 +180,8 @@ class StreamMonitor:
         with self._lock:
             if result.reason == "bad_length":
                 self.stats.bad_ethernet_length += 1
+                self.stats.bad_packets += 1
+                self.stats.parser_errors += 1
                 return
 
             packet = result.packet
@@ -180,6 +197,29 @@ class StreamMonitor:
                 camera.frame_overflow_packets += 1
             if packet.length_error:
                 camera.length_errors += 1
+            if packet.fpga_crc_error:
+                camera.fpga_crc_errors += 1
+
+            if "bad_sync" in result.protocol_errors:
+                camera.bad_sync_packets += 1
+                self.stats.bad_sync += 1
+            if "bad_payload_len" in result.protocol_errors:
+                camera.bad_payload_len_packets += 1
+                self.stats.bad_payload_len += 1
+            if "bad_trailer_sync" in result.protocol_errors:
+                camera.bad_trailer_sync_packets += 1
+                self.stats.bad_trailer_sync += 1
+            if result.protocol_errors:
+                self.stats.parser_errors += 1
+            if not result.ok:
+                camera.bad_packets += 1
+                self.stats.bad_packets += 1
+
+            # Observation only: no result field is modified and Layer 5 keeps
+            # its own duplicate/missing classification.
+            if result.parsed_ok:
+                self._update_rows(camera, packet.header.frame_id,
+                                  packet.header.row_idx)
 
             if not result.ok:
                 if "crc_error" in result.errors:
@@ -189,6 +229,28 @@ class StreamMonitor:
 
             self.stats.valid_packets += 1
             self._update_sequence(camera, packet.header.row_seq)
+
+    @staticmethod
+    def _update_rows(
+        camera: CameraStatistics,
+        frame_id: int,
+        row_idx: int,
+    ) -> None:
+        if camera.observed_frame_id != frame_id:
+            camera.observed_frame_id = frame_id
+            camera.last_row_idx = None
+            camera.observed_rows.clear()
+
+        if row_idx in camera.observed_rows:
+            camera.duplicate_rows += 1
+            return
+
+        if camera.last_row_idx is not None and row_idx > camera.last_row_idx + 1:
+            camera.row_jumps += 1
+            camera.missing_rows += row_idx - camera.last_row_idx - 1
+        camera.observed_rows.add(row_idx)
+        if camera.last_row_idx is None or row_idx > camera.last_row_idx:
+            camera.last_row_idx = row_idx
 
     @staticmethod
     def _update_sequence(camera: CameraStatistics, sequence: int) -> None:
@@ -244,6 +306,7 @@ class StreamMonitor:
                     f"crc={camera.crc_errors} len={camera.length_errors} "
                     f"overflow={camera.frame_overflow_packets} "
                     f"gaps={camera.sequence_gaps} dup={camera.duplicate_packets} "
+                    f"row_jump={camera.row_jumps} row_dup={camera.duplicate_rows} "
                     f"ooo={camera.out_of_order_packets} "
                     f"cap_drop={camera.capture_queue_drops} "
                     f"lane_drop={camera.lane_queue_drops}"
@@ -285,6 +348,10 @@ class StreamMonitor:
         self.sink(f"Bad Ethernet length   : {self.stats.bad_ethernet_length}")
         self.sink(f"Bad fixed payload     : {self.stats.bad_fixed_payload}")
         self.sink(f"CRC errors            : {self.stats.bad_crc}")
+        self.sink(f"Bad sync              : {self.stats.bad_sync}")
+        self.sink(f"Bad payload length    : {self.stats.bad_payload_len}")
+        self.sink(f"Bad trailer sync      : {self.stats.bad_trailer_sync}")
+        self.sink(f"Bad packets           : {self.stats.bad_packets}")
         self.sink(f"Parser errors         : {self.stats.parser_errors}")
         self.sink(f"Processing errors     : {self.stats.processing_errors}")
         self.sink(f"Capture queue drops   : {self.stats.dropped_capture_queue}")
@@ -317,6 +384,7 @@ class StreamMonitor:
             self.sink(f"  packets             : {camera.packets}")
             self.sink(f"  CRC errors          : {camera.crc_errors}")
             self.sink(f"  length errors       : {camera.length_errors}")
+            self.sink(f"  FPGA CRC errors     : {camera.fpga_crc_errors}")
             self.sink(f"  overflow-marked     : {camera.frame_overflow_packets}")
             self.sink(f"  capture drops       : {camera.capture_queue_drops}")
             self.sink(f"  capture peak        : {camera.capture_queue_peak}")
@@ -327,3 +395,6 @@ class StreamMonitor:
             self.sink(f"  sequence gaps       : {camera.sequence_gaps}")
             self.sink(f"  duplicates          : {camera.duplicate_packets}")
             self.sink(f"  out-of-order        : {camera.out_of_order_packets}")
+            self.sink(f"  duplicate rows      : {camera.duplicate_rows}")
+            self.sink(f"  row jumps           : {camera.row_jumps}")
+            self.sink(f"  missing rows        : {camera.missing_rows}")

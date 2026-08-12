@@ -1,4 +1,4 @@
-"""Diagnose rows.csv/rejected.csv and published Camera image artifacts."""
+"""Diagnose rows_v2.csv/rejected.csv and Camera image artifacts."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +15,9 @@ IMAGE_BYTES = ROW_PIXELS * EXPECTED_ROWS
 
 
 def analyze_csv(cam_dir: Path) -> dict[str, object]:
-    rows_path = cam_dir / "rows.csv"
+    rows_path = cam_dir / "rows_v2.csv"
+    if not rows_path.exists():
+        rows_path = cam_dir / "rows.csv"  # read-only legacy compatibility
     rejected_path = cam_dir / "rejected.csv"
     flags = collections.Counter()
     error_names = collections.Counter()
@@ -38,12 +40,19 @@ def analyze_csv(cam_dir: Path) -> dict[str, object]:
             timestamp = float(row["timestamp"])
             if first_timestamp is None:
                 first_timestamp = timestamp
-            flag = int(row["row_flags"], 16)
+            flag = int(
+                row.get("sender_row_flags_raw")
+                or row.get("row_flags", "0"),
+                16,
+            )
             flags[f"0x{flag:02X}"] += 1
             names = tuple(value for value in row["errors"].split(";") if value)
             for name in names:
                 error_names[name] += 1
-            if "length_error" not in names:
+            if not (
+                "fpga_length_error" in names
+                or "length_error" in names  # legacy compatibility
+            ):
                 continue
 
             length_errors += 1
@@ -53,7 +62,7 @@ def analyze_csv(cam_dir: Path) -> dict[str, object]:
             length_row_indices[row_idx] += 1
             length_frames[int(row["frame_id"])] += 1
             length_time_bins[int((timestamp - first_timestamp) // 10)] += 1
-            length_first += bool(flag & 0x04)
+            length_first += row_idx == 0
             length_last += bool(flag & 0x02)
             length_out_of_range += not 0 <= row_idx < EXPECTED_ROWS
 

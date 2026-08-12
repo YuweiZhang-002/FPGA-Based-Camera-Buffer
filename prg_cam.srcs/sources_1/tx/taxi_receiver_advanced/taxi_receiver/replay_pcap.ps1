@@ -9,6 +9,9 @@ param(
 
     [string]$ImagesRoot = '',
 
+    [ValidateSet('enabled', 'placeholder')]
+    [string]$CrcMode = 'enabled',
+
     [string]$PythonExe =
         'C:\Users\Z\AppData\Local\Python\bin\python.exe'
 )
@@ -21,6 +24,7 @@ try {
         '-m', 'taxi_receiver.cli',
         '--replay-pcap', $Pcap,
         '--mode', 'camera',
+        '--crc-mode', $CrcMode,
         '--max-stage', 'reassemble',
         '--expected-rows', $ExpectedRows,
         '--output-root', $OutputRoot

@@ -2,7 +2,7 @@
 
 This is a project-side Layer-5 sink.  It does not alter the 128-byte wire
 format or TAXI.  Parsed rows are handed to a dedicated CSV writer thread and
-appended to ``images/camN/rows.csv``; only a *reliable* last row terminates the
+appended to ``images/camN/rows_v2.csv``; only a reliable final row terminates the
 human-readable CSV group with one blank line.
 
 Only a fully reassembled frame is published as an image.  The current payload
@@ -43,11 +43,11 @@ from typing import Any, Callable, TextIO
 import uuid
 
 from .packet_format import (
-    FLAG_FIRST_ROW,
     FLAG_LAST_ROW,
     ROW_BYTES,
     SYNC0_DEFAULT,
     SYNC1_DEFAULT,
+    TRAILER_SYNC,
 )
 from .reassembler import CompletedFrame, FrameStatus
 from .stages import FrameContext
@@ -68,37 +68,32 @@ ROW_CSV_FIELDS = (
     "cam_id",
     "frame_id",
     "row_idx",
+    "sender_row_flags_raw",
+    "sender_overflow",
+    "sender_row2_marker",
+    "final_line",
+    "fpga_status_raw",
+    "fpga_frame_overflow",
+    "fpga_length_error",
+    "fpga_crc_error",
+    "payload_len",
     "row_seq",
-    "row_flags",
-    "fpga_status",
-    "header_check",
     "first_row",
-    "last_row",
-    "frame_overflow",
-    "length_error",
-    "frame_end",
     "sync0",
     "sync1",
     "sync_ok",
-    "payload_len",
     "payload_len_ok",
+    "reserved_zero",
+    "trailer_padding_zero",
+    "trailer_sync_ok",
+    "crc_mode",
+    "crc_checked",
     "crc_ok",
     "received_crc",
     "calculated_crc",
-    "trailer_pad_zero",
-    "m00",
-    "xc_q4",
-    "yc_q4",
-    "x",
-    "y",
-    "vx_q8",
-    "vy_q8",
-    "vx",
-    "vy",
-    "parse_ok",
-    # Trust columns.  ``first_row``/``last_row``/``frame_end`` above stay as
-    # raw-flag evidence; these four say whether that evidence may be counted.
-    "layer3_valid",
+    "parsed_ok",
+    "validation_status",
+    "reject_reason",
     "row_accepted",
     "reliable_first",
     "reliable_last",
@@ -108,6 +103,11 @@ ROW_CSV_FIELDS = (
 
 
 _CSV_STOP = object()
+
+
+@dataclass(slots=True)
+class _CsvFlush:
+    completed: threading.Event
 
 
 @dataclass
@@ -121,11 +121,6 @@ class _CsvSink:
     # Indices into ``batch`` after which a human-readable blank line belongs.
     blank_after: list[int] = field(default_factory=list)
     csv_sequence: int = 0
-    # Duplicate mirror, reset on frame switch.  This deliberately re-derives
-    # acceptance instead of reading FrameReassembler's PacketRecord: an
-    # independent second opinion is what makes a disagreement informative.
-    mirror_frame_id: int | None = None
-    mirror_rows: set[int] = field(default_factory=set)
 
 
 @dataclass(slots=True)
@@ -140,6 +135,7 @@ class _RowEvent:
     capture_index: int
     timestamp: float
     result: Any
+    packet_record: Any = None
 
 
 @dataclass(slots=True)
@@ -364,7 +360,7 @@ class RecoveryDecision:
 
 
 class CameraImagePipeline:
-    """Publish ``camN/<frame_id>.pgm`` and append ``camN/rows.csv``."""
+    """Publish ``camN/<frame_id>.pgm`` and append ``camN/rows_v2.csv``."""
 
     def __init__(
         self,
@@ -469,11 +465,11 @@ class CameraImagePipeline:
             )
             self._publisher_process.start()
 
-        # P2: rows.csv leaves the packet-consumer hot path.  ``record_packet``
+        # P2: rows_v2.csv leaves the packet-consumer hot path. ``record_packet``
         # now only stamps a capture index and enqueues; all formatting, all
         # duplicate bookkeeping and all disk I/O happen on this thread.
         self._capture_index = itertools.count()
-        self._csv_queue: "queue.Queue[_RowEvent | object]" = queue.Queue(
+        self._csv_queue: "queue.Queue[_RowEvent | _CsvFlush | object]" = queue.Queue(
             maxsize=csv_queue_depth
         )
         self._csv_closed = False
@@ -507,6 +503,7 @@ class CameraImagePipeline:
             capture_index=next(self._capture_index),
             timestamp=ctx.frame.timestamp,
             result=result,
+            packet_record=ctx.packet_record,
         )
         self.csv_stats.rows_submitted += 1
         if self.csv_backpressure is CsvBackpressure.BLOCK:
@@ -532,16 +529,9 @@ class CameraImagePipeline:
 
         if self._csv_thread is None:
             return True
-        deadline = time.monotonic() + timeout
-        while not self._csv_queue.empty():
-            if time.monotonic() >= deadline:
-                return False
-            time.sleep(0.005)
-        with self._csv_lock:
-            now = time.monotonic()
-            for sink in self._csv_sinks.values():
-                self._emit_batch(sink, now)
-        return True
+        barrier = _CsvFlush(threading.Event())
+        self._csv_queue.put(barrier)
+        return barrier.completed.wait(timeout)
 
     def close(self) -> None:
         """Drain the writer thread, then flush and close every camera CSV.
@@ -589,7 +579,7 @@ class CameraImagePipeline:
             if thread.is_alive():
                 self.error_sink(
                     "[ROW CSV] writer thread did not stop within 30s; "
-                    "rows.csv may be truncated"
+                    "rows_v2.csv may be truncated"
                 )
             self._csv_thread = None
         with self._csv_lock:
@@ -609,16 +599,25 @@ class CameraImagePipeline:
                 # Idle: make whatever is buffered visible on disk promptly.
                 self._flush_idle_sinks()
                 continue
+            flush_event: threading.Event | None = None
             try:
                 if event is _CSV_STOP:
                     return
-                try:
-                    self._write_row_event(event)  # type: ignore[arg-type]
-                except Exception as exc:  # noqa: BLE001 - keep writer alive
-                    self.csv_stats.writer_failures += 1
-                    self.error_sink(f"[ROW CSV ERROR] {exc}")
+                if isinstance(event, _CsvFlush):
+                    self._flush_idle_sinks()
+                    flush_event = event.completed
+                else:
+                    try:
+                        self._write_row_event(event)  # type: ignore[arg-type]
+                    except Exception as exc:  # noqa: BLE001 - keep writer alive
+                        self.csv_stats.writer_failures += 1
+                        self.error_sink(f"[ROW CSV ERROR] {exc}")
             finally:
                 self._csv_queue.task_done()
+            # The barrier is released only after Queue bookkeeping also marks
+            # the flush task complete, not merely after it was dequeued.
+            if flush_event is not None:
+                flush_event.set()
 
     def _flush_idle_sinks(self) -> None:
         with self._csv_lock:
@@ -636,31 +635,41 @@ class CameraImagePipeline:
         frame_end = (flags & FLAG_LAST_ROW) == FLAG_LAST_ROW
         layer3_valid = bool(result.ok)
 
-        csv_path = self._camera_dir(header.cam_id) / "rows.csv"
+        csv_path = self._camera_dir(header.cam_id) / "rows_v2.csv"
         with self._csv_lock:
             sink = self._csv_sink(header.cam_id, csv_path)
 
-            # Mirror of FrameReassembler's ``accepted = not errors and not
-            # duplicate``.  The session resets on frame switch, matching the
-            # reassembler's frame_switch close.
-            if sink.mirror_frame_id != header.frame_id:
-                sink.mirror_frame_id = header.frame_id
-                sink.mirror_rows = set()
-            row_accepted = layer3_valid and header.row_idx not in sink.mirror_rows
-            if row_accepted:
-                sink.mirror_rows.add(header.row_idx)
+            # Layer 5 owns duplicate/missing classification.  CSV records its
+            # PacketRecord decision and never runs a competing state machine.
+            row_accepted = bool(
+                event.packet_record is not None
+                and event.packet_record.accepted
+            )
+            if result.errors:
+                reject_reason = ";".join(result.errors)
+            elif (
+                event.packet_record is not None
+                and event.packet_record.conflicting_duplicate
+            ):
+                reject_reason = "conflicting_duplicate"
+            elif (
+                event.packet_record is not None
+                and event.packet_record.duplicate
+            ):
+                reject_reason = "duplicate_row"
+            else:
+                reject_reason = ""
 
             # A LAST/FIRST bit is only counted when Layer 3 validated the
             # packet AND the row index is where that bit belongs.  attempt2
             # had 834 raw LAST bits but only 832 real frame ends: the other
             # two were 0xFF byte-bleed into row 255's flag byte.
             reliable_first = (
-                layer3_valid
+                row_accepted
                 and header.row_idx == 0
-                and bool(flags & FLAG_FIRST_ROW)
             )
             reliable_last = (
-                layer3_valid
+                row_accepted
                 and header.row_idx == self.expected_rows - 1
                 and bool(flags & FLAG_LAST_ROW)
             )
@@ -673,38 +682,41 @@ class CameraImagePipeline:
                 "cam_id": header.cam_id,
                 "frame_id": header.frame_id,
                 "row_idx": header.row_idx,
+                "sender_row_flags_raw": f"0x{flags:02X}",
+                "sender_overflow": int(packet.sender_overflow),
+                "sender_row2_marker": int(packet.sender_row2_marker),
+                "final_line": int(packet.last_row),
+                "fpga_status_raw": f"0x{header.fpga_status_raw:02X}",
+                "fpga_frame_overflow": int(packet.fpga_frame_overflow),
+                "fpga_length_error": int(packet.fpga_length_error),
+                "fpga_crc_error": int(packet.fpga_crc_error),
+                "payload_len": header.payload_len,
                 "row_seq": header.row_seq,
-                "row_flags": f"0x{flags:02X}",
-                "first_row": int(bool(flags & FLAG_FIRST_ROW)),
-                "last_row": int(bool(flags & FLAG_LAST_ROW)),
-                "fpga_status": f"0x{header.fpga_status:02X}",
-                "header_check": f"0x{header.header_check:02X}",
-                "frame_overflow": int(packet.frame_overflow),
-                "length_error": int(packet.length_error),
-                "frame_end": int(frame_end),
+                "first_row": int(packet.first_row),
                 "sync0": f"0x{header.sync0:04X}",
                 "sync1": f"0x{header.sync1:04X}",
                 "sync_ok": int(
                     header.sync0 == SYNC0_DEFAULT
                     and header.sync1 == SYNC1_DEFAULT
                 ),
-                "payload_len": header.payload_len,
-                "payload_len_ok": int(0 < header.payload_len <= ROW_BYTES),
-                "crc_ok": int(packet.crc_ok),
+                "payload_len_ok": int(header.payload_len == ROW_BYTES),
+                "reserved_zero": int(not any(header.reserved)),
+                "trailer_padding_zero": int(not any(trailer.padding)),
+                "trailer_sync_ok": int(trailer.sync_pattern == TRAILER_SYNC),
+                "crc_mode": result.crc_mode,
+                "crc_checked": int(result.crc_checked),
+                "crc_ok": (
+                    "" if result.crc_ok is None else int(result.crc_ok)
+                ),
                 "received_crc": f"0x{packet.received_crc:04X}",
                 "calculated_crc": f"0x{packet.calculated_crc:04X}",
-                "trailer_pad_zero": int(not any(trailer.pad)),
-                "m00": trailer.m00,
-                "xc_q4": trailer.xc_q4,
-                "yc_q4": trailer.yc_q4,
-                "x": f"{trailer.xc_q4 / 16.0:.4f}",
-                "y": f"{trailer.yc_q4 / 16.0:.4f}",
-                "vx_q8": trailer.vx_q8,
-                "vy_q8": trailer.vy_q8,
-                "vx": f"{trailer.vx_q8 / 256.0:.6f}",
-                "vy": f"{trailer.vy_q8 / 256.0:.6f}",
-                "parse_ok": int(result.ok),
-                "layer3_valid": int(layer3_valid),
+                "parsed_ok": int(result.parsed_ok),
+                "validation_status": (
+                    "PASS" if result.ok else
+                    "DIAGNOSTIC_REJECT" if result.parsed_ok else
+                    "PROTOCOL_REJECT"
+                ),
+                "reject_reason": reject_reason,
                 "row_accepted": int(row_accepted),
                 "reliable_first": int(reliable_first),
                 "reliable_last": int(reliable_last),
@@ -833,14 +845,14 @@ class CameraImagePipeline:
             pgm_path = artifact_dir / "image.pgm"
             raw_path = artifact_dir / "image.raw"
             metadata_path = artifact_dir / "metadata.json"
-            row_csv_ref = "../../rows.csv"
+            row_csv_ref = "../../rows_v2.csv"
         else:
             camera_dir.mkdir(parents=True, exist_ok=True)
             stem = str(frame.frame_id)
             pgm_path = camera_dir / f"{stem}.pgm"
             raw_path = camera_dir / f"{stem}.raw"
             metadata_path = camera_dir / f"{stem}.json"
-            row_csv_ref = "rows.csv"
+            row_csv_ref = "rows_v2.csv"
 
         targets = (pgm_path, raw_path, metadata_path)
         pgm = (
@@ -962,6 +974,8 @@ class CameraImagePipeline:
             reasons.append("bad_sync")
         if "crc_error" in all_errors:
             reasons.append("crc_error")
+        if "fpga_crc_error" in all_errors:
+            reasons.append("fpga_crc_error")
         if frame.conflicting_duplicates or any(
             record.conflicting_duplicate for record in frame.packet_records
         ):
@@ -970,13 +984,15 @@ class CameraImagePipeline:
         # Length-invalid rows may account for a missing row, but their payload
         # is never used.  Any other Layer-3 error is a hard recovery rejection.
         permitted_missing_row_errors = {
-            "length_error",
-            "payload_len_out_of_range",
+            "fpga_length_error",
+            "bad_payload_len",
         }
         unhandled_errors = sorted(all_errors - permitted_missing_row_errors - {
-            "frame_overflow",
+            "sender_overflow",
+            "fpga_frame_overflow",
             "bad_sync",
             "crc_error",
+            "fpga_crc_error",
         })
         reasons.extend(f"layer3_error:{error}" for error in unhandled_errors)
 
@@ -1178,7 +1194,7 @@ class CameraImagePipeline:
             f"  resolved images root: {self.images_root.resolve()}",
             "",
             "ROW CSV WRITER",
-            f"  rows.csv enabled     : {int(self.enable_row_csv)}",
+            f"  rows_v2.csv enabled  : {int(self.enable_row_csv)}",
             f"  backpressure policy  : {self.csv_backpressure.value}",
             f"  csv_queue_capacity   : {self.csv_stats.queue_capacity}",
             f"  csv_queue_peak       : {self.csv_stats.queue_peak}",

@@ -19,6 +19,9 @@
 module Camera_Pipeline #(
     parameter integer LINES_PER_FRAME   = 480, // href 行数达到此值即 frame 回卷
     parameter integer PACKET_FIFO_DEPTH = 512, // 末级 9-bit FIFO 深度
+    // Egress policy only: 1 regenerates CRC after FPGA patches; 0 emits the
+    // explicit FF/FF placeholder. The MCU ingress FF/FF tail is not compared.
+    parameter         CRC_ENABLE = 1'b1,
     // A routed but disconnected cam1 remains visible to ILA, while this gate
     // prevents its asynchronous pin noise from creating buffer requests.
     parameter integer ENABLE_CAM1 = 1,
@@ -151,7 +154,8 @@ module Camera_Pipeline #(
         .byte_data(c2_data), .byte_valid(c2_valid),
         .line_start(c2_start), .line_end(c2_end),
         .line_cam_id(c2_id), .line_flags(c2_flags),
-        .current_row_idx(), .current_byte_count()
+        .current_row_idx(), .current_byte_count(),
+        .last_line_byte_count(), .length_error_pulse()
     );
 
     Camera_Capture #(.CAM_ID(CAM3_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
@@ -162,7 +166,8 @@ module Camera_Pipeline #(
         .byte_data(c3_data), .byte_valid(c3_valid),
         .line_start(c3_start), .line_end(c3_end),
         .line_cam_id(c3_id), .line_flags(c3_flags),
-        .current_row_idx(), .current_byte_count()
+        .current_row_idx(), .current_byte_count(),
+        .last_line_byte_count(), .length_error_pulse()
     );
 
     Line_Buffer u_line_buffer_0 (
@@ -295,7 +300,9 @@ module Camera_Pipeline #(
     (* MARK_DEBUG = "TRUE" *) wire       replaced_ready;
     (* MARK_DEBUG = "TRUE" *) wire       replaced_last;
 
-    Byte_Replacer u_byte_replacer (
+    Byte_Replacer #(
+        .CRC_ENABLE (CRC_ENABLE)
+    ) u_byte_replacer (
         .sys_clk         (sys_clk),
         .rst             (rst),
         .in_data         (selected_data),
@@ -303,7 +310,7 @@ module Camera_Pipeline #(
         .in_ready        (replacer_in_ready),
         .in_packet_last  (selected_last),
         .in_cam_id       (selected_cam_id),
-        .in_row_flags    (selected_flags),
+        .in_fpga_status  (selected_flags),
         .out_data        (replaced_data),
         .out_valid       (replaced_valid),
         .out_ready       (replaced_ready),

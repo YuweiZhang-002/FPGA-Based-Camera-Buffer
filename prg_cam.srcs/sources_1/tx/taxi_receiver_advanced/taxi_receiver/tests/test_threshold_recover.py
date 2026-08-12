@@ -3,7 +3,6 @@ import time
 import pytest
 
 from taxi_receiver.capture import SyntheticFrameSource
-from taxi_receiver.packet_format import FLAG_FIRST_ROW
 from taxi_receiver.pipeline import TaxiReceiverPipeline
 from taxi_receiver.reassembler import CompletedFrame, FrameReassembler
 from taxi_receiver.threshold_recover import (
@@ -87,7 +86,7 @@ def test_pipeline_recovers_at_on_completed_frame_boundary():
             frame_id=7,
             row_idx=0,
             row_seq=0,
-            row_flags=FLAG_FIRST_ROW,
+            row_flags=0,
             payload=bytes([0x80]) + bytes(79),
         ),
         make_camera_frame(

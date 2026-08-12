@@ -1,4 +1,4 @@
-"""P0-P3 regression tests for the rows.csv recorder.
+"""P0-P3 regression tests for the versioned rows_v2.csv recorder.
 
 attempt2 left one question unanswerable from the archive: when a row_seq is
 missing, did the packet never arrive, or did the recorder drop it?  These tests
@@ -17,7 +17,6 @@ from taxi_receiver.image_pipeline import (
     CsvBackpressure,
 )
 from taxi_receiver.packet_format import (
-    FLAG_FIRST_ROW,
     FLAG_LAST_ROW,
     build_camera_row,
 )
@@ -51,10 +50,7 @@ def _sequence(frame_id, rows, *, cam_id=0, last_flag_on=None):
             frame_id=frame_id,
             row_idx=index,
             row_seq=index,
-            row_flags=(
-                (FLAG_FIRST_ROW if index == 0 else 0)
-                | (FLAG_LAST_ROW if index == last_row else 0)
-            ),
+            row_flags=(FLAG_LAST_ROW if index == last_row else 0),
         )
         for index in range(rows)
     ]
@@ -91,7 +87,7 @@ def test_capture_index_and_csv_sequence_are_both_contiguous_when_nothing_drops(
     sink = CameraImagePipeline(tmp_path / "images", expected_rows=4)
     _run(_sequence(1, 4), sink, expected_rows=4)
 
-    rows = _read_rows(tmp_path / "images" / "cam0" / "rows.csv")
+    rows = _read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")
     assert [int(row["capture_index"]) for row in rows] == [0, 1, 2, 3]
     assert [int(row["csv_sequence"]) for row in rows] == [1, 2, 3, 4]
     assert sink.csv_stats.rows_submitted == 4
@@ -105,10 +101,10 @@ def test_reliable_first_and_last_require_layer3_validity_and_position(tmp_path):
     sink = CameraImagePipeline(tmp_path / "images", expected_rows=4)
     _run(_sequence(1, 4), sink, expected_rows=4)
 
-    rows = _read_rows(tmp_path / "images" / "cam0" / "rows.csv")
+    rows = _read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")
     assert [row["reliable_first"] for row in rows] == ["1", "0", "0", "0"]
     assert [row["reliable_last"] for row in rows] == ["0", "0", "0", "1"]
-    assert all(row["layer3_valid"] == "1" for row in rows)
+    assert all(row["parsed_ok"] == "1" for row in rows)
     assert all(row["row_accepted"] == "1" for row in rows)
     sink.close()
 
@@ -126,10 +122,9 @@ def test_last_bit_on_the_wrong_row_does_not_close_the_csv_group(tmp_path):
     frames[1] = _frame(frame_id=1, row_idx=1, row_seq=1, row_flags=FLAG_LAST_ROW)
     _run(frames, sink, expected_rows=4)
 
-    path = tmp_path / "images" / "cam0" / "rows.csv"
+    path = tmp_path / "images" / "cam0" / "rows_v2.csv"
     rows = _read_rows(path)
-    assert rows[1]["last_row"] == "1"          # raw evidence preserved
-    assert rows[1]["frame_end"] == "1"         # raw evidence preserved
+    assert rows[1]["final_line"] == "1"         # raw evidence preserved
     assert rows[1]["reliable_last"] == "0"     # but not counted
     assert rows[3]["reliable_last"] == "1"
     # Exactly one human-readable group terminator, at the real frame end.
@@ -141,7 +136,7 @@ def test_layer3_failure_makes_a_correctly_placed_last_bit_unreliable(tmp_path):
     sink = CameraImagePipeline(tmp_path / "images", expected_rows=2)
     _run(
         [
-            _frame(frame_id=5, row_idx=0, row_seq=0, row_flags=FLAG_FIRST_ROW),
+            _frame(frame_id=5, row_idx=0, row_seq=0, row_flags=0),
             _frame(
                 frame_id=5,
                 row_idx=1,
@@ -154,10 +149,10 @@ def test_layer3_failure_makes_a_correctly_placed_last_bit_unreliable(tmp_path):
         expected_rows=2,
     )
 
-    path = tmp_path / "images" / "cam0" / "rows.csv"
+    path = tmp_path / "images" / "cam0" / "rows_v2.csv"
     rows = _read_rows(path)
-    assert rows[1]["last_row"] == "1"
-    assert rows[1]["layer3_valid"] == "0"
+    assert rows[1]["final_line"] == "1"
+    assert rows[1]["parsed_ok"] == "0"
     assert rows[1]["row_accepted"] == "0"
     assert rows[1]["reliable_last"] == "0"
     assert "\n\n" not in path.read_text("utf-8")
@@ -166,7 +161,7 @@ def test_layer3_failure_makes_a_correctly_placed_last_bit_unreliable(tmp_path):
 
 def test_duplicate_row_is_recorded_as_evidence_but_not_accepted(tmp_path):
     sink = CameraImagePipeline(tmp_path / "images", expected_rows=2)
-    duplicate = _frame(frame_id=3, row_idx=0, row_seq=0, row_flags=FLAG_FIRST_ROW)
+    duplicate = _frame(frame_id=3, row_idx=0, row_seq=0, row_flags=0)
     _run(
         [
             duplicate,
@@ -177,18 +172,18 @@ def test_duplicate_row_is_recorded_as_evidence_but_not_accepted(tmp_path):
         expected_rows=2,
     )
 
-    rows = _read_rows(tmp_path / "images" / "cam0" / "rows.csv")
+    rows = _read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")
     assert len(rows) == 3
     assert [row["row_accepted"] for row in rows] == ["1", "0", "1"]
-    assert all(row["layer3_valid"] == "1" for row in rows)
+    assert all(row["parsed_ok"] == "1" for row in rows)
     sink.close()
 
 
-def test_frame_switch_resets_the_duplicate_mirror(tmp_path):
+def test_frame_switch_resets_reassembler_duplicate_state(tmp_path):
     sink = CameraImagePipeline(tmp_path / "images", expected_rows=2)
     _run(_sequence(1, 2) + _sequence(2, 2), sink, expected_rows=2)
 
-    rows = _read_rows(tmp_path / "images" / "cam0" / "rows.csv")
+    rows = _read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")
     # Row 0 of frame 2 repeats an index already seen in frame 1; a session-less
     # mirror would have called it a duplicate.
     assert [row["row_accepted"] for row in rows] == ["1", "1", "1", "1"]
@@ -245,7 +240,7 @@ def test_full_csv_queue_drops_are_counted_and_leave_a_capture_index_gap(
     assert sink.csv_stats.rows_dropped == 1
     assert sink.csv_stats.rows_written == 3
 
-    rows = _read_rows(tmp_path / "images" / "cam0" / "rows.csv")
+    rows = _read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")
     # capture_index shows the hole; csv_sequence stays contiguous.  That pair
     # is what tells a future investigation the loss was ours, not the FPGA's.
     assert [int(row["capture_index"]) for row in rows] == [1, 2, 3]
@@ -264,7 +259,7 @@ def test_block_backpressure_never_drops_even_with_a_one_slot_queue(tmp_path):
 
     assert sink.csv_stats.rows_dropped == 0
     assert sink.csv_stats.rows_written == 8
-    assert len(_read_rows(tmp_path / "images" / "cam0" / "rows.csv")) == 8
+    assert len(_read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")) == 8
     sink.close()
 
 
@@ -275,7 +270,7 @@ def test_disabling_rows_csv_writes_no_file_and_starts_no_thread(tmp_path):
     assert sink._csv_thread is None
     _run(_sequence(1, 2), sink, expected_rows=2)
 
-    assert not (tmp_path / "images" / "cam0" / "rows.csv").exists()
+    assert not (tmp_path / "images" / "cam0" / "rows_v2.csv").exists()
     assert sink.csv_stats.rows_submitted == 0
     # The image path is untouched by the recorder being off.
     assert (tmp_path / "images" / "cam0" / "1.pgm").is_file()
@@ -287,7 +282,7 @@ def test_close_is_idempotent(tmp_path):
     _run(_sequence(1, 2), sink, expected_rows=2)
     sink.close()
     sink.close()
-    assert len(_read_rows(tmp_path / "images" / "cam0" / "rows.csv")) == 2
+    assert len(_read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")) == 2
 
 
 # ---- P3: A/B -- the recorder must not change reassembly -----------------
@@ -349,7 +344,7 @@ def test_reassembly_is_bit_identical_with_and_without_rows_csv(tmp_path):
         # rejection paths rather than only the happy path.
         + [_frame(frame_id=3, row_idx=0, row_seq=0, corrupt_crc=True)]
         + _sequence(4, 4)
-        + [_frame(frame_id=4, row_idx=0, row_seq=0, row_flags=FLAG_FIRST_ROW)]
+        + [_frame(frame_id=4, row_idx=0, row_seq=0, row_flags=0)]
     )
 
     without = _ab_observation(
@@ -366,9 +361,9 @@ def test_reassembly_is_bit_identical_with_and_without_rows_csv(tmp_path):
     assert without["pgm"], "A/B compared two empty runs"
 
     # And the B half really did record something.
-    rows = _read_rows(tmp_path / "b_csv" / "cam0" / "rows.csv")
+    rows = _read_rows(tmp_path / "b_csv" / "cam0" / "rows_v2.csv")
     assert len(rows) == len(frames)
-    assert not (tmp_path / "a_no_csv" / "cam0" / "rows.csv").exists()
+    assert not (tmp_path / "a_no_csv" / "cam0" / "rows_v2.csv").exists()
 
 
 def test_slow_csv_flush_does_not_stall_the_packet_consumer(tmp_path):
@@ -415,5 +410,5 @@ def test_slow_csv_flush_does_not_stall_the_packet_consumer(tmp_path):
     pipeline.stop()
     assert sink.flush_rows(timeout=10.0)
     assert sink.csv_stats.rows_dropped == 0
-    assert len(_read_rows(tmp_path / "images" / "cam0" / "rows.csv")) == 64
+    assert len(_read_rows(tmp_path / "images" / "cam0" / "rows_v2.csv")) == 64
     sink.close()

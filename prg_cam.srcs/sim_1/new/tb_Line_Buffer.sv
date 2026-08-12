@@ -26,7 +26,8 @@ module tb_Line_Buffer;
     integer output_byte = 0;
     integer output_packet = 0;
     integer errors = 0;
-    reg [7:0] observed_flags [0:7];
+    reg [7:0] observed_flags [0:10];
+    reg [7:0] expected_data;
 
     always #5 sys_clk = ~sys_clk;
 
@@ -91,6 +92,33 @@ module tb_Line_Buffer;
                 errors = errors + 1;
             end
 
+            // Packets 6..8 exercise short-row padding, long-row truncation and
+            // a clean packet immediately afterward.  Metadata and bytes must
+            // remain attached to their own slot.
+            if (output_packet == 6) begin
+                expected_data = (output_byte < 127)
+                    ? (8'h80 + output_byte) : 8'h00;
+                if (tx_data !== expected_data) begin
+                    $display("ERROR short packet byte=%0d got=%02x expected=%02x",
+                             output_byte, tx_data, expected_data);
+                    errors = errors + 1;
+                end
+            end else if (output_packet == 7) begin
+                expected_data = 8'h90 + output_byte;
+                if (tx_data !== expected_data) begin
+                    $display("ERROR long packet byte=%0d got=%02x expected=%02x",
+                             output_byte, tx_data, expected_data);
+                    errors = errors + 1;
+                end
+            end else if (output_packet == 8) begin
+                expected_data = 8'hA0 + output_byte;
+                if (tx_data !== expected_data) begin
+                    $display("ERROR post-error packet byte=%0d got=%02x expected=%02x",
+                             output_byte, tx_data, expected_data);
+                    errors = errors + 1;
+                end
+            end
+
             if (output_byte == 127) begin
                 output_byte   = 0;
                 output_packet = output_packet + 1;
@@ -151,16 +179,34 @@ module tb_Line_Buffer;
             errors = errors + 1;
         end
 
-        // A length-error row must release its reservation without becoming a
-        // padded, apparently well-formed 128-byte transmit packet.
+        // A 127-byte row is retained as evidence, padded to the fixed output
+        // length, and marked in the FPGA status metadata.
         send_packet_n(8'h80, 8'h08, 127);
-        repeat (5) @(posedge sys_clk);
-        if ((used_count !== 0) || (committed_count !== 0) || request ||
-            (output_packet !== 6)) begin
-            $display("ERROR invalid row escaped used=%0d committed=%0d request=%0b output=%0d",
-                     used_count, committed_count, request, output_packet);
+        wait (output_packet == 7);
+        if (observed_flags[6] !== 8'h08) begin
+            $display("ERROR short packet status=%02x expected=08",
+                     observed_flags[6]);
             errors = errors + 1;
         end
+
+        // A 129-byte row is truncated after byte 127.  Its extra byte must not
+        // contaminate this slot or the following clean packet.
+        send_packet_n(8'h90, 8'h08, 129);
+        wait (output_packet == 8);
+        if (observed_flags[7] !== 8'h08) begin
+            $display("ERROR long packet status=%02x expected=08",
+                     observed_flags[7]);
+            errors = errors + 1;
+        end
+
+        send_packet(8'hA0, 8'h00);
+        wait (output_packet == 9);
+        if (observed_flags[8] !== 8'h00) begin
+            $display("ERROR post-error status leaked=%02x expected=00",
+                     observed_flags[8]);
+            errors = errors + 1;
+        end
+        repeat (5) @(posedge sys_clk);
 
         if ((used_count !== 0) || (committed_count !== 0) || request) begin
             $display("ERROR Line_Buffer did not drain: used=%0d committed=%0d",
@@ -169,7 +215,7 @@ module tb_Line_Buffer;
         end
 
         if (errors == 0)
-            $display("PASS: Line_Buffer counters, drop and sticky overflow");
+            $display("PASS: Line_Buffer drop, 127/129 normalization and status");
         else
             $display("FAIL: %0d errors", errors);
         $finish;

@@ -35,3 +35,8 @@
 *.hw/
 *.sim/
 *.ip_user_files/
+
+# Python test/runtime caches are never source artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/

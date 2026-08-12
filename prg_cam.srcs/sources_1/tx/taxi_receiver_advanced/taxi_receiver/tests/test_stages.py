@@ -4,7 +4,7 @@ synthetic frames through progressively deeper chains and check that
 each layer's effect only shows up once it's actually included.
 """
 from taxi_receiver.capture import SyntheticFrameSource
-from taxi_receiver.packet_format import FLAG_FIRST_ROW, FLAG_LAST_ROW
+from taxi_receiver.packet_format import FLAG_LAST_ROW
 from taxi_receiver.pipeline import TaxiReceiverPipeline
 from taxi_receiver.reassembler import FrameReassembler
 from taxi_receiver.stages import (
@@ -25,7 +25,7 @@ def _last_row_frame():
         frame_id=1,
         row_idx=0,
         row_seq=0,
-        row_flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+        row_flags=FLAG_LAST_ROW,
     )
 
 

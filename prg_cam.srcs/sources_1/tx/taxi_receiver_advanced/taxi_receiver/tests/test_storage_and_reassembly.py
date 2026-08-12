@@ -8,7 +8,6 @@ import taxi_receiver.storage as storage_module
 from taxi_receiver.camera_parser import parse_camera_mode
 from taxi_receiver.capture import SyntheticFrameSource
 from taxi_receiver.packet_format import (
-    FLAG_FIRST_ROW,
     FLAG_LAST_ROW,
     build_camera_row,
     parse_camera_row,
@@ -53,7 +52,7 @@ def test_out_of_order_rows_reconstruct_and_archive_atomically(tmp_path):
 
     assert reassembler.on_row(_packet(0, 7, 1)) is None
     assert reassembler.on_row(
-        _packet(0, 7, 0, flags=FLAG_FIRST_ROW)
+        _packet(0, 7, 0, flags=0)
     ) is None
     completed = reassembler.on_row(
         _packet(0, 7, 2, flags=FLAG_LAST_ROW)
@@ -79,7 +78,7 @@ def test_out_of_order_rows_reconstruct_and_archive_atomically(tmp_path):
     assert metadata["pixel_format"] is None
     assert metadata["raw_size_bytes"] == 240
 
-    with (tmp_path / "summary.csv").open(newline="", encoding="utf-8") as f:
+    with (tmp_path / "summary_v2.csv").open(newline="", encoding="utf-8") as f:
         summary = list(csv.DictReader(f))
     assert len(summary) == 1
     assert summary[0]["status"] == "COMPLETE"
@@ -92,7 +91,7 @@ def test_windows_transient_directory_lock_is_retried(
 ):
     reassembler = FrameReassembler()
     reassembler.on_row(
-        _packet(0, 70, 0, flags=FLAG_FIRST_ROW)
+        _packet(0, 70, 0, flags=0)
     )
     completed = reassembler.on_row(
         _packet(0, 70, 1, flags=FLAG_LAST_ROW)
@@ -125,8 +124,8 @@ def test_windows_transient_directory_lock_is_retried(
 
 def test_two_cameras_do_not_overwrite_each_other():
     reassembler = FrameReassembler()
-    reassembler.on_row(_packet(0, 1, 0, flags=FLAG_FIRST_ROW))
-    reassembler.on_row(_packet(1, 1, 0, flags=FLAG_FIRST_ROW))
+    reassembler.on_row(_packet(0, 1, 0, flags=0))
+    reassembler.on_row(_packet(1, 1, 0, flags=0))
 
     cam0 = reassembler.on_row(
         _packet(0, 1, 1, flags=FLAG_LAST_ROW)
@@ -146,14 +145,14 @@ def test_two_cameras_do_not_overwrite_each_other():
 def test_identical_archive_is_idempotent(tmp_path):
     reassembler = FrameReassembler()
     storage = StorageAndPipeline(tmp_path)
-    reassembler.on_row(_packet(0, 8, 0, flags=FLAG_FIRST_ROW))
+    reassembler.on_row(_packet(0, 8, 0, flags=0))
     completed = reassembler.on_row(_packet(0, 8, 1, flags=FLAG_LAST_ROW))
 
     first = storage.archive(completed)
     second = storage.archive(completed)
 
     assert first == second
-    with (tmp_path / "summary.csv").open(newline="", encoding="utf-8") as f:
+    with (tmp_path / "summary_v2.csv").open(newline="", encoding="utf-8") as f:
         summary = list(csv.DictReader(f))
     assert len(summary) == 1
     assert summary[0]["frame_id"] == "8"
@@ -162,7 +161,7 @@ def test_identical_archive_is_idempotent(tmp_path):
 def test_rewriting_only_timing_metadata_is_idempotent(tmp_path):
     reassembler = FrameReassembler()
     storage = StorageAndPipeline(tmp_path)
-    reassembler.on_row(_packet(0, 9, 0, flags=FLAG_FIRST_ROW))
+    reassembler.on_row(_packet(0, 9, 0, flags=0))
     completed = reassembler.on_row(_packet(0, 9, 1, flags=FLAG_LAST_ROW))
 
     first = storage.archive(completed)
@@ -179,14 +178,14 @@ def test_rewriting_only_timing_metadata_is_idempotent(tmp_path):
     second = storage.archive(completed)
 
     assert second == first
-    with (tmp_path / "summary.csv").open(newline="", encoding="utf-8") as f:
+    with (tmp_path / "summary_v2.csv").open(newline="", encoding="utf-8") as f:
         summary = list(csv.DictReader(f))
     assert len(summary) == 1
 
 
 def test_identical_duplicate_is_deduplicated():
     reassembler = FrameReassembler()
-    row0 = _packet(0, 2, 0, flags=FLAG_FIRST_ROW)
+    row0 = _packet(0, 2, 0, flags=0)
     reassembler.on_row(row0)
     reassembler.on_row(row0)
     completed = reassembler.on_row(
@@ -203,7 +202,7 @@ def test_identical_duplicate_is_deduplicated():
 def test_conflicting_duplicate_marks_frame_corrupt_and_keeps_first():
     reassembler = FrameReassembler()
     reassembler.on_row(
-        _packet(0, 3, 0, flags=FLAG_FIRST_ROW, value=0x11)
+        _packet(0, 3, 0, flags=0, value=0x11)
     )
     reassembler.on_row(_packet(0, 3, 0, value=0x22))
     completed = reassembler.on_row(
@@ -218,7 +217,7 @@ def test_conflicting_duplicate_marks_frame_corrupt_and_keeps_first():
 
 def test_missing_row_closes_partial():
     reassembler = FrameReassembler()
-    reassembler.on_row(_packet(0, 4, 0, flags=FLAG_FIRST_ROW))
+    reassembler.on_row(_packet(0, 4, 0, flags=0))
     assert reassembler.on_row(
         _packet(0, 4, 2, flags=FLAG_LAST_ROW)
     ) is None
@@ -235,7 +234,7 @@ def test_crc_error_is_rejected_before_image_session_creation():
         0,
         5,
         0,
-        flags=FLAG_FIRST_ROW | FLAG_LAST_ROW,
+        flags=FLAG_LAST_ROW,
         corrupt_crc=True,
     )
     completed = reassembler.on_row(corrupt, errors=("crc_error",))
@@ -249,11 +248,11 @@ def test_crc_error_is_rejected_before_image_session_creation():
 def test_frame_id_wrap_closes_old_frame_without_cross_camera_ordering():
     reassembler = FrameReassembler()
     reassembler.on_row(
-        _packet(0, 0xFFFF, 0, flags=FLAG_FIRST_ROW),
+        _packet(0, 0xFFFF, 0, flags=0),
         now=10.0,
     )
     old = reassembler.on_row(
-        _packet(0, 0, 0, flags=FLAG_FIRST_ROW | FLAG_LAST_ROW),
+        _packet(0, 0, 0, flags=FLAG_LAST_ROW),
         now=10.1,
     )
     new = reassembler.drain_completed()
@@ -269,7 +268,7 @@ def test_frame_id_wrap_closes_old_frame_without_cross_camera_ordering():
 def test_timeout_closes_in_progress_frame():
     reassembler = FrameReassembler(timeout_seconds=1.0)
     reassembler.on_row(
-        _packet(0, 6, 0, flags=FLAG_FIRST_ROW),
+        _packet(0, 6, 0, flags=0),
         now=20.0,
     )
 
@@ -287,7 +286,7 @@ def test_pipeline_archives_completed_frame(tmp_path):
             frame_id=9,
             row_idx=0,
             row_seq=0,
-            row_flags=FLAG_FIRST_ROW,
+            row_flags=0,
         ),
         make_camera_frame(
             cam_id=2,
@@ -323,11 +322,11 @@ def test_differing_frame_collision_is_published_as_a_duplicate(tmp_path):
     # collision into a total publication outage (2767 submitted / 0 processed).
     storage = StorageAndPipeline(tmp_path)
     first_reassembler = FrameReassembler()
-    first_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x11))
+    first_reassembler.on_row(_packet(0, 21, 0, flags=0, value=0x11))
     first = first_reassembler.on_row(_packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x11))
 
     second_reassembler = FrameReassembler()
-    second_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x22))
+    second_reassembler.on_row(_packet(0, 21, 0, flags=0, value=0x22))
     second = second_reassembler.on_row(
         _packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x22)
     )
@@ -347,10 +346,10 @@ def test_differing_frame_collision_is_published_as_a_duplicate(tmp_path):
 def test_error_collision_policy_still_raises(tmp_path):
     storage = StorageAndPipeline(tmp_path, collision_policy="error")
     first_reassembler = FrameReassembler()
-    first_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x11))
+    first_reassembler.on_row(_packet(0, 21, 0, flags=0, value=0x11))
     first = first_reassembler.on_row(_packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x11))
     second_reassembler = FrameReassembler()
-    second_reassembler.on_row(_packet(0, 21, 0, flags=FLAG_FIRST_ROW, value=0x22))
+    second_reassembler.on_row(_packet(0, 21, 0, flags=0, value=0x22))
     second = second_reassembler.on_row(
         _packet(0, 21, 1, flags=FLAG_LAST_ROW, value=0x22)
     )

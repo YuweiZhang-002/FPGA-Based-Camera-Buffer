@@ -31,6 +31,7 @@ module tb_Camera_Pipeline_Ethernet_Source;
     wire       frame_last;
 
     logic [7:0] expected_payload [0:TEST_PACKETS*PACKET_BYTES-1];
+    logic [7:0] source_packet [0:TEST_PACKETS*PACKET_BYTES-1];
     integer frame_count = 0;
     integer frame_index = 0;
     integer frame_handshake_count = 0;
@@ -98,15 +99,32 @@ module tb_Camera_Pipeline_Ethernet_Source;
         input integer packet_no;
         input integer offset;
         begin
-            source_byte = (8'h23 + packet_no * 8'h35 + offset) & 8'hff;
-            if (offset == 4)
-                source_byte = 8'hF0; // must be replaced with camera id 0
-            if (offset == 9)
-                source_byte = (packet_no == 0) ? 8'hA4 :
-                              (packet_no == TEST_PACKETS-1) ? 8'hA2 :
-                              8'hA0; // RP2350A supplies FIRST/LAST
-            if ((offset == 126) || (offset == 127))
-                source_byte = 8'hEE; // must be replaced with CRC-16
+            source_byte = 8'h00;
+            case (offset)
+                0: source_byte = 8'hA5;
+                1: source_byte = 8'hA0;
+                2: source_byte = 8'h5A;
+                3: source_byte = 8'h50;
+                4: source_byte = 8'hF0; // replaced with camera id 0
+                5: source_byte = 8'h34;
+                6: source_byte = packet_no[7:0];
+                7: source_byte = 8'h00;
+                8: source_byte = packet_no[7:0];
+                9: source_byte = (packet_no == 1) ? 8'h04 :
+                                 (packet_no == TEST_PACKETS-1) ? 8'h02 :
+                                 8'h00;
+                10: source_byte = 8'd80;
+                11: source_byte = 8'h00;
+                12: source_byte = packet_no[7:0];
+                13: source_byte = 8'h00;
+                default: begin
+                    if ((offset >= 24) && (offset <= 103))
+                        source_byte = (8'h23 + packet_no * 8'h35 +
+                                       offset) & 8'hff;
+                    else if ((offset >= 114) && (offset <= 125))
+                        source_byte = offset[0] ? 8'h5A : 8'hA5;
+                end
+            endcase
         end
     endfunction
 
@@ -129,21 +147,27 @@ module tb_Camera_Pipeline_Ethernet_Source;
         integer i;
         reg [7:0] value;
         reg [7:0] generated_flags;
-        reg [15:0] crc;
+        reg [15:0] ingress_crc;
+        reg [15:0] egress_crc;
         begin
             generated_flags = 8'h00;
-            crc = 16'hFFFF;
+            ingress_crc = 16'hFFFF;
+            egress_crc = 16'hFFFF;
             for (i = 0; i < 126; i = i + 1) begin
                 value = source_byte(packet_no, i);
+                source_packet[packet_no*PACKET_BYTES+i] = value;
+                ingress_crc = crc16_byte(ingress_crc, value);
                 if (i == 4)
                     value = 8'h00;
                 if (i == 13)
                     value = generated_flags;
                 expected_payload[packet_no*PACKET_BYTES+i] = value;
-                crc = crc16_byte(crc, value);
+                egress_crc = crc16_byte(egress_crc, value);
             end
-            expected_payload[packet_no*PACKET_BYTES+126] = crc[7:0];
-            expected_payload[packet_no*PACKET_BYTES+127] = crc[15:8];
+            source_packet[packet_no*PACKET_BYTES+126] = ingress_crc[15:8];
+            source_packet[packet_no*PACKET_BYTES+127] = ingress_crc[7:0];
+            expected_payload[packet_no*PACKET_BYTES+126] = egress_crc[15:8];
+            expected_payload[packet_no*PACKET_BYTES+127] = egress_crc[7:0];
         end
     endtask
 
@@ -155,7 +179,7 @@ module tb_Camera_Pipeline_Ethernet_Source;
                 @(negedge cam_pclk);
                 if (i == 0)
                     cam_href = 1'b1;
-                cam_data = source_byte(packet_no, i);
+                cam_data = source_packet[packet_no*PACKET_BYTES+i];
             end
             @(negedge cam_pclk);
             cam_href = 1'b0;

@@ -43,14 +43,14 @@
 1. 将“完整帧完成后”的 RAW/PGM/JSON、frame archive 和 per-frame CSV 写盘，
    从 `taxi-worker` 的 packet 热路径移到独立的、有界的 frame output queue 和
    output worker。
-2. 减少热路径中的第二次完整 Ethernet frame 复制，并把 `summary.csv` 从
+2. 减少热路径中的第二次完整 Ethernet frame 复制，并把 `summary_v2.csv` 从
    “每帧读取并重写全部历史”改为持久句柄追加。
 3. 增加 capture packet queue 的容量、高水位、drop 百分比和生产/消费速率，
    使“Python 消费者跟不上”可以直接从报告中判断。
 
 需要严格限定优化范围：`image_pipeline.record_packet()` 和
 `SessionAuditLogger` 仍通过 `on_frame_processed` 在 packet consumer 中运行，
-逐包 `rows.csv`/`session_audit.csv` 格式化没有被移入 frame output worker。
+逐包 `rows_v2.csv`/`session_audit_v2.csv` 格式化没有被移入 frame output worker。
 它们当前采用批量/定时 flush，而不是每行 `fsync`，但如果它们本身成为新的 CPU
 瓶颈，仍需用下一轮 queue 指标证明，不能假设已经消失。
 
@@ -85,7 +85,7 @@
                       v                                v
              StorageAndPipeline               CameraImagePipeline
              RAW/JSON/packets.csv              PGM/RAW/JSON
-             errors.json/summary.csv           recovered/rejected
+             errors.json/summary_v2.csv        recovered/rejected
                       |                                |
                       +---------------+----------------+
                                       |
@@ -93,7 +93,7 @@
                          返回处理下一 Ethernet packet
 
  同一 taxi-worker 还同步执行：
- on_frame_processed -> session_audit.csv + images/camN/rows.csv
+ on_frame_processed -> session_audit_v2.csv + images/camN/rows_v2.csv
 ```
 
 修改前 `cli.py` 的 `on_completed_frame` 直接绑定
@@ -101,7 +101,7 @@
 `stages.py:149-184` 中，`ReassemblyStage.process()` 调用 `_emit()`，
 而 `_emit()` 直接执行 `self.on_completed_frame(completed)`。因此完整帧一旦
 关闭，目录创建、JSON 序列化、RAW/PGM 写入、flush/fsync、rename 和
-`summary.csv` 更新都发生在 `taxi-worker` 内。
+`summary_v2.csv` 更新都发生在 `taxi-worker` 内。
 
 磁盘操作把单个 packet 的 consumer 服务时间拉长。生产端仍持续通过
 `ScapyLiveCapture._callback()` 向 capture packet queue 投递，队列库存逐渐增长；
@@ -144,10 +144,10 @@ packet 在进入 Layer2 之前被主动丢弃。
                       v                                v
              StorageAndPipeline               CameraImagePipeline
              RAW/JSON/packets.csv              PGM/RAW/JSON
-             errors.json/summary.csv           recovered/rejected
+             errors.json/summary_v2.csv        recovered/rejected
 
  packet 热路径中仍然保留：
- on_frame_processed -> session_audit.csv + images/camN/rows.csv
+ on_frame_processed -> session_audit_v2.csv + images/camN/rows_v2.csv
 ```
 
 短时磁盘抖动会积压在 frame output queue 中，不再立即延长每个 packet 的解析
@@ -578,7 +578,7 @@ Capture queue drops   = 82135
 
 路径：`taxi_receiver/storage.py`  
 主要类：`StorageAndPipeline`（第44行）  
-位置：完整 frame 的原子目录归档和全局 `summary.csv`。
+位置：完整 frame 的原子目录归档和全局 `summary_v2.csv`。
 
 #### 【修改前】
 
@@ -666,7 +666,7 @@ Git `de56798` 中不存在该文件，无法取得旧实现。
 
 #### 【修改后】
 
-`analyze_csv()` 流式读取全部 `rows.csv`，跳过用于视觉分帧的空行，并统计：
+`analyze_csv()` 流式读取全部 `rows_v2.csv`，跳过用于视觉分帧的空行，并统计：
 
 - flags、errors、length error；
 - length error 的 payload_len字段、row_idx、frame_id和10秒时间桶；
@@ -716,7 +716,7 @@ physical_href_byte_count_distribution = NOT_RECORDED_IN_CSV
 attempt3全量运行结果：
 
 ```text
-rows.csv records             795297
+rows_v2.csv records          795297
 rejected.csv records         802
 published images             1022
 invalid RAW sizes            0
@@ -919,7 +919,7 @@ frame output queue选择等待空位。
 
 ```text
 同步完整帧写盘
-  + summary.csv 每帧读取/重写全部历史 O(n²)
+  + summary_v2.csv 每帧读取/重写全部历史 O(n²)
   + 可选的第二份完整Ethernet frame复制
                          |
                          v
@@ -986,7 +986,7 @@ Processing errors都是0，因此二者差值精确等于 `queue.Full` 分支计
 - 同步完整图像磁盘I/O阻塞packet consumer；
 - capture queue积压；
 - 未录制PCAP时不必要的完整L2 frame复制；
-- `summary.csv`随frame数增长越来越慢；
+- `summary_v2.csv`随frame数增长越来越慢；
 - 缺乏queue深度、生产/消费速率观测。
 
 本轮性能修改不能直接修复：
@@ -1006,7 +1006,7 @@ Processing errors都是0，因此二者差值精确等于 `queue.Full` 分支计
 
 1. **真实120秒结果尚未回归。** Synthetic测试证明机制，不等于达到
    `<0.1%` live capture drop验收。
-2. **逐包CSV仍在packet consumer。** `session_audit.csv`和`rows.csv`采用
+2. **逐包CSV仍在packet consumer。** `session_audit_v2.csv`和`rows_v2.csv`采用
    256行/0.5秒等批量flush，但逐包字段构造和`writerow`仍消耗taxi-worker CPU。
    只有新一轮producer/consumer/peak数据才能判断它是否成为下一瓶颈。
 3. **output callback failure不改变退出码。** 自动化环境必须检查最终

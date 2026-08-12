@@ -7,12 +7,12 @@ Ethernet receiver prototype.
 taxi_receiver/
   capture.py          Layer 1 - Capture            (only module that may import scapy, and lazily)
   eth_validate.py      Layer 2 - Ethernet Validation (EtherType / MAC / coarse length)
-  packet_format.py     Layer 3 core - legacy-v0-observed layout + CRC-16
+  packet_format.py     Layer 3 core - rp2354-camera-row-v1 layout + CRC-16
   camera_parser.py     Layer 3 - mode-aware parsing (fixed / camera), returns result objects
   stream_monitor.py    Layer 4 - statistics, seq gap/dup/ooo, rate + throughput reporting
   reassembler.py        Layer 5 - per-camera sessions, status, timeout, deduplication
-  storage.py            Layer 5 - atomic raw/JSON/CSV archive + summary.csv
-  session_audit.py      Side-band per-packet CSV + frame-local 0x08 propagation
+  storage.py            Layer 5 - atomic raw/JSON/CSV archive + summary_v2.csv
+  session_audit.py      Side-band per-packet session_audit_v2.csv
   threshold_recover.py  Layer 6 - expand 80 packed bytes into 640 threshold bytes per row
   image_pipeline.py     Numbered camN PGM/RAW/JSON output + per-row telemetry CSV
   recorder.py           pcap + error-frame file I/O (side effects, wired in optionally)
@@ -34,7 +34,7 @@ tests/
   test_reassembler.py    Layer 5 reference implementation
   test_pipeline_synthetic.py  full pipeline, camera + fixed mode, with and without Layer 5
   test_storage_and_reassembly.py  out-of-order/duplicate/missing/timeout/storage gates
-  test_session_audit.py  contamination, reboot overwrite, wrap, invalid-packet audit
+  test_session_audit.py  status isolation, reboot overwrite, wrap, invalid-packet audit
   test_image_pipeline.py cam routing, frame-id naming, flags/CRC/CSV/PGM gates
 ```
 
@@ -135,7 +135,7 @@ Every result is classified `COMPLETE`, `PARTIAL`, `CORRUPT`, or
 
 ```text
 output_root/
-  summary.csv
+  summary_v2.csv
   cam_<cam_id>/
     frame_<frame_id>/
       image.raw
@@ -158,7 +158,7 @@ images/
     <frame_id>.pgm
     <frame_id>.raw
     <frame_id>.json
-    rows.csv
+    rows_v2.csv
   cam1/
     ...
 ```
@@ -168,32 +168,27 @@ comes directly from `cam_id`. Only a `COMPLETE` frame is published as
 PGM. CRC-invalid, missing-row, overflow, partial and timeout sessions
 remain visible in telemetry/evidence but are not mislabeled as photos.
 
-`rows.csv` is created on the first parsed row and records header/trailer
-fields, sync/payload/CRC checks, raw flags, `m00`, Q4 centroid
-coordinates and Q8 velocities plus converted values. The row itself is
-always written, including validation failures. If and only if
-`(row_flags & 0x02) == 0x02`, one real blank line is appended after that
-row to separate the next frame.
+`rows_v2.csv` is created on the first complete parsed packet. It records the
+sender flags, independently decoded FPGA diagnostics, structural checks,
+explicit CRC mode/check result, Layer-3 validation and the Layer-5
+`row_accepted` decision. Protocol and diagnostic failures remain evidence but
+are not admitted to an image. A reliable final row appends one blank line.
 
 The current wire flag map is fixed and must not be inferred from older
 receiver counters:
 
 | Mask | Meaning |
 |---:|---|
-| `0x01` | frame/line-buffer overflow |
-| `0x02` | last row / frame end |
-| `0x04` | first valid row / frame start |
-| `0x08` | FPGA-observed line length error |
+| `0x01` | sender overflow |
+| `0x02` | sender final line |
+| `0x04` | sender row-2 marker (not first row) |
 
-In particular, `0x04` is not overflow. A received `0x58` is not a new
-flag definition: the live `attempt2` data shows it is consistent with a
-one-byte-short row where `payload_len=0x50` shifted into the flag offset
-and the FPGA then ORed in `0x08`. Use `analyze_rows_csv.py` for that
-diagnosis; do not make the parser accept `0x58` as a valid control value.
+First row is derived only from `row_idx == 0`. FPGA status never modifies this
+byte; it is carried independently at offset 13.
 
-Both `rows.csv` and `session_audit.csv` keep their file handle open and
-flush in batches (256 rows or 0.5 seconds, plus a `rows.csv` flush at
-LAST_ROW). They do not open/close or explicitly flush once per packet.
+Both `rows_v2.csv` and `session_audit_v2.csv` keep their file handle open and
+flush in batches. `flush_rows()` inserts a queue barrier and returns only after
+the writer has handled all earlier tasks and flushed them to the file handle.
 `run_receiver.ps1` uses a 65536-entry live queue by default to absorb
 short host scheduling bursts; a nonzero `Capture queue drops` count is
 still a failure signal, not something this buffer hides.
@@ -202,13 +197,13 @@ When `--output-root` is supplied, the CLI also attaches
 `SessionAuditLogger` through `on_frame_processed` and writes:
 
 ```text
-output_root/session_audit.csv
+output_root/session_audit_v2.csv
 ```
 
-This is a side-band record for every processed packet, including Layer-3
-failures. `row_flags_raw` preserves the received flag byte while
-`row_flags_effective` propagates bit `0x08` through the remainder of the
-same `(cam_id, frame_id)`. A large non-wrap rollback of `frame_id` or
+This is a side-band record for every processed capture, including an UNPARSED
+row for a malformed raw length. `sender_row_flags_raw` and `fpga_status_raw`
+remain independent and no observer propagates or rewrites either. A large
+non-wrap rollback of `frame_id` or
 `row_seq` is treated as a new board power-on and recreates the CSV with
 `"w"` instead of appending evidence from the previous session.
 
@@ -280,10 +275,9 @@ python -m taxi_receiver.demo_archive_producer --duration-seconds 8 --fps 16
 
 ## Packet layout (packet_format.py)
 
-The current wire layout uses MSB-byte-first header/trailer metadata and
-a little-endian CRC16 tail regenerated by FPGA `Byte_Replacer`. The
-RP2350A C/PIO source is not in this repository, so it must not be
-described as a source-confirmed native C ABI:
+The unique wire layout is 128 bytes. All multi-byte metadata and CRC fields are
+high-byte first. `Byte_Replacer` patches offsets 4 and 13, preserves offset 9,
+and regenerates the final CRC when enabled:
 
 | offset | bytes | field                                  |
 |-------:|------:|-----------------------------------------|
@@ -292,30 +286,29 @@ described as a source-confirmed native C ABI:
 | 4      | 1     | cam_id                                   |
 | 5      | 2     | frame_id                                 |
 | 7      | 2     | row_idx                                  |
-| 9      | 1     | row_flags                                |
-| 10     | 1     | payload_len                              |
-| 11     | 2     | row_seq                                  |
-| 13     | 11    | reserved                                 |
-| 24     | 80    | payload (ROW_BYTES)                      |
-| 104    | 10    | trailer pad                              |
-| 114    | 4     | m00                                      |
-| 118    | 2     | xc_q4                                    |
-| 120    | 2     | yc_q4                                    |
-| 122    | 2     | vx_q8 (signed)                           |
-| 124    | 2     | vy_q8 (signed)                           |
-| 126    | 2     | crc16 (covers bytes 0..125)              |
+| 9      | 1     | sender_row_flags                         |
+| 10     | 1     | payload_len = 80 (`0x50`)               |
+| 11     | 2     | row_seq, big-endian                      |
+| 13     | 1     | FPGA receiver diagnostic status byte    |
+| 14     | 10    | reserved, all zero                       |
+| 24     | 80    | binary payload, 640 pixels MSB-first    |
+| 104    | 10    | trailer padding, all zero                |
+| 114    | 12    | `A5 5A` repeated six times               |
+| 126    | 1     | CRC16 high byte, or `FF` placeholder     |
+| 127    | 1     | CRC16 low byte, or `FF` placeholder      |
 
-The expected four sync bytes are `A5 A0 5A 50`. The old Python `<`
-struct displayed those same raw bytes as numeric values
-`0xA0A5/0x505A`; that display was the byte-order bug. Current parsing
-uses MSB-byte-first metadata but still reads CRC bytes 126/127 as
-low/high, matching `Byte_Replacer`. This is not an MSB/LSB bit reversal.
-The camera GPIO RTL preserves `GPIO[7:0]` without bit reversal.
+The offset-13 status allocation is `0x01` FPGA buffer overflow and `0x08` input
+length error. `0x10` remains reserved for a future entry CRC check but is not
+generated while the MCU emits an `FF FF` placeholder. CRC mode is explicit:
+`enabled` uses CRC-16/CCITT-FALSE (poly `0x1021`, init `0xFFFF`, no
+reflection, xorout 0) over offsets 0..125, while `placeholder` emits `FF FF`
+and records `crc_checked=False`. It is selected with `--crc-mode` and is not
+inferred from the received tail value.
 
-Active FPGA RTL confirms only its owned replacements: `cam_id` at
-offset 4, ORed `row_flags` at offset 9, and regenerated CRC at
-126-127. The remaining field producers are pending RP2350A source
-confirmation.
+The FPGA does not compare the MCU ingress placeholder with a calculated CRC.
+At FPGA exit, enabled mode always regenerates CRC after the offset-4/13 patches,
+so the PC continues to validate the final outgoing packet with `--crc-mode
+enabled`.
 
 ## Layer 6: recover threshold pixels at `on_completed_frame`
 

@@ -14,6 +14,7 @@ from .eth_validate import ETHER_TYPE
 from .image_pipeline import CameraImagePipeline, ImagePolicy
 from .pcap_stdlib import StdlibPcapReplayFrameSource
 from .pipeline import TaxiReceiverPipeline
+from .packet_format import CRC_MODES
 from .reassembler import FrameReassembler, NullReassembler
 from .recorder import ErrorFrameRecorder, PcapRecorder
 from .session_audit import SessionAuditLogger
@@ -51,6 +52,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--mode", choices=("fixed", "camera"), default="camera",
         help="fixed: expect payload 00..7F; camera: parse camera row packets.",
     )
+    parser.add_argument(
+        "--crc-mode",
+        choices=CRC_MODES,
+        default="enabled",
+        help=(
+            "enabled validates CRC-16/CCITT-FALSE; placeholder expects the "
+            "explicit FF FF compatibility tail and records crc_checked=false."
+        ),
+    )
     parser.add_argument("--list", action="store_true", help="List capture interfaces.")
     parser.add_argument("--pcap", type=Path, help="Save matching Ethernet frames to a PCAP file.")
     parser.add_argument("--error-directory", type=Path, help="Save malformed payloads as binary files.")
@@ -77,21 +87,21 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-root",
         type=Path,
-        help="Atomically archive Layer-5 frame directories and summary.csv.",
+        help="Atomically archive Layer-5 frame directories and summary_v2.csv.",
     )
     parser.add_argument(
         "--images-root",
         type=Path,
         help=(
             "Publish complete threshold images as "
-            "camN/<frame_id>.pgm and append camN/rows.csv."
+            "camN/<frame_id>.pgm and append camN/rows_v2.csv."
         ),
     )
     parser.add_argument(
         "--no-rows-csv",
         action="store_true",
         help=(
-            "Publish images without recording camN/rows.csv. Use this as the "
+            "Publish images without recording camN/rows_v2.csv. Use this as the "
             "'A' half of an A/B replay when deciding whether the per-packet "
             "recorder is costing capture throughput."
         ),
@@ -101,7 +111,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=65536,
         help=(
-            "Bounded queue between the packet consumer and the rows.csv "
+            "Bounded queue between the packet consumer and the rows_v2.csv "
             "writer thread."
         ),
     )
@@ -204,8 +214,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         choices=("auto", "on", "off"),
         default="auto",
         help=(
-            "Per-packet session_audit.csv. It is written synchronously on the "
-            "consumer thread and is nearly a subset of rows.csv, so auto "
+            "Per-packet session_audit_v2.csv. It is written synchronously on "
+            "the consumer thread and is nearly a subset of rows_v2.csv, so auto "
             "means off for live capture and on for offline replay."
         ),
     )
@@ -330,8 +340,8 @@ def main() -> int:
         if archive_root is not None
         else None
     )
-    # session_audit.csv is a per-packet CSV written synchronously on the
-    # consumer thread, and rows.csv already carries nearly the same columns
+    # session_audit_v2.csv is written synchronously on the consumer thread;
+    # rows_v2.csv already carries nearly the same columns
     # from a dedicated writer thread.  Live capture therefore defaults to off.
     session_audit_enabled = (
         args.session_audit == "on"
@@ -397,6 +407,7 @@ def main() -> int:
     pipeline = TaxiReceiverPipeline(
         frame_source=frame_source,
         mode=args.mode,
+        crc_mode=args.crc_mode,
         max_stage=max_stage,
         reassembler=reassembler,
         pcap_recorder=pcap_recorder,
@@ -513,6 +524,7 @@ def main() -> int:
         f"{args.replay_pcap if args.replay_pcap else args.interface}"
     )
     print(f"Mode      : {args.mode}")
+    print(f"CRC mode  : {args.crc_mode}")
     print(f"Max stage : {max_stage} (Layer 1-{STAGE_ORDER.index(max_stage) + 2})")
     print(f"EtherType : 0x{ETHER_TYPE:04X}")
     if args.replay_pcap is None:
@@ -593,7 +605,7 @@ def main() -> int:
                 for line in camera_lane_pool.report_lines():
                     print(line)
             elif image_pipeline is not None:
-                # Drain the rows.csv writer before the report so its queue/drop
+                # Drain the rows_v2.csv writer before the report so queue/drop
                 # counters describe the whole run rather than the moment before
                 # shutdown.  close() is idempotent; the safety net below re-runs it.
                 image_pipeline.close()

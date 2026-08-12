@@ -1,4 +1,4 @@
-"""Stream a large rows.csv and explain frame/flag integrity without pandas."""
+"""Stream rows_v2.csv (or a named legacy CSV) without pandas."""
 from __future__ import annotations
 
 import argparse
@@ -8,10 +8,8 @@ import json
 from pathlib import Path
 
 from taxi_receiver.packet_format import (
-    FLAG_FIRST_ROW,
     FLAG_FRAME_OVERFLOW,
     FLAG_LAST_ROW,
-    FLAG_LENGTH_ERROR,
 )
 
 
@@ -24,14 +22,17 @@ def main() -> int:
     flag_counts: collections.Counter[int] = collections.Counter()
     error_counts: collections.Counter[str] = collections.Counter()
     sessions: dict[tuple[int, int], dict[str, object]] = {}
-    shifted_header_samples: list[dict[str, str]] = []
     row_count = 0
 
     with args.csv_path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(row for row in handle if row.strip())
         for row in reader:
             row_count += 1
-            flags = int(row["row_flags"], 16)
+            flags = int(
+                row.get("sender_row_flags_raw")
+                or row.get("row_flags", "0"),
+                16,
+            )
             flag_counts[flags] += 1
             error_counts[row["errors"] or "<none>"] += 1
 
@@ -50,43 +51,13 @@ def main() -> int:
             recorded_errors = [
                 value for value in row["errors"].split(";") if value
             ]
-            # Older rows.csv files were produced while Python incorrectly
-            # decoded 0x04 as overflow. Re-evaluate that one historical label
-            # from the raw flag byte; retain every other recorded failure.
-            corrected_errors = [
-                value
-                for value in recorded_errors
-                if value != "frame_overflow"
-            ]
+            corrected_errors = list(recorded_errors)
             if flags & FLAG_FRAME_OVERFLOW:
-                corrected_errors.append("frame_overflow")
+                corrected_errors.append("sender_overflow")
             session["bad"] += bool(corrected_errors)
-            session["first"] += bool(flags & FLAG_FIRST_ROW)
+            session["first"] += int(row["row_idx"]) == 0
             session["last"] += bool(flags & FLAG_LAST_ROW)
             session["overflow"] += bool(flags & FLAG_FRAME_OVERFLOW)
-
-            # A short packet that lost offset 9 has payload_len (0x50) shifted
-            # into row_flags. Byte_Replacer ORs 0x08, producing 0x58; row_seq is
-            # then observed as its low byte followed by zero padding.
-            if (
-                flags == (0x50 | FLAG_LENGTH_ERROR)
-                and len(shifted_header_samples) < 20
-            ):
-                shifted_header_samples.append(
-                    {
-                        name: row[name]
-                        for name in (
-                            "timestamp",
-                            "frame_id",
-                            "row_idx",
-                            "row_seq",
-                            "row_flags",
-                            "payload_len",
-                            "crc_ok",
-                            "errors",
-                        )
-                    }
-                )
 
     expected = set(range(args.expected_rows))
     complete = [
@@ -107,7 +78,6 @@ def main() -> int:
             f"0x{flag:02X}": count for flag, count in flag_counts.most_common()
         },
         "error_counts": dict(error_counts.most_common()),
-        "shifted_header_0x58_samples": shifted_header_samples,
     }
     print(json.dumps(result, indent=2))
     return 0
