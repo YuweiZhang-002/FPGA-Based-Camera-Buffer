@@ -2,6 +2,14 @@
 // DEPRECATED (2026-07 FIFO/SRAM refactor): DMA programming is not part of the
 // active SRAM/FIFO stream. Define ENABLE_DEPRECATED_AXI_DDR2 for legacy use.
 `ifdef ENABLE_DEPRECATED_AXI_DDR2
+// 注释导读（历史 DMA 控制器）：
+// - wr_step 是“当前要写哪个 DMA 寄存器”的微步骤：CTRL->ADDR->LEN，DMA
+//   完成后再写 CLR_INTR；next_awaddr/next_wdata 是该步骤的组合译码。
+// - state 是 AXI-Lite 握手 SM：IDLE->WRITE_CMD->WAIT_AW_W->WAIT_B；
+//   写 LENGTH 后进入 WAIT_INTR，检测 interrupt 上升沿再清中断。
+// - AW 与 W 是独立通道，awvalid/wvalid 分别保持到各自 ready，二者都完成
+//   后才置 bready；不能把其中任一 ready 当成整个寄存器写完成。
+// - reference_valid/reference 当前没有形成有效输出逻辑，属于未完成历史功能。
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: Send_Control
 // Role: AXI-Lite write master for programming AXI DMA MM2S transfers.
@@ -80,14 +88,14 @@ module Send_Control #(
     localparam [31:0] DMA_DMACR_IOC_IRQEN = 32'h0000_1000;
     localparam [31:0] DMA_DMASR_IOC_IRQ   = 32'h0000_1000;
 
-    reg [31:0] latched_target_addr;
+    reg [31:0] latched_target_addr; // frame_done 时冻结，防止描述符后续变化
     wire [31:0] target_awaddr = 32'h8000_0000 
                               + (done_cam_id << CAM_STRIDE_SHIFT) 
                               + (done_frame_ptr << FRAME_STRIDE_SHIFT);
     
     
     // Edge detector for DMA interrupt signal
-    reg intr_d1, intr_d2;
+    reg intr_d1, intr_d2; // 中断两拍历史，用于 clk 域上升沿检测
     always @(posedge axi_clk or posedge rst) begin
         if (rst) {intr_d2, intr_d1} <= 2'b00;
         else     {intr_d2, intr_d1} <= {intr_d1, DMA_interrupt};
@@ -96,7 +104,7 @@ module Send_Control #(
 
     // Flags for storing the reference frame's status
     // First assume none of the cameras have the reference frame
-    reg [7:0] reference_valid = 8'b00000000;
+    reg [7:0] reference_valid = 8'b00000000; // bit[cam_id]，历史未完成功能
     assign reference = 1'b0;
     
     // ==========================================
@@ -107,13 +115,14 @@ module Send_Control #(
                WR_ADDR     = 3'd1, // Write to Source Address Register
                WR_LEN      = 3'd2, // Write to Length Register (this starts the transfer)
                WR_CLR_INTR = 3'd3; // C5 Fix: Write to Status Register to clear interrupt
-    reg [2:0] wr_step;
+    reg [2:0] wr_step; // 组合寄存器映射选择器，不是 AXI SM state
 
-    reg [31:0] next_awaddr;
-    reg [31:0] next_wdata;
+    reg [31:0] next_awaddr; // 由 wr_step 组合生成的下一写地址
+    reg [31:0] next_wdata;  // 由 wr_step 组合生成的下一写数据
 
     // Maps the current step (wr_step) to the correct AXI-Lite address and data
     always @(*) begin
+        // 每个 case 分支都为两个信号赋值，default 防止非法 wr_step 推断 latch。
         case (wr_step)
             WR_CTRL: begin
                 next_awaddr = DMA_MM2S_DMACR;
@@ -148,7 +157,7 @@ module Send_Control #(
                WAIT_AW_W  = 3'd2, // Wait for both AW and W handshakes to complete
                WAIT_B     = 3'd3, // Wait for the B-channel response
                WAIT_INTR  = 3'd4; // Wait for the DMA transfer to finish (via interrupt)
-    reg [2:0] state;
+    reg [2:0] state; // AXI-Lite 配置/等待中断主状态机
     
     // C4 Fix: The reset logic is now a simple synchronous reset.
     // The `rst_conf` anti-pattern has been removed.
@@ -167,6 +176,7 @@ module Send_Control #(
         end else begin
             case(state)
                 IDLE: begin
+                    // 只有单周期 frame_done_pulse 能启动；同时锁存计算后地址。
                     wr_step <= WR_CTRL; // Reset to the first programming step
                     
                     if(frame_done_pulse) begin
@@ -202,6 +212,7 @@ module Send_Control #(
                 end
                 
                 WAIT_B: begin
+                    // BRESP 未被检查；历史逻辑把任意 BVALID 都视为成功。
                     // State 3: Wait for the write response and advance the programming sequence
                     if (m_axi_lite_bvalid && m_axi_lite_bready) begin
                         m_axi_lite_bready <= 1'b0;
@@ -223,6 +234,7 @@ module Send_Control #(
                 end
                 
                 WAIT_INTR: begin
+                    // intr_rise 而非 interrupt 电平，避免高电平期间重复清中断。
                     // State 4: Wait for the DMA to assert its interrupt line
                     if (intr_rise) begin
                         // Add on: Set the flags

@@ -2,7 +2,7 @@
 
 module tb_Camera_Pipeline;
     localparam integer PACKET_BYTES = 128;
-    localparam integer TEST_PACKETS = 4;
+    localparam integer TEST_PACKETS = 6;
 
     reg sys_clk = 1'b0;
     reg rst = 1'b1;
@@ -32,6 +32,7 @@ module tb_Camera_Pipeline;
     wire [15:0] fifo_level;
     wire        fifo_almost_full;
 
+    reg [7:0] source_packet [0:TEST_PACKETS*PACKET_BYTES-1];
     reg [7:0] expected [0:TEST_PACKETS*PACKET_BYTES-1];
     integer output_index = 0;
     integer errors = 0;
@@ -45,9 +46,10 @@ module tb_Camera_Pipeline;
 
     Camera_Pipeline #(
         .LINES_PER_FRAME   (2),
-        .PACKET_FIFO_DEPTH (256)
+        .PACKET_FIFO_DEPTH (256),
+        .ENABLE_CAM1       (1)
     ) dut (
-        .sys_clk(sys_clk), .rst(rst),
+        .sys_clk(sys_clk), .rst(rst), .capture_enable(1'b1),
         .cam0_pclk(cam0_pclk), .cam0_href(cam0_href), .cam0_data(cam0_data),
         .cam1_pclk(cam1_pclk), .cam1_href(cam1_href), .cam1_data(cam1_data),
         .cam2_pclk(cam2_pclk), .cam2_href(cam2_href), .cam2_data(cam2_data),
@@ -67,16 +69,33 @@ module tb_Camera_Pipeline;
         input integer packet_no;
         input integer offset;
         begin
-            // Distinct deterministic packets. Existing cam_id/flags/CRC bytes
-            // are intentionally wrong so the DUT must replace them.
-            source_byte = (8'h31 + packet_no * 8'h27 + offset) & 8'hff;
-            if (offset == 4)
-                source_byte = 8'hA0 + packet_no;
-            if (offset == 9)
-                source_byte = (packet_no == 0) ? 8'h80 :
-                              (packet_no == 1) ? 8'h40 : 8'h20;
-            if ((offset == 126) || (offset == 127))
-                source_byte = 8'hEE;
+            // Distinct deterministic packets. RP2350A owns row_flags at
+            // offset 9; FPGA status is written separately at offset 13.
+            source_byte = 8'h00;
+            case (offset)
+                0: source_byte = 8'hA5;
+                1: source_byte = 8'hA0;
+                2: source_byte = 8'h5A;
+                3: source_byte = 8'h50;
+                4: source_byte = 8'hF0; // FPGA replaces with cam_id.
+                5: source_byte = 8'h12;
+                6: source_byte = packet_no[7:0];
+                7: source_byte = 8'h00;
+                8: source_byte = packet_no[7:0];
+                9: source_byte = (packet_no == 2) ? 8'h04 :
+                                 (packet_no == 5) ? 8'h02 : 8'h00;
+                10: source_byte = 8'd80;
+                11: source_byte = 8'h00;
+                12: source_byte = packet_no[7:0];
+                13: source_byte = 8'h00;
+                default: begin
+                    if ((offset >= 24) && (offset <= 103))
+                        source_byte = (8'h31 + packet_no * 8'h27 +
+                                       offset) & 8'hff;
+                    else if ((offset >= 114) && (offset <= 125))
+                        source_byte = offset[0] ? 8'h5A : 8'hA5;
+                end
+            endcase
         end
     endfunction
 
@@ -94,26 +113,32 @@ module tb_Camera_Pipeline;
         end
     endfunction
 
-    task automatic build_expected;
+    task automatic build_packet;
         input integer packet_no;
         input [1:0] cam_id;
         input [7:0] generated_flags;
         integer i;
         reg [7:0] value;
-        reg [15:0] crc;
+        reg [15:0] ingress_crc;
+        reg [15:0] egress_crc;
         begin
-            crc = 16'hFFFF;
+            ingress_crc = 16'hFFFF;
+            egress_crc = 16'hFFFF;
             for (i = 0; i < 126; i = i + 1) begin
                 value = source_byte(packet_no, i);
+                source_packet[packet_no*PACKET_BYTES+i] = value;
+                ingress_crc = crc16_byte(ingress_crc, value);
                 if (i == 4)
                     value = {6'd0, cam_id};
-                if (i == 9)
-                    value = value | generated_flags;
+                if (i == 13)
+                    value = generated_flags;
                 expected[packet_no*PACKET_BYTES+i] = value;
-                crc = crc16_byte(crc, value);
+                egress_crc = crc16_byte(egress_crc, value);
             end
-            expected[packet_no*PACKET_BYTES+126] = crc[7:0];
-            expected[packet_no*PACKET_BYTES+127] = crc[15:8];
+            source_packet[packet_no*PACKET_BYTES+126] = ingress_crc[15:8];
+            source_packet[packet_no*PACKET_BYTES+127] = ingress_crc[7:0];
+            expected[packet_no*PACKET_BYTES+126] = egress_crc[15:8];
+            expected[packet_no*PACKET_BYTES+127] = egress_crc[7:0];
         end
     endtask
 
@@ -125,7 +150,7 @@ module tb_Camera_Pipeline;
                 @(negedge cam0_pclk);
                 if (i == 0)
                     cam0_href = 1'b1;
-                cam0_data = source_byte(packet_no, i);
+                cam0_data = source_packet[packet_no*PACKET_BYTES+i];
             end
             @(negedge cam0_pclk);
             cam0_href = 1'b0;
@@ -141,7 +166,7 @@ module tb_Camera_Pipeline;
                 @(negedge cam1_pclk);
                 if (i == 0)
                     cam1_href = 1'b1;
-                cam1_data = source_byte(packet_no, i);
+                cam1_data = source_packet[packet_no*PACKET_BYTES+i];
             end
             @(negedge cam1_pclk);
             cam1_href = 1'b0;
@@ -149,21 +174,38 @@ module tb_Camera_Pipeline;
         end
     endtask
 
-    task automatic send_cam2_short_packet;
+    task automatic send_cam2_packet;
         input integer packet_no;
+        input integer packet_length;
         integer i;
         begin
-            // Only bytes 0..125 arrive. Line_Buffer pads the missing CRC tail,
-            // Camera_Capture sets LENGTH_ERROR, and Byte_Replacer creates CRC.
-            for (i = 0; i < 126; i = i + 1) begin
+            for (i = 0; i < packet_length; i = i + 1) begin
                 @(negedge cam2_pclk);
                 if (i == 0)
                     cam2_href = 1'b1;
-                cam2_data = source_byte(packet_no, i);
+                cam2_data = source_packet[packet_no*PACKET_BYTES+i];
             end
             @(negedge cam2_pclk);
             cam2_href = 1'b0;
             cam2_data = 8'd0;
+        end
+    endtask
+
+    task automatic send_cam3_long_packet;
+        input integer packet_no;
+        integer i;
+        begin
+            for (i = 0; i < 129; i = i + 1) begin
+                @(negedge cam3_pclk);
+                if (i == 0)
+                    cam3_href = 1'b1;
+                cam3_data = (i < PACKET_BYTES)
+                            ? source_packet[packet_no*PACKET_BYTES+i]
+                            : 8'hDE;
+            end
+            @(negedge cam3_pclk);
+            cam3_href = 1'b0;
+            cam3_data = 8'd0;
         end
     endtask
 
@@ -196,12 +238,20 @@ module tb_Camera_Pipeline;
     end
 
     initial begin
-        // packet 0 = cam0 row0 (FIRST), packet 1 = cam1 row0 (FIRST),
-        // packet 2 = cam0 row1 (LAST). Existing row_flags are OR-preserved.
-        build_expected(0, 2'd0, 8'h01);
-        build_expected(1, 2'd1, 8'h01);
-        build_expected(2, 2'd0, 8'h02);
-        build_expected(3, 2'd2, 8'h09); // FIRST_ROW | LENGTH_ERROR
+        // offset 9 is sender-owned and byte exact.  Packets 3 and 4 exercise
+        // the 127-byte pad and 129-byte truncate paths; packet 5 proves that
+        // neither malformed row contaminates the next normal row.
+        build_packet(0, 2'd0, 8'h00);
+        build_packet(1, 2'd1, 8'h00);
+        // Packet 2 carries a deliberately damaged MCU CRC. Camera_Capture must
+        // set only ingress-audit bit 0x10, after which Byte_Replacer protects
+        // that patched status with a new valid egress CRC.
+        build_packet(2, 2'd0, 8'h10);
+        source_packet[2*PACKET_BYTES+127] =
+            source_packet[2*PACKET_BYTES+127] ^ 8'h01;
+        build_packet(3, 2'd2, 8'h08);
+        build_packet(4, 2'd3, 8'h08);
+        build_packet(5, 2'd2, 8'h00);
 
         repeat (8) @(posedge sys_clk);
         @(negedge sys_clk);
@@ -218,10 +268,22 @@ module tb_Camera_Pipeline;
         send_cam0_packet(2);
 
         repeat (4) @(negedge cam2_pclk);
-        send_cam2_short_packet(3);
+        send_cam2_packet(3, 127);
+
+        repeat (4) @(negedge cam3_pclk);
+        send_cam3_long_packet(4);
+
+        repeat (4) @(negedge cam2_pclk);
+        send_cam2_packet(5, 128);
 
         wait (output_index == TEST_PACKETS * PACKET_BYTES);
-        repeat (10) @(posedge sys_clk);
+        repeat (40) @(posedge sys_clk);
+
+        if (output_index != TEST_PACKETS * PACKET_BYTES) begin
+            $display("ERROR normalized packet count output_index=%0d",
+                     output_index);
+            errors = errors + 1;
+        end
 
         if ({drop3, drop2, drop1, drop0} !== 128'd0) begin
             $display("ERROR unexpected dropped packet count");
@@ -229,7 +291,7 @@ module tb_Camera_Pipeline;
         end
 
         if (errors == 0)
-            $display("PASS: 4-camera LB arbitration, header merge and CRC-16");
+            $display("PASS: ingress CRC audit, egress CRC, arbitration and length normalization");
         else
             $display("FAIL: %0d errors", errors);
         $finish;

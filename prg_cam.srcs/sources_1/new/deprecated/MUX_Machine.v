@@ -2,6 +2,10 @@
 // DEPRECATED (2026-07 FIFO/SRAM refactor): direct one-hot stream selection at
 // the top level replaces this extra mux wrapper.
 `ifdef ENABLE_DEPRECATED_CAMERA_GLUE
+// 注释导读：这是纯组合 4:1 mux，没有 SM。grant 必须是 one-hot；如果多个 bit
+// 同时为 1，selected_local_cam_id 的条件链按 bit0->bit3 优先，可能掩盖错误。
+// valid 仅表示存在 grant，不等价于 px_valid_ext；真正像素有效由所选通道的
+// px_valid_N 决定。data/line/frame/final 和 cam_id 必须按同一选择结果对齐。
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: MUX_Machine
 // Role: Pure combinational multiplexer for 4 camera interfaces. It selects the
@@ -20,7 +24,7 @@
 // and upgrade the instances in your block design.
 //////////////////////////////////////////////////////////////////////////////////
 module MUX_Machine #(
-    parameter BASE_CAM_ID = 0
+    parameter BASE_CAM_ID = 0 // 两组四路 mux 级联时用于形成全局 camera ID
 ) (
     // ---- Camera Interfaces (4 physical ports) ----
     input  wire [15:0] data_in_0,
@@ -48,7 +52,7 @@ module MUX_Machine #(
     input  wire        final_frame_3,
 
     // ---- Control Interface ----
-    input  wire [3:0]  grant,            // 8-bit one-hot grant from the global arbiter
+    input  wire [3:0]  grant,            // 4-bit one-hot grant from the global arbiter
 
     // ---- Selected Outputs to AXI4_Compiler ----
     output wire  [15:0] data_out,
@@ -69,9 +73,11 @@ module MUX_Machine #(
     // highly-optimized, one-hot priority routing, eliminating any sequential
     // inference and ensuring zero transmission delay.
     // ==========================================================================
+    // grant 非零表示 mux owner 存在；不检查 one-hot 合法性。
     assign valid = (grant != 0) ? 1'b1 : 1'b0;
 
     // Determine the selected local camera ID based on the local 4-bit grant slice.
+    // 优先条件编码器把 one-hot 转换为 2-bit 本地索引。
     wire [1:0] selected_local_cam_id = grant[0] ? 2'd0 :
                                        grant[1] ? 2'd1 :
                                        grant[2] ? 2'd2 :
@@ -105,6 +111,7 @@ module MUX_Machine #(
                            
 
     // Calculate the global camera ID by adding the base to the locally selected ID.
+    // 这是组合加法；grant 锁定期间输出 cam_id 才稳定。
     assign cam_id        = selected_local_cam_id + BASE_CAM_ID[2:0];
 
 endmodule

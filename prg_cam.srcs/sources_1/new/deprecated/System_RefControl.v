@@ -2,6 +2,11 @@
 // DEPRECATED (2026-07 FIFO/SRAM refactor): reference-frame DMA controller.
 // Define ENABLE_DEPRECATED_AXI_DDR2 only when restoring the old DDR2 backend.
 `ifdef ENABLE_DEPRECATED_AXI_DDR2
+// 注释导读（历史参考帧 DMA 控制器）：
+// 本模块与 Send_Control 使用相同 AXI-Lite SM，但启动条件更严格：必须同时有
+// frame_done_pulse、Reference_req、匹配 REFERENCE_CAM_ID 且 frame_ptr==0。
+// target_awaddr 固定指向参考相机基址。wr_step 选择 DMA 寄存器，state 管理
+// AW/W/B 握手和中断等待；intr_rise 触发 WR_CLR_INTR 后回到 IDLE。
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: System_RefControl
 // Role: Reference-frame DMA controller.
@@ -28,8 +33,8 @@
 //////////////////////////////////////////////////////////////////////////////////
 module System_RefControl #(
     // C3 Fix: Frame size is 600 lines * 2048 bytes/line
-    parameter FRAME_BYTE_LENGTH = 32'd1228800,
-    parameter [2:0] REFERENCE_CAM_ID = 3'd0
+    parameter FRAME_BYTE_LENGTH = 32'd1228800, // DMA MM2S 一帧传输长度
+    parameter [2:0] REFERENCE_CAM_ID = 3'd0    // 唯一允许触发参考传输的相机
 )(
     // ---- Ring Buffer Input (from AXI4_Compiler) ----
     input  wire        frame_done_pulse, // Single-cycle pulse indicating a frame is ready
@@ -42,7 +47,7 @@ module System_RefControl #(
     
     // ---- AXI DMA Interface ----
     input  wire        DMA_interrupt,    // Interrupt from AXI DMA (mm2s_introut)
-    input  wire        Reference_req,
+    input  wire        Reference_req,   // 上层允许/请求刷新参考帧
     
     // ---- AXI4-Lite Master Interface ----
     // Write Address Channel
@@ -81,12 +86,13 @@ module System_RefControl #(
     localparam [31:0] DMA_DMACR_IOC_IRQEN = 32'h0000_1000;
     localparam [31:0] DMA_DMASR_IOC_IRQ   = 32'h0000_1000;
 
-    reg [31:0] latched_target_addr;
+    reg [31:0] latched_target_addr; // 事务启动时冻结的 DMA 源地址
+    // 参考路径固定读取 frame 0，所以没有叠加 FRAME_STRIDE_SHIFT。
     wire [31:0] target_awaddr = 32'h8000_0000 
                               + (REFERENCE_CAM_ID << CAM_STRIDE_SHIFT) ;
     
     // Edge detector for DMA interrupt signal
-    reg intr_d1, intr_d2;
+    reg intr_d1, intr_d2; // interrupt 两拍采样；intr_rise 是单周期事件
     always @(posedge axi_clk or posedge rst) begin
         if (rst) {intr_d2, intr_d1} <= 2'b00;
         else     {intr_d2, intr_d1} <= {intr_d1, DMA_interrupt};
@@ -101,13 +107,14 @@ module System_RefControl #(
                WR_ADDR     = 3'd1, // Write to Source Address Register
                WR_LEN      = 3'd2, // Write to Length Register (this starts the transfer)
                WR_CLR_INTR = 3'd3; // C5 Fix: Write to Status Register to clear interrupt
-    reg [2:0] wr_step;
+    reg [2:0] wr_step; // CTRL/ADDR/LEN/CLR_INTR 微步骤
 
     reg [31:0] next_awaddr;
     reg [31:0] next_wdata;
 
     // Maps the current step (wr_step) to the correct AXI-Lite address and data
     always @(*) begin
+        // 组合译码只准备当前步骤的地址/数据，真正保持由 WRITE_CMD 寄存。
         case (wr_step)
             WR_CTRL: begin
                 next_awaddr = DMA_MM2S_DMACR;
@@ -142,7 +149,7 @@ module System_RefControl #(
                WAIT_AW_W  = 3'd2, // Wait for both AW and W handshakes to complete
                WAIT_B     = 3'd3, // Wait for the B-channel response
                WAIT_INTR  = 3'd4; // Wait for the DMA transfer to finish (via interrupt)
-    reg [2:0] state;
+    reg [2:0] state; // AXI-Lite AW/W/B + interrupt 顺序控制 SM
     
     // C4 Fix: The reset logic is now a simple synchronous reset.
     // The `rst_conf` anti-pattern has been removed.
@@ -161,6 +168,7 @@ module System_RefControl #(
         end else begin
             case(state)
                 IDLE: begin
+                    // 只有目标 camera 的 frame0 完成且上层请求有效时才启动。
                     wr_step <= WR_CTRL; // Reset to the first programming step
                     
                     if (frame_done_pulse && Reference_req &&
@@ -181,6 +189,7 @@ module System_RefControl #(
                 end
                 
                 WAIT_AW_W: begin
+                    // AWREADY 与 WREADY 可不同拍到达，两个 valid 独立撤销。
                     // State 2: Wait for both AW and W channels to be accepted by the slave.
                     // This decoupled approach handles any latency variation on the two channels.
                     if (m_axi_lite_awvalid && m_axi_lite_awready) m_axi_lite_awvalid <= 1'b0;
@@ -197,6 +206,7 @@ module System_RefControl #(
                 end
                 
                 WAIT_B: begin
+                    // 收到 BVALID 才推进 wr_step；BRESP 在此历史实现中未判错。
                     // State 3: Wait for the write response and advance the programming sequence
                     if (m_axi_lite_bvalid && m_axi_lite_bready) begin
                         m_axi_lite_bready <= 1'b0;
@@ -218,6 +228,7 @@ module System_RefControl #(
                 end
                 
                 WAIT_INTR: begin
+                    // DMA 完成中断上升沿到来后，先写 DMASR 清 IOC，再允许新请求。
                     // State 4: Wait for the DMA to assert its interrupt line
                     if (intr_rise) begin
                         // C5 Fix: Don't go to IDLE yet. First, clear the interrupt.
