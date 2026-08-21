@@ -43,7 +43,7 @@ synth_ip -force [get_ips ethernet_clk_wiz]
 # Keep the Camera/ILA build selection explicit at the synthesis boundary so a
 # saved GUI setting cannot silently disable either routed camera input.
 synth_design -top Camera_Ethernet_Top -part xc7a50ticsg324-1L \
-    -generic {USE_CAMERA_PIPELINE=1 USE_BYTE_FIFO_PATH=1 ENABLE_CAM1=1 CAMERA_LINES_PER_FRAME=480}
+    -generic {USE_CAMERA_PIPELINE=1 USE_BYTE_FIFO_PATH=1 ENABLE_CAM1=1 CAMERA_CRC_ENABLE=1 CAMERA_INGRESS_CRC_ENABLE=1 CAMERA_LINES_PER_FRAME=480}
 
 set taxi_mii_tx_reset_pins [get_pins -quiet -of_objects \
     [get_cells -hier -quiet -filter \
@@ -94,7 +94,9 @@ connect_probe $ila_name 17 16 [exact_bus camera1_current_byte_count_dbg 16]
 connect_probe $ila_name 18 16 [exact_bus camera1_last_line_byte_count_dbg 16]
 connect_probe $ila_name 19 8 [exact_bus camera1_line_flags_dbg 8]
 connect_probe $ila_name 20 1 [exact_net camera1_line_end_dbg]
-connect_probe $ila_name 21 1 [exact_net camera1_length_error_pulse_dbg]
+# line_flags probe 19 already exposes length bit 0x08. Reuse the former
+# redundant length pulse probe for the newly enabled ingress-CRC audit event.
+connect_probe $ila_name 21 1 [exact_net camera1_crc_error_pulse_dbg]
 connect_probe $ila_name 22 1 [exact_net camera1_capture_byte_valid_dbg]
 connect_probe $ila_name 23 32 [exact_bus camera_drop_count_1 32]
 connect_probe $ila_name 24 8 [exact_bus u_camera_pipeline/c1_data 8]

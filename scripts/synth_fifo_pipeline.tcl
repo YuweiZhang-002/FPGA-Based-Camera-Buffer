@@ -23,7 +23,7 @@ read_verilog [list \
 
 synth_design -top Camera_Pipeline -part xc7a50ticsg324-1L \
     -mode out_of_context \
-    -generic CRC_ENABLE=$crc_enable
+    -generic [list CRC_ENABLE=$crc_enable INGRESS_CRC_ENABLE=1]
 create_clock -name sys_clk -period 10.000 [get_ports sys_clk]
 
 report_utilization -file ${report_prefix}_utilization.rpt
@@ -34,5 +34,5 @@ set worst_path [get_timing_paths -delay_type max -max_paths 1 -quiet]
 if {[llength $worst_path] > 0} {
     puts "FIFO_PIPELINE_WNS_NS=[get_property SLACK $worst_path]"
 }
-puts "FIFO_PIPELINE_SYNTHESIS_PASS CRC_ENABLE=$crc_enable MODE=$crc_mode"
+puts "FIFO_PIPELINE_SYNTHESIS_PASS CRC_ENABLE=$crc_enable MODE=$crc_mode INGRESS_CRC_ENABLE=1"
 exit

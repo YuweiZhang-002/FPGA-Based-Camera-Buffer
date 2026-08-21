@@ -33,6 +33,7 @@ module tb_Camera_Capture_Data_Phase;
         .CAM_ID          (2'd0),
         .PACKET_BYTES    (PACKET_BYTES),
         .LINES_PER_FRAME (480),
+        .INGRESS_CRC_ENABLE(1'b0), // DATA phase test uses no CRC vector
         .PCLK_FILTER_LEN (2)
     ) dut (
         .pclk                 (pclk),

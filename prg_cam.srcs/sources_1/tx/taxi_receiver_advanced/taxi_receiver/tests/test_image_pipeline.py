@@ -2,6 +2,8 @@ import csv
 import json
 import time
 
+import pytest
+
 from taxi_receiver.capture import SyntheticFrameSource
 from taxi_receiver.image_pipeline import CameraImagePipeline
 from taxi_receiver.packet_format import (
@@ -147,6 +149,10 @@ def test_complete_cam0_frame_writes_numeric_image_and_row_csv(tmp_path):
     assert metadata["frame_id"] == 42
     assert metadata["width"] == 640
     assert metadata["height"] == 2
+    assert metadata["capture_started_at"] is not None
+    assert metadata["capture_ended_at"] is not None
+    assert metadata["capture_started_at"] <= metadata["capture_center_timestamp"]
+    assert metadata["capture_center_timestamp"] <= metadata["capture_ended_at"]
 
     csv_text = (cam0 / "rows_v2.csv").read_text("utf-8")
     assert csv_text.endswith("\n\n")
@@ -186,6 +192,51 @@ def test_complete_cam0_frame_is_idempotent_when_republished(tmp_path):
     assert sink.stats.raw_write_attempts == 1
     assert sink.stats.raw_write_success == 1
     assert sink.stats.raw_write_failures == 0
+
+
+def test_legacy_sidecar_without_capture_timing_is_compatibly_idempotent(
+    tmp_path,
+):
+    images = tmp_path / "images"
+    sink = CameraImagePipeline(images, expected_rows=480)
+    frame = _completed_frame(frame_id=45)
+    frame.capture_started_at = 1000.0
+    frame.capture_ended_at = 1000.1
+
+    first = sink.archive_frame(frame)
+    metadata_path = first.with_suffix(".json")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    for key in (
+        "capture_started_at",
+        "capture_ended_at",
+        "capture_center_timestamp",
+    ):
+        metadata.pop(key)
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    assert sink.archive_frame(frame) == first
+
+    metadata["bit_order"] = "lsb_first"
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(FileExistsError):
+        sink.archive_frame(frame)
+
+    metadata["bit_order"] = "msb_first"
+    metadata["capture_started_at"] = 999.0
+    metadata["capture_ended_at"] = 999.1
+    metadata["capture_center_timestamp"] = 999.05
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(FileExistsError):
+        sink.archive_frame(frame)
 
 
 def test_cam1_is_isolated_and_last_bit_is_masked_not_compared_whole(tmp_path):

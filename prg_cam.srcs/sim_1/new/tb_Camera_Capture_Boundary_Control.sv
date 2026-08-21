@@ -35,6 +35,7 @@ module tb_Camera_Capture_Boundary_Control;
         .CAM_ID          (2'd0),
         .PACKET_BYTES    (PACKET_BYTES),
         .LINES_PER_FRAME (480),
+        .INGRESS_CRC_ENABLE(1'b0), // boundary test, not a CRC-vector test
         .PCLK_FILTER_LEN (2)
     ) dut (
         .pclk                 (pclk),

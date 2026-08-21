@@ -158,6 +158,54 @@ def test_identical_archive_is_idempotent(tmp_path):
     assert summary[0]["frame_id"] == "8"
 
 
+def test_legacy_archive_without_capture_timing_is_compatibly_idempotent(
+    tmp_path,
+):
+    reassembler = FrameReassembler()
+    storage = StorageAndPipeline(tmp_path, collision_policy="error")
+    reassembler.on_row(_packet(0, 81, 0, flags=0))
+    completed = reassembler.on_row(
+        _packet(0, 81, 1, flags=FLAG_LAST_ROW)
+    )
+    completed.capture_started_at = 1000.0
+    completed.capture_ended_at = 1000.1
+
+    first = storage.archive(completed)
+    metadata_path = first / "metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    for key in (
+        "capture_started_at",
+        "capture_ended_at",
+        "capture_center_timestamp",
+    ):
+        metadata.pop(key)
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    assert storage.archive(completed) == first
+
+    metadata["status"] = "PARTIAL"
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(FileExistsError):
+        storage.archive(completed)
+
+    metadata["status"] = "COMPLETE"
+    metadata["capture_started_at"] = 999.0
+    metadata["capture_ended_at"] = 999.1
+    metadata["capture_center_timestamp"] = 999.05
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(FileExistsError):
+        storage.archive(completed)
+
+
 def test_rewriting_only_timing_metadata_is_idempotent(tmp_path):
     reassembler = FrameReassembler()
     storage = StorageAndPipeline(tmp_path)

@@ -19,9 +19,11 @@
 module Camera_Pipeline #(
     parameter integer LINES_PER_FRAME   = 480, // href 行数达到此值即 frame 回卷
     parameter integer PACKET_FIFO_DEPTH = 512, // 末级 9-bit FIFO 深度
-    // Egress policy only: 1 regenerates CRC after FPGA patches; 0 emits the
-    // explicit FF/FF placeholder. The MCU ingress FF/FF tail is not compared.
+    // Egress policy: 1 regenerates CRC after FPGA patches; 0 emits FF/FF.
     parameter         CRC_ENABLE = 1'b1,
+    // Ingress audit policy: 1 checks the MCU CRC before any FPGA patch and
+    // reports a mismatch through fpga_status bit 0x10 at wire offset 13.
+    parameter         INGRESS_CRC_ENABLE = 1'b1,
     // A routed but disconnected cam1 remains visible to ILA, while this gate
     // prevents its asynchronous pin noise from creating buffer requests.
     parameter integer ENABLE_CAM1 = 1,
@@ -65,8 +67,8 @@ module Camera_Pipeline #(
     output wire        packet_fifo_almost_full, // 剩余容量不足 128 word
 
     // Camera0 is the only physical input in Camera_Ethernet_Top.  These
-    // diagnostics expose the exact LENGTH_ERROR decision without changing the
-    // packet path.
+    // diagnostics expose the exact length/ingress-CRC decision without
+    // changing the packet path.
     output wire [15:0] debug_cam0_current_byte_count,
     output wire [15:0] debug_cam0_last_line_byte_count,
     output wire [7:0]  debug_cam0_line_flags,
@@ -118,7 +120,10 @@ module Camera_Pipeline #(
 
     wire ovf0, ovf1, ovf2, ovf3;
 
-    Camera_Capture #(.CAM_ID(CAM0_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
+    Camera_Capture #(
+        .CAM_ID(CAM0_ID), .LINES_PER_FRAME(LINES_PER_FRAME),
+        .INGRESS_CRC_ENABLE(INGRESS_CRC_ENABLE)
+    )
     u_capture_0 (
         .pclk(cam0_pclk), .sys_clk(sys_clk), .rst(rst),
         .capture_enable(capture_enable),
@@ -132,7 +137,10 @@ module Camera_Pipeline #(
         .length_error_pulse(c0_length_error_pulse)
     );
 
-    Camera_Capture #(.CAM_ID(CAM1_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
+    Camera_Capture #(
+        .CAM_ID(CAM1_ID), .LINES_PER_FRAME(LINES_PER_FRAME),
+        .INGRESS_CRC_ENABLE(INGRESS_CRC_ENABLE)
+    )
     u_capture_1 (
         .pclk(cam1_pclk), .sys_clk(sys_clk), .rst(rst),
         .capture_enable(capture_enable && (ENABLE_CAM1 != 0)),
@@ -146,7 +154,10 @@ module Camera_Pipeline #(
         .length_error_pulse(c1_length_error_pulse)
     );
 
-    Camera_Capture #(.CAM_ID(CAM2_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
+    Camera_Capture #(
+        .CAM_ID(CAM2_ID), .LINES_PER_FRAME(LINES_PER_FRAME),
+        .INGRESS_CRC_ENABLE(INGRESS_CRC_ENABLE)
+    )
     u_capture_2 (
         .pclk(cam2_pclk), .sys_clk(sys_clk), .rst(rst),
         .capture_enable(capture_enable),
@@ -158,7 +169,10 @@ module Camera_Pipeline #(
         .last_line_byte_count(), .length_error_pulse()
     );
 
-    Camera_Capture #(.CAM_ID(CAM3_ID), .LINES_PER_FRAME(LINES_PER_FRAME))
+    Camera_Capture #(
+        .CAM_ID(CAM3_ID), .LINES_PER_FRAME(LINES_PER_FRAME),
+        .INGRESS_CRC_ENABLE(INGRESS_CRC_ENABLE)
+    )
     u_capture_3 (
         .pclk(cam3_pclk), .sys_clk(sys_clk), .rst(rst),
         .capture_enable(capture_enable),

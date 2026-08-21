@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2.1 (win64) Build 6403652 Thu Mar 19 19:48:24 GMT 2026
-| Date         : Sat Aug  1 18:49:29 2026
+| Date         : Thu Aug 20 10:41:11 2026
 | Host         : LAPTOP-GFLFTQ3I running 64-bit major release  (build 9200)
 | Command      : report_timing_summary -delay_type min_max -report_unconstrained -check_timing_verbose -file D:/prg/prg_cam/docs/reports/ethernet_bringup/post_route_timing_summary.rpt
 | Design       : Camera_Ethernet_Top
@@ -170,7 +170,7 @@ ETH_REFCLK
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-      1.815        0.000                      0                 2391        0.026        0.000                      0                 2391        3.000        0.000                       0                   876  
+      1.640        0.000                      0                 2901        0.024        0.000                      0                 2901        3.000        0.000                       0                   982  
 
 
 All user specified timing constraints are met.
@@ -198,11 +198,11 @@ sys_clk_pin                      {0.000 5.000}      10.000          100.000
 
 Clock                                WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----                                -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-sys_clk_pin                            3.098        0.000                      0                 1574        0.077        0.000                      0                 1574        3.000        0.000                       0                   659  
+sys_clk_pin                            2.295        0.000                      0                 2053        0.024        0.000                      0                 2053        3.000        0.000                       0                   765  
   clkfbout_ethernet_clk_wiz                                                                                                                                                        7.845        0.000                       0                     3  
   phy_ref_clk_ethernet_clk_wiz                                                                                                                                                    17.845        0.000                       0                     6  
-  rmii_ref_clk_ethernet_clk_wiz       18.096        0.000                      0                   28        0.160        0.000                      0                   28        9.500        0.000                       0                    30  
-    mii_tx_clk                        33.951        0.000                      0                  436        0.068        0.000                      0                  436       19.500        0.000                       0                   178  
+  rmii_ref_clk_ethernet_clk_wiz       17.753        0.000                      0                   28        0.155        0.000                      0                   28        9.500        0.000                       0                    30  
+    mii_tx_clk                        33.479        0.000                      0                  436        0.033        0.000                      0                  436       19.500        0.000                       0                   178  
 
 
 ------------------------------------------------------------------------------------------------
@@ -212,11 +212,11 @@ sys_clk_pin                            3.098        0.000                      0
 
 From Clock                     To Clock                           WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
 ----------                     --------                           -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
-mii_tx_clk                     sys_clk_pin                          3.473        0.000                      0                   14        1.550        0.000                      0                   14  
-rmii_ref_clk_ethernet_clk_wiz  phy_ref_clk_ethernet_clk_wiz         7.822        0.000                      0                    3        7.991        0.000                      0                    3  
+mii_tx_clk                     sys_clk_pin                          3.851        0.000                      0                   14        1.379        0.000                      0                   14  
+rmii_ref_clk_ethernet_clk_wiz  phy_ref_clk_ethernet_clk_wiz         7.239        0.000                      0                    3        8.017        0.000                      0                    3  
 phy_ref_clk_ethernet_clk_wiz   eth_refclk_out                       5.288        0.000                      0                    3        8.048        0.000                      0                    3  
-mii_tx_clk                     rmii_ref_clk_ethernet_clk_wiz       13.613        0.000                      0                    6        0.182        0.000                      0                    6  
-sys_clk_pin                    mii_tx_clk                           6.107        0.000                      0                   14        0.026        0.000                      0                   14  
+mii_tx_clk                     rmii_ref_clk_ethernet_clk_wiz       13.784        0.000                      0                    6        0.262        0.000                      0                    6  
+sys_clk_pin                    mii_tx_clk                           5.792        0.000                      0                   14        0.214        0.000                      0                   14  
 
 
 ------------------------------------------------------------------------------------------------
@@ -226,10 +226,10 @@ sys_clk_pin                    mii_tx_clk                           6.107       
 
 Path Group                     From Clock                     To Clock                           WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
 ----------                     ----------                     --------                           -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
-**async_default**              rmii_ref_clk_ethernet_clk_wiz  rmii_ref_clk_ethernet_clk_wiz       18.239        0.000                      0                   24        0.400        0.000                      0                   24  
-**async_default**              sys_clk_pin                    rmii_ref_clk_ethernet_clk_wiz        7.416        0.000                      0                    4        0.299        0.000                      0                    4  
-**async_default**              mii_tx_clk                     sys_clk_pin                          3.483        0.000                      0                    4        1.931        0.000                      0                    4  
-**async_default**              sys_clk_pin                    sys_clk_pin                          1.815        0.000                      0                  286        0.530        0.000                      0                  286  
+**async_default**              rmii_ref_clk_ethernet_clk_wiz  rmii_ref_clk_ethernet_clk_wiz       18.006        0.000                      0                   24        0.354        0.000                      0                   24  
+**async_default**              sys_clk_pin                    rmii_ref_clk_ethernet_clk_wiz        7.419        0.000                      0                    4        0.329        0.000                      0                    4  
+**async_default**              mii_tx_clk                     sys_clk_pin                          3.969        0.000                      0                    4        1.705        0.000                      0                    4  
+**async_default**              sys_clk_pin                    sys_clk_pin                          1.640        0.000                      0                  317        0.723        0.000                      0                  317  
 
 
 ------------------------------------------------------------------------------------------------
@@ -264,27 +264,27 @@ Path Group                    From Clock                    To Clock
 From Clock:  sys_clk_pin
   To Clock:  sys_clk_pin
 
-Setup :            0  Failing Endpoints,  Worst Slack        3.098ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.077ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        2.295ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.024ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        3.000ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             3.098ns  (required time - arrival time)
-  Source:                 u_camera_pipeline/u_packet_fifo/mem_reg/CLKBWRCLK
-                            (rising edge-triggered cell RAMB18E1 clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[0]/CE
+Slack (MET) :             2.295ns  (required time - arrival time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync2_reg_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            packet_byte_index_dbg_reg[0]/R
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             sys_clk_pin
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (sys_clk_pin rise@10.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        6.650ns  (logic 2.950ns (44.358%)  route 3.700ns (55.642%))
-  Logic Levels:           4  (LUT1=1 LUT3=1 LUT4=1 LUT6=1)
-  Clock Path Skew:        -0.011ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.894ns = ( 14.894 - 10.000 ) 
-    Source Clock Delay      (SCD):    5.164ns
+  Data Path Delay:        6.817ns  (logic 2.386ns (35.000%)  route 4.431ns (65.000%))
+  Logic Levels:           7  (CARRY4=2 LUT1=1 LUT2=1 LUT3=1 LUT4=1 LUT6=1)
+  Clock Path Skew:        -0.105ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.826ns = ( 14.826 - 10.000 ) 
+    Source Clock Delay      (SCD):    5.190ns
     Clock Pessimism Removal (CPR):    0.259ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -301,21 +301,28 @@ Slack (MET) :             3.098ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.489     1.489 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.967     3.455    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     3.551 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.613     5.164    u_camera_pipeline/u_packet_fifo/sys_clk
-    RAMB18_X0Y16         RAMB18E1                                     r  u_camera_pipeline/u_packet_fifo/mem_reg/CLKBWRCLK
+                         net (fo=762, routed)         1.638     5.190    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
+    SLICE_X1Y39          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync2_reg_reg[0]/C
   -------------------------------------------------------------------    -------------------
-    RAMB18_X0Y16         RAMB18E1 (Prop_ramb18e1_CLKBWRCLK_DOBDO[8])
-                                                      2.454     7.618 r  u_camera_pipeline/u_packet_fifo/mem_reg/DOBDO[8]
-                         net (fo=1, routed)           0.778     8.397    camera_packet_last
-    SLICE_X10Y41         LUT1 (Prop_lut1_I0_O)        0.124     8.521 r  camera_packet_last_inst/O
-                         net (fo=2, routed)           0.753     9.274    u_ethernet_frame_adapter/packet_last
-    SLICE_X10Y46         LUT3 (Prop_lut3_I1_O)        0.124     9.398 r  u_ethernet_frame_adapter/frame_last_INST_0/O
-                         net (fo=8, routed)           0.718    10.115    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/mem_wr_data[0]
-    SLICE_X8Y47          LUT6 (Prop_lut6_I2_O)        0.124    10.239 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/wr_ptr_sync_commit_reg[12]_i_3/O
-                         net (fo=15, routed)          0.493    10.732    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/wr_ptr_sync_commit_reg[12]_i_3_n_0
-    SLICE_X8Y50          LUT4 (Prop_lut4_I3_O)        0.124    10.856 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/wr_ptr_sync_commit_reg[12]_i_1/O
-                         net (fo=13, routed)          0.959    11.815    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst_n_20
-    SLICE_X3Y46          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[0]/CE
+    SLICE_X1Y39          FDRE (Prop_fdre_C_Q)         0.456     5.646 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync2_reg_reg[0]/Q
+                         net (fo=1, routed)           0.947     6.593    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/g[0]
+    SLICE_X1Y40          LUT6 (Prop_lut6_I1_O)        0.124     6.717 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/full_carry_i_4/O
+                         net (fo=1, routed)           0.000     6.717    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/full_carry_i_4_n_0
+    SLICE_X1Y40          CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.532     7.249 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/full_carry/CO[3]
+                         net (fo=1, routed)           0.000     7.249    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/full_carry_n_0
+    SLICE_X1Y41          CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.271     7.520 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/full_carry__0/CO[0]
+                         net (fo=6, routed)           0.872     8.392    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/overflow_reg_reg[0]
+    SLICE_X6Y43          LUT3 (Prop_lut3_I0_O)        0.373     8.765 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/frame_ready_INST_0/O
+                         net (fo=5, routed)           0.696     9.461    u_ethernet_frame_adapter/frame_ready
+    SLICE_X8Y43          LUT2 (Prop_lut2_I0_O)        0.150     9.611 r  u_ethernet_frame_adapter/packet_ready_INST_0/O
+                         net (fo=1, routed)           0.469    10.081    packet_ready
+    SLICE_X8Y43          LUT1 (Prop_lut1_I0_O)        0.328    10.409 r  packet_ready_inst/O
+                         net (fo=8, routed)           0.707    11.116    camera_packet_ready
+    SLICE_X8Y43          LUT4 (Prop_lut4_I2_O)        0.152    11.268 r  packet_byte_index_dbg[6]_i_1/O
+                         net (fo=7, routed)           0.739    12.007    packet_byte_index_dbg[6]_i_1_n_0
+    SLICE_X10Y45         FDRE                                         r  packet_byte_index_dbg_reg[0]/R
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -325,16 +332,16 @@ Slack (MET) :             3.098ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.418    11.418 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.862    13.280    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    13.371 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.522    14.894    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
-    SLICE_X3Y46          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[0]/C
-                         clock pessimism              0.259    15.153    
-                         clock uncertainty           -0.035    15.117    
-    SLICE_X3Y46          FDRE (Setup_fdre_C_CE)      -0.205    14.912    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[0]
+                         net (fo=762, routed)         1.454    14.826    logic_clk
+    SLICE_X10Y45         FDRE                                         r  packet_byte_index_dbg_reg[0]/C
+                         clock pessimism              0.259    15.085    
+                         clock uncertainty           -0.035    15.049    
+    SLICE_X10Y45         FDRE (Setup_fdre_C_R)       -0.748    14.301    packet_byte_index_dbg_reg[0]
   -------------------------------------------------------------------
-                         required time                         14.912    
-                         arrival time                         -11.815    
+                         required time                         14.301    
+                         arrival time                         -12.007    
   -------------------------------------------------------------------
-                         slack                                  3.098    
+                         slack                                  2.295    
 
 
 
@@ -342,20 +349,20 @@ Slack (MET) :             3.098ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.077ns  (arrival time - required time)
-  Source:                 u_camera_pipeline/u_line_buffer_1/wr_ptr_reg[0]__0/C
+Slack (MET) :             0.024ns  (arrival time - required time)
+  Source:                 u_camera_pipeline/u_line_buffer_2/wr_ptr_reg[0]__0/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_camera_pipeline/u_line_buffer_1/length_mem_reg_0_3_0_5/RAMA/WADR0
+  Destination:            u_camera_pipeline/u_line_buffer_2/length_mem_reg_0_3_6_8/RAMA/WADR0
                             (rising edge-triggered cell RAMD32 clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             sys_clk_pin
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (sys_clk_pin rise@0.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        0.402ns  (logic 0.141ns (35.093%)  route 0.261ns (64.907%))
+  Data Path Delay:        0.347ns  (logic 0.141ns (40.606%)  route 0.206ns (59.394%))
   Logic Levels:           0  
-  Clock Path Skew:        0.015ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    1.991ns
-    Source Clock Delay      (SCD):    1.477ns
-    Clock Pessimism Removal (CPR):    0.499ns
+  Clock Path Skew:        0.013ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    1.985ns
+    Source Clock Delay      (SCD):    1.472ns
+    Clock Pessimism Removal (CPR):    0.500ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
@@ -366,12 +373,12 @@ Slack (MET) :             0.077ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.257     0.257 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.631     0.888    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.914 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.564     1.477    u_camera_pipeline/u_line_buffer_1/sys_clk
-    SLICE_X13Y35         FDRE                                         r  u_camera_pipeline/u_line_buffer_1/wr_ptr_reg[0]__0/C
+                         net (fo=762, routed)         0.559     1.472    u_camera_pipeline/u_line_buffer_2/sys_clk
+    SLICE_X9Y29          FDRE                                         r  u_camera_pipeline/u_line_buffer_2/wr_ptr_reg[0]__0/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X13Y35         FDRE (Prop_fdre_C_Q)         0.141     1.618 r  u_camera_pipeline/u_line_buffer_1/wr_ptr_reg[0]__0/Q
-                         net (fo=20, routed)          0.261     1.879    u_camera_pipeline/u_line_buffer_1/length_mem_reg_0_3_0_5/ADDRD0
-    SLICE_X14Y36         RAMD32                                       r  u_camera_pipeline/u_line_buffer_1/length_mem_reg_0_3_0_5/RAMA/WADR0
+    SLICE_X9Y29          FDRE (Prop_fdre_C_Q)         0.141     1.613 r  u_camera_pipeline/u_line_buffer_2/wr_ptr_reg[0]__0/Q
+                         net (fo=20, routed)          0.206     1.820    u_camera_pipeline/u_line_buffer_2/length_mem_reg_0_3_6_8/ADDRD0
+    SLICE_X8Y29          RAMD32                                       r  u_camera_pipeline/u_line_buffer_2/length_mem_reg_0_3_6_8/RAMA/WADR0
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -381,16 +388,16 @@ Slack (MET) :             0.077ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.445     0.445 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.685     1.129    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     1.158 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.833     1.991    u_camera_pipeline/u_line_buffer_1/length_mem_reg_0_3_0_5/WCLK
-    SLICE_X14Y36         RAMD32                                       r  u_camera_pipeline/u_line_buffer_1/length_mem_reg_0_3_0_5/RAMA/CLK
-                         clock pessimism             -0.499     1.492    
-    SLICE_X14Y36         RAMD32 (Hold_ramd32_CLK_WADR0)
-                                                      0.310     1.802    u_camera_pipeline/u_line_buffer_1/length_mem_reg_0_3_0_5/RAMA
+                         net (fo=762, routed)         0.827     1.985    u_camera_pipeline/u_line_buffer_2/length_mem_reg_0_3_6_8/WCLK
+    SLICE_X8Y29          RAMD32                                       r  u_camera_pipeline/u_line_buffer_2/length_mem_reg_0_3_6_8/RAMA/CLK
+                         clock pessimism             -0.500     1.485    
+    SLICE_X8Y29          RAMD32 (Hold_ramd32_CLK_WADR0)
+                                                      0.310     1.795    u_camera_pipeline/u_line_buffer_2/length_mem_reg_0_3_6_8/RAMA
   -------------------------------------------------------------------
-                         required time                         -1.802    
-                         arrival time                           1.879    
+                         required time                         -1.795    
+                         arrival time                           1.820    
   -------------------------------------------------------------------
-                         slack                                  0.077    
+                         slack                                  0.024    
 
 
 
@@ -404,7 +411,7 @@ Period(ns):         10.000
 Sources:            { CLK100MHZ }
 
 Check Type        Corner  Lib Pin             Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location         Pin
-Min Period        n/a     RAMB18E1/CLKARDCLK  n/a            2.944         10.000      7.056      RAMB18_X0Y14     u_camera_pipeline/u_line_buffer_0/packet_mem_reg/CLKARDCLK
+Min Period        n/a     RAMB18E1/CLKARDCLK  n/a            2.944         10.000      7.056      RAMB18_X0Y13     u_camera_pipeline/u_line_buffer_0/packet_mem_reg/CLKARDCLK
 Max Period        n/a     MMCME2_ADV/CLKIN1   n/a            100.000       10.000      90.000     MMCME2_ADV_X1Y0  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKIN1
 Low Pulse Width   Slow    MMCME2_ADV/CLKIN1   n/a            2.000         5.000       3.000      MMCME2_ADV_X1Y0  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKIN1
 High Pulse Width  Slow    MMCME2_ADV/CLKIN1   n/a            2.000         5.000       3.000      MMCME2_ADV_X1Y0  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKIN1
@@ -461,28 +468,28 @@ Max Period  n/a     MMCME2_ADV/CLKOUT1  n/a            213.360       20.000     
 From Clock:  rmii_ref_clk_ethernet_clk_wiz
   To Clock:  rmii_ref_clk_ethernet_clk_wiz
 
-Setup :            0  Failing Endpoints,  Worst Slack       18.096ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.160ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack       17.753ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.155ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        9.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             18.096ns  (required time - arrival time)
-  Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/action_reg/C
+Slack (MET) :             17.753ns  (required time - arrival time)
+  Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg/C
                             (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
-  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[1]/D
+  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/D
                             (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Path Group:             rmii_ref_clk_ethernet_clk_wiz
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            20.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@20.000ns - rmii_ref_clk_ethernet_clk_wiz rise@0.000ns)
-  Data Path Delay:        1.810ns  (logic 0.642ns (35.471%)  route 1.168ns (64.529%))
-  Logic Levels:           1  (LUT6=1)
-  Clock Path Skew:        -0.041ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.881ns = ( 24.881 - 20.000 ) 
-    Source Clock Delay      (SCD):    5.179ns
-    Clock Pessimism Removal (CPR):    0.257ns
+  Data Path Delay:        2.174ns  (logic 0.580ns (26.674%)  route 1.594ns (73.326%))
+  Logic Levels:           1  (LUT2=1)
+  Clock Path Skew:        -0.022ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.884ns = ( 24.884 - 20.000 ) 
+    Source Clock Delay      (SCD):    5.180ns
+    Clock Pessimism Removal (CPR):    0.274ns
   Clock Uncertainty:      0.082ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
     Discrete Jitter          (DJ):    0.147ns
@@ -502,14 +509,14 @@ Slack (MET) :             18.096ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.626     5.179    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X2Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/action_reg/C
+                         net (fo=28, routed)          1.627     5.180    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X0Y52          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X2Y53          FDCE (Prop_fdce_C_Q)         0.518     5.697 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/action_reg/Q
-                         net (fo=6, routed)           1.168     6.865    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/action
-    SLICE_X4Y53          LUT6 (Prop_lut6_I3_O)        0.124     6.989 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r[1]_i_1/O
-                         net (fo=1, routed)           0.000     6.989    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r[1]_i_1_n_0
-    SLICE_X4Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[1]/D
+    SLICE_X0Y52          FDCE (Prop_fdce_C_Q)         0.456     5.636 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg/Q
+                         net (fo=13, routed)          1.594     7.231    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r
+    SLICE_X1Y52          LUT2 (Prop_lut2_I1_O)        0.124     7.355 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift[3]_i_1/O
+                         net (fo=1, routed)           0.000     7.355    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift[3]_i_1_n_0
+    SLICE_X1Y52          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -524,16 +531,16 @@ Slack (MET) :             18.096ns  (required time - arrival time)
                                                      -3.129    21.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581    23.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091    23.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.507    24.881    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X4Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[1]/C
-                         clock pessimism              0.257    25.138    
-                         clock uncertainty           -0.082    25.057    
-    SLICE_X4Y53          FDCE (Setup_fdce_C_D)        0.029    25.086    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[1]
+                         net (fo=28, routed)          1.510    24.884    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X1Y52          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/C
+                         clock pessimism              0.274    25.158    
+                         clock uncertainty           -0.082    25.077    
+    SLICE_X1Y52          FDCE (Setup_fdce_C_D)        0.031    25.108    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]
   -------------------------------------------------------------------
-                         required time                         25.086    
-                         arrival time                          -6.989    
+                         required time                         25.108    
+                         arrival time                          -7.355    
   -------------------------------------------------------------------
-                         slack                                 18.096    
+                         slack                                 17.753    
 
 
 
@@ -541,20 +548,20 @@ Slack (MET) :             18.096ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.160ns  (arrival time - required time)
-  Source:                 u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
-                            (rising edge-triggered cell FDPE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
-  Destination:            u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[1]/D
-                            (rising edge-triggered cell FDPE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
+Slack (MET) :             0.155ns  (arrival time - required time)
+  Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[0]/C
+                            (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
+  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/D
+                            (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Path Group:             rmii_ref_clk_ethernet_clk_wiz
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@0.000ns - rmii_ref_clk_ethernet_clk_wiz rise@0.000ns)
-  Data Path Delay:        0.220ns  (logic 0.164ns (74.580%)  route 0.056ns (25.420%))
+  Data Path Delay:        0.241ns  (logic 0.141ns (58.505%)  route 0.100ns (41.495%))
   Logic Levels:           0  
-  Clock Path Skew:        0.000ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    1.995ns
-    Source Clock Delay      (SCD):    1.480ns
-    Clock Pessimism Removal (CPR):    0.514ns
+  Clock Path Skew:        0.016ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    2.025ns
+    Source Clock Delay      (SCD):    1.509ns
+    Clock Pessimism Removal (CPR):    0.499ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
@@ -570,12 +577,12 @@ Slack (MET) :             0.160ns  (arrival time - required time)
                                                      -1.061     0.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486     0.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026     0.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.565     1.480    u_ethernet_mii_rmii_bridge/rmii_ref_clk
-    SLICE_X8Y51          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
+                         net (fo=28, routed)          0.594     1.509    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[0]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X8Y51          FDPE (Prop_fdpe_C_Q)         0.164     1.644 r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/Q
-                         net (fo=1, routed)           0.056     1.700    u_ethernet_mii_rmii_bridge/rmii_reset_sync[0]
-    SLICE_X8Y51          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[1]/D
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.141     1.650 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[0]/Q
+                         net (fo=1, routed)           0.100     1.750    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg_n_0_[0]
+    SLICE_X1Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -590,15 +597,15 @@ Slack (MET) :             0.160ns  (arrival time - required time)
                                                      -1.375     0.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530     1.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029     1.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.834     1.995    u_ethernet_mii_rmii_bridge/rmii_ref_clk
-    SLICE_X8Y51          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[1]/C
-                         clock pessimism             -0.514     1.480    
-    SLICE_X8Y51          FDPE (Hold_fdpe_C_D)         0.060     1.540    u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[1]
+                         net (fo=28, routed)          0.864     2.025    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X1Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/C
+                         clock pessimism             -0.499     1.525    
+    SLICE_X1Y51          FDCE (Hold_fdce_C_D)         0.070     1.595    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]
   -------------------------------------------------------------------
-                         required time                         -1.540    
-                         arrival time                           1.700    
+                         required time                         -1.595    
+                         arrival time                           1.750    
   -------------------------------------------------------------------
-                         slack                                  0.160    
+                         slack                                  0.155    
 
 
 
@@ -614,8 +621,8 @@ Sources:            { u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0 }
 Check Type        Corner  Lib Pin             Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location         Pin
 Min Period        n/a     BUFG/I              n/a            2.155         20.000      17.845     BUFGCTRL_X0Y2    u_ethernet_clk_wiz/inst/clkout1_buf/I
 Max Period        n/a     MMCME2_ADV/CLKOUT0  n/a            213.360       20.000      193.360    MMCME2_ADV_X1Y0  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
-Low Pulse Width   Slow    FDPE/C              n/a            0.500         10.000      9.500      SLICE_X8Y51      u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
-High Pulse Width  Slow    FDPE/C              n/a            0.500         10.000      9.500      SLICE_X8Y51      u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
+Low Pulse Width   Slow    FDPE/C              n/a            0.500         10.000      9.500      SLICE_X8Y49      u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
+High Pulse Width  Slow    FDPE/C              n/a            0.500         10.000      9.500      SLICE_X8Y49      u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
 
 
 
@@ -623,28 +630,28 @@ High Pulse Width  Slow    FDPE/C              n/a            0.500         10.00
 From Clock:  mii_tx_clk
   To Clock:  mii_tx_clk
 
-Setup :            0  Failing Endpoints,  Worst Slack       33.951ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.068ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack       33.479ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.033ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack       19.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             33.951ns  (required time - arrival time)
-  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[2]/C
+Slack (MET) :             33.479ns  (required time - arrival time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_reg_reg[10]/C
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]/R
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]/CE
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Path Group:             mii_tx_clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            40.000ns  (mii_tx_clk rise@40.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        5.229ns  (logic 0.886ns (16.944%)  route 4.343ns (83.056%))
-  Logic Levels:           3  (LUT3=1 LUT4=1 LUT6=1)
-  Clock Path Skew:        -0.107ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    8.895ns = ( 48.895 - 40.000 ) 
-    Source Clock Delay      (SCD):    9.685ns
-    Clock Pessimism Removal (CPR):    0.683ns
+  Data Path Delay:        6.166ns  (logic 1.577ns (25.577%)  route 4.589ns (74.423%))
+  Logic Levels:           4  (CARRY4=2 LUT5=1 LUT6=1)
+  Clock Path Skew:        -0.105ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    8.506ns = ( 48.506 - 40.000 ) 
+    Source Clock Delay      (SCD):    9.325ns
+    Clock Pessimism Removal (CPR):    0.714ns
   Clock Uncertainty:      0.082ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
     Discrete Jitter          (DJ):    0.147ns
@@ -664,22 +671,26 @@ Slack (MET) :             33.951ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.626     5.179    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.456     5.635 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.327     7.962    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     8.058 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.627     9.685    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/CLK
-    SLICE_X2Y50          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[2]/C
+                         net (fo=28, routed)          1.627     5.180    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.456     5.636 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.958     7.595    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     7.691 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.634     9.325    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
+    SLICE_X5Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_reg_reg[10]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X2Y50          FDRE (Prop_fdre_C_Q)         0.518    10.203 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[2]/Q
-                         net (fo=45, routed)          1.997    12.201    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/state_reg[2]
-    SLICE_X4Y51          LUT3 (Prop_lut3_I2_O)        0.124    12.325 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/frame_len_lim_reg[15]_i_3/O
-                         net (fo=2, routed)           0.588    12.912    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/frame_len_lim_reg[15]_i_3_n_0
-    SLICE_X0Y49          LUT6 (Prop_lut6_I0_O)        0.124    13.036 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[3]_i_1/O
-                         net (fo=9, routed)           0.896    13.932    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[3]_i_1_n_0
-    SLICE_X1Y50          LUT4 (Prop_lut4_I0_O)        0.120    14.052 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[7]_i_1/O
-                         net (fo=3, routed)           0.862    14.914    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[7]_i_1_n_0
-    SLICE_X0Y49          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]/R
+    SLICE_X5Y41          FDRE (Prop_fdre_C_Q)         0.456     9.781 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_reg_reg[10]/Q
+                         net (fo=3, routed)           1.482    11.263    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_reg_reg[10]
+    SLICE_X6Y41          LUT6 (Prop_lut6_I2_O)        0.124    11.387 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/empty_carry_i_1/O
+                         net (fo=1, routed)           0.000    11.387    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/empty_carry_i_1_n_0
+    SLICE_X6Y41          CARRY4 (Prop_carry4_S[3]_CO[3])
+                                                      0.376    11.763 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/empty_carry/CO[3]
+                         net (fo=1, routed)           0.000    11.763    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/empty_carry_n_0
+    SLICE_X6Y42          CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.254    12.017 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/empty_carry__0/CO[0]
+                         net (fo=1, routed)           0.946    12.963    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/CO[0]
+    SLICE_X7Y46          LUT5 (Prop_lut5_I4_O)        0.367    13.330 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/rd_ptr_reg_rep[11]_i_2/O
+                         net (fo=39, routed)          2.161    15.491    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst_n_1
+    SLICE_X8Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock mii_tx_clk rise edge)
@@ -694,20 +705,20 @@ Slack (MET) :             33.951ns  (required time - arrival time)
                                                      -3.129    41.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581    43.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091    43.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.509    44.883    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.367    45.250 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.034    47.284    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.091    47.375 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.520    48.895    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/CLK
-    SLICE_X0Y49          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]/C
-                         clock pessimism              0.683    49.579    
-                         clock uncertainty           -0.082    49.497    
-    SLICE_X0Y49          FDRE (Setup_fdre_C_R)       -0.632    48.865    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]
+                         net (fo=28, routed)          1.510    44.884    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.367    45.251 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.714    46.965    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.091    47.056 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.449    48.506    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
+    SLICE_X8Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]/C
+                         clock pessimism              0.714    49.220    
+                         clock uncertainty           -0.082    49.138    
+    SLICE_X8Y41          FDRE (Setup_fdre_C_CE)      -0.169    48.969    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]
   -------------------------------------------------------------------
-                         required time                         48.865    
-                         arrival time                         -14.914    
+                         required time                         48.969    
+                         arrival time                         -15.491    
   -------------------------------------------------------------------
-                         slack                                 33.951    
+                         slack                                 33.479    
 
 
 
@@ -715,20 +726,20 @@ Slack (MET) :             33.951ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.068ns  (arrival time - required time)
-  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[6]/C
+Slack (MET) :             0.033ns  (arrival time - required time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/s_tdata_reg_reg[5]/C
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]/D
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/mii_msn_reg_reg[1]/D
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Path Group:             mii_tx_clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (mii_tx_clk rise@0.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        0.446ns  (logic 0.187ns (41.966%)  route 0.259ns (58.034%))
-  Logic Levels:           1  (LUT4=1)
-  Clock Path Skew:        0.273ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    4.291ns
-    Source Clock Delay      (SCD):    3.339ns
-    Clock Pessimism Removal (CPR):    0.679ns
+  Data Path Delay:        0.393ns  (logic 0.186ns (47.374%)  route 0.207ns (52.626%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.269ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    4.085ns
+    Source Clock Delay      (SCD):    3.159ns
+    Clock Pessimism Removal (CPR):    0.657ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
@@ -744,18 +755,18 @@ Slack (MET) :             0.068ns  (arrival time - required time)
                                                      -1.061     0.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486     0.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026     0.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.593     1.508    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.141     1.649 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           1.070     2.719    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.026     2.745 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         0.594     3.339    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/CLK
-    SLICE_X0Y50          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[6]/C
+                         net (fo=28, routed)          0.594     1.509    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.141     1.650 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.889     2.540    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.026     2.566 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         0.594     3.159    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/CLK
+    SLICE_X7Y48          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/s_tdata_reg_reg[5]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X0Y50          FDRE (Prop_fdre_C_Q)         0.141     3.480 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[6]/Q
-                         net (fo=4, routed)           0.259     3.739    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[6]
-    SLICE_X0Y49          LUT4 (Prop_lut4_I2_O)        0.046     3.785 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[7]_i_2/O
-                         net (fo=1, routed)           0.000     3.785    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg[7]_i_2_n_0
-    SLICE_X0Y49          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]/D
+    SLICE_X7Y48          FDRE (Prop_fdre_C_Q)         0.141     3.300 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/s_tdata_reg_reg[5]/Q
+                         net (fo=7, routed)           0.207     3.507    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/s_tdata_reg[5]
+    SLICE_X4Y50          LUT5 (Prop_lut5_I1_O)        0.045     3.552 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/mii_msn_reg[1]_i_1/O
+                         net (fo=1, routed)           0.000     3.552    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/mii_msn_reg[1]_i_1_n_0
+    SLICE_X4Y50          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/mii_msn_reg_reg[1]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock mii_tx_clk rise edge)
@@ -770,19 +781,19 @@ Slack (MET) :             0.068ns  (arrival time - required time)
                                                      -1.375     0.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530     1.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029     1.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.863     2.024    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.175     2.199 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           1.197     3.396    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.029     3.425 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         0.867     4.291    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/CLK
-    SLICE_X0Y49          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]/C
-                         clock pessimism             -0.679     3.612    
-    SLICE_X0Y49          FDRE (Hold_fdre_C_D)         0.105     3.717    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/ifg_cnt_reg_reg[7]
+                         net (fo=28, routed)          0.864     2.025    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.175     2.200 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.994     3.194    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.029     3.223 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         0.863     4.085    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/CLK
+    SLICE_X4Y50          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/mii_msn_reg_reg[1]/C
+                         clock pessimism             -0.657     3.428    
+    SLICE_X4Y50          FDRE (Hold_fdre_C_D)         0.091     3.519    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/mii_msn_reg_reg[1]
   -------------------------------------------------------------------
-                         required time                         -3.717    
-                         arrival time                           3.785    
+                         required time                         -3.519    
+                         arrival time                           3.552    
   -------------------------------------------------------------------
-                         slack                                  0.068    
+                         slack                                  0.033    
 
 
 
@@ -797,8 +808,8 @@ Sources:            { u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
 
 Check Type        Corner  Lib Pin             Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location     Pin
 Min Period        n/a     RAMB36E1/CLKBWRCLK  n/a            2.576         40.000      37.424     RAMB36_X0Y9  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/mem_reg_0/CLKBWRCLK
-Low Pulse Width   Slow    FDRE/C              n/a            0.500         20.000      19.500     SLICE_X2Y50  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[0]/C
-High Pulse Width  Slow    FDRE/C              n/a            0.500         20.000      19.500     SLICE_X2Y50  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[0]/C
+Low Pulse Width   Slow    FDRE/C              n/a            0.500         20.000      19.500     SLICE_X4Y49  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[0]/C
+High Pulse Width  Slow    FDRE/C              n/a            0.500         20.000      19.500     SLICE_X4Y49  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/eth_mac_1g_inst/axis_gmii_tx_inst/FSM_sequential_state_reg_reg[0]/C
 
 
 
@@ -806,26 +817,26 @@ High Pulse Width  Slow    FDRE/C              n/a            0.500         20.00
 From Clock:  mii_tx_clk
   To Clock:  sys_clk_pin
 
-Setup :            0  Failing Endpoints,  Worst Slack        3.473ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        1.550ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        3.851ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        1.379ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             3.473ns  (required time - arrival time)
-  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[11]/C
+Slack (MET) :             3.851ns  (required time - arrival time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]/C
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[11]/D
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[10]/D
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             sys_clk_pin
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (sys_clk_pin rise@10.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        1.576ns  (logic 0.518ns (32.859%)  route 1.058ns (67.141%))
+  Data Path Delay:        1.568ns  (logic 0.518ns (33.039%)  route 1.050ns (66.961%))
   Logic Levels:           0  
-  Clock Path Skew:        -4.665ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.892ns = ( 14.892 - 10.000 ) 
-    Source Clock Delay      (SCD):    9.628ns
+  Clock Path Skew:        -4.296ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.893ns = ( 14.893 - 10.000 ) 
+    Source Clock Delay      (SCD):    9.259ns
     Clock Pessimism Removal (CPR):    0.071ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -846,16 +857,16 @@ Slack (MET) :             3.473ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.626     5.179    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.456     5.635 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.327     7.962    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     8.058 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.569     9.628    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
-    SLICE_X10Y45         FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[11]/C
+                         net (fo=28, routed)          1.627     5.180    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.456     5.636 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.958     7.595    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     7.691 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.568     9.259    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
+    SLICE_X8Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X10Y45         FDRE (Prop_fdre_C_Q)         0.518    10.146 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[11]/Q
-                         net (fo=1, routed)           1.058    11.204    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg[11]
-    SLICE_X7Y46          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[11]/D
+    SLICE_X8Y41          FDRE (Prop_fdre_C_Q)         0.518     9.777 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[10]/Q
+                         net (fo=1, routed)           1.050    10.827    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg[10]
+    SLICE_X1Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[10]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -865,16 +876,16 @@ Slack (MET) :             3.473ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.418    11.418 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.862    13.280    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    13.371 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.520    14.892    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
-    SLICE_X7Y46          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[11]/C
-                         clock pessimism              0.071    14.962    
-                         clock uncertainty           -0.180    14.782    
-    SLICE_X7Y46          FDRE (Setup_fdre_C_D)       -0.105    14.677    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[11]
+                         net (fo=762, routed)         1.521    14.893    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
+    SLICE_X1Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[10]/C
+                         clock pessimism              0.071    14.963    
+                         clock uncertainty           -0.180    14.783    
+    SLICE_X1Y41          FDRE (Setup_fdre_C_D)       -0.105    14.678    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[10]
   -------------------------------------------------------------------
-                         required time                         14.677    
-                         arrival time                         -11.204    
+                         required time                         14.678    
+                         arrival time                         -10.827    
   -------------------------------------------------------------------
-                         slack                                  3.473    
+                         slack                                  3.851    
 
 
 
@@ -882,19 +893,19 @@ Slack (MET) :             3.473ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             1.550ns  (arrival time - required time)
-  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[7]/C
+Slack (MET) :             1.379ns  (arrival time - required time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[2]/C
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[7]/D
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[2]/D
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             sys_clk_pin
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (sys_clk_pin rise@0.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        0.280ns  (logic 0.164ns (58.521%)  route 0.116ns (41.479%))
+  Data Path Delay:        0.260ns  (logic 0.148ns (56.885%)  route 0.112ns (43.115%))
   Logic Levels:           0  
-  Clock Path Skew:        -1.502ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    1.997ns
-    Source Clock Delay      (SCD):    3.311ns
+  Clock Path Skew:        -1.321ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    2.023ns
+    Source Clock Delay      (SCD):    3.156ns
     Clock Pessimism Removal (CPR):    0.188ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -915,16 +926,16 @@ Slack (MET) :             1.550ns  (arrival time - required time)
                                                      -1.061     0.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486     0.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026     0.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.593     1.508    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.141     1.649 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           1.070     2.719    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.026     2.745 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         0.566     3.311    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
-    SLICE_X10Y45         FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[7]/C
+                         net (fo=28, routed)          0.594     1.509    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.141     1.650 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.889     2.540    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.026     2.566 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         0.591     3.156    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
+    SLICE_X6Y39          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[2]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X10Y45         FDRE (Prop_fdre_C_Q)         0.164     3.475 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[7]/Q
-                         net (fo=1, routed)           0.116     3.591    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg[7]
-    SLICE_X10Y47         FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[7]/D
+    SLICE_X6Y39          FDRE (Prop_fdre_C_Q)         0.148     3.304 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg_reg[2]/Q
+                         net (fo=1, routed)           0.112     3.416    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_reg[2]
+    SLICE_X6Y40          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[2]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -934,16 +945,16 @@ Slack (MET) :             1.550ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.445     0.445 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.685     1.129    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     1.158 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.839     1.997    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
-    SLICE_X10Y47         FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[7]/C
-                         clock pessimism             -0.188     1.809    
-                         clock uncertainty            0.180     1.989    
-    SLICE_X10Y47         FDRE (Hold_fdre_C_D)         0.052     2.041    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[7]
+                         net (fo=762, routed)         0.865     2.023    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
+    SLICE_X6Y40          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[2]/C
+                         clock pessimism             -0.188     1.835    
+                         clock uncertainty            0.180     2.015    
+    SLICE_X6Y40          FDRE (Hold_fdre_C_D)         0.022     2.037    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/rd_ptr_gray_sync1_reg_reg[2]
   -------------------------------------------------------------------
-                         required time                         -2.041    
-                         arrival time                           3.591    
+                         required time                         -2.037    
+                         arrival time                           3.416    
   -------------------------------------------------------------------
-                         slack                                  1.550    
+                         slack                                  1.379    
 
 
 
@@ -953,14 +964,14 @@ Slack (MET) :             1.550ns  (arrival time - required time)
 From Clock:  rmii_ref_clk_ethernet_clk_wiz
   To Clock:  phy_ref_clk_ethernet_clk_wiz
 
-Setup :            0  Failing Endpoints,  Worst Slack        7.822ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        7.991ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        7.239ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        8.017ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             7.822ns  (required time - arrival time)
+Slack (MET) :             7.239ns  (required time - arrival time)
   Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txen_reg/C
                             (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Destination:            eth_txen_out_reg/D
@@ -968,11 +979,11 @@ Slack (MET) :             7.822ns  (required time - arrival time)
   Path Group:             phy_ref_clk_ethernet_clk_wiz
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            12.500ns  (phy_ref_clk_ethernet_clk_wiz fall@12.500ns - rmii_ref_clk_ethernet_clk_wiz rise@0.000ns)
-  Data Path Delay:        3.618ns  (logic 0.456ns (12.604%)  route 3.162ns (87.396%))
+  Data Path Delay:        4.022ns  (logic 0.478ns (11.884%)  route 3.544ns (88.116%))
   Logic Levels:           0  
-  Clock Path Skew:        -0.025ns (DCD - SCD + CPR)
+  Clock Path Skew:        -0.026ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    5.061ns = ( 17.561 - 12.500 ) 
-    Source Clock Delay      (SCD):    5.179ns
+    Source Clock Delay      (SCD):    5.180ns
     Clock Pessimism Removal (CPR):    0.094ns
   Clock Uncertainty:      0.202ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -993,11 +1004,11 @@ Slack (MET) :             7.822ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.626     5.179    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X1Y54          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txen_reg/C
+                         net (fo=28, routed)          1.627     5.180    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X2Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txen_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X1Y54          FDCE (Prop_fdce_C_Q)         0.456     5.635 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txen_reg/Q
-                         net (fo=1, routed)           3.162     8.797    rmii_tx_en_dbg
+    SLICE_X2Y51          FDCE (Prop_fdce_C_Q)         0.478     5.658 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txen_reg/Q
+                         net (fo=1, routed)           3.544     9.203    rmii_tx_en_dbg
     OLOGIC_X0Y127        FDRE                                         r  eth_txen_out_reg/D
   -------------------------------------------------------------------    -------------------
 
@@ -1017,12 +1028,12 @@ Slack (MET) :             7.822ns  (required time - arrival time)
     OLOGIC_X0Y127        FDRE                                         r  eth_txen_out_reg/C  (IS_INVERTED)
                          clock pessimism              0.094    17.655    
                          clock uncertainty           -0.202    17.453    
-    OLOGIC_X0Y127        FDRE (Setup_fdre_C_D)       -0.834    16.619    eth_txen_out_reg
+    OLOGIC_X0Y127        FDRE (Setup_fdre_C_D)       -1.011    16.442    eth_txen_out_reg
   -------------------------------------------------------------------
-                         required time                         16.619    
-                         arrival time                          -8.797    
+                         required time                         16.442    
+                         arrival time                          -9.203    
   -------------------------------------------------------------------
-                         slack                                  7.822    
+                         slack                                  7.239    
 
 
 
@@ -1030,7 +1041,7 @@ Slack (MET) :             7.822ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             7.991ns  (arrival time - required time)
+Slack (MET) :             8.017ns  (arrival time - required time)
   Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/C
                             (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Destination:            eth_txd_out_reg[0]/D
@@ -1038,11 +1049,11 @@ Slack (MET) :             7.991ns  (arrival time - required time)
   Path Group:             phy_ref_clk_ethernet_clk_wiz
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            -7.500ns  (phy_ref_clk_ethernet_clk_wiz fall@12.500ns - rmii_ref_clk_ethernet_clk_wiz rise@20.000ns)
-  Data Path Delay:        0.989ns  (logic 0.141ns (14.259%)  route 0.848ns (85.741%))
+  Data Path Delay:        1.014ns  (logic 0.141ns (13.911%)  route 0.873ns (86.089%))
   Logic Levels:           0  
-  Clock Path Skew:        0.389ns (DCD - SCD - CPR)
+  Clock Path Skew:        0.388ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    2.095ns = ( 14.595 - 12.500 ) 
-    Source Clock Delay      (SCD):    1.508ns = ( 21.508 - 20.000 ) 
+    Source Clock Delay      (SCD):    1.509ns = ( 21.509 - 20.000 ) 
     Clock Pessimism Removal (CPR):    0.198ns
   Clock Uncertainty:      0.202ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1063,11 +1074,11 @@ Slack (MET) :             7.991ns  (arrival time - required time)
                                                      -1.061    20.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486    20.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026    20.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.593    21.508    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X1Y54          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/C
+                         net (fo=28, routed)          0.594    21.509    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X1Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X1Y54          FDCE (Prop_fdce_C_Q)         0.141    21.649 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/Q
-                         net (fo=1, routed)           0.848    22.497    rmii_txd_dbg[0]
+    SLICE_X1Y51          FDCE (Prop_fdce_C_Q)         0.141    21.650 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/Q
+                         net (fo=1, routed)           0.873    22.523    rmii_txd_dbg[0]
     OLOGIC_X0Y122        FDRE                                         r  eth_txd_out_reg[0]/D
   -------------------------------------------------------------------    -------------------
 
@@ -1090,9 +1101,9 @@ Slack (MET) :             7.991ns  (arrival time - required time)
     OLOGIC_X0Y122        FDRE (Hold_fdre_C_D)        -0.093    14.506    eth_txd_out_reg[0]
   -------------------------------------------------------------------
                          required time                        -14.506    
-                         arrival time                          22.497    
+                         arrival time                          22.523    
   -------------------------------------------------------------------
-                         slack                                  7.991    
+                         slack                                  8.017    
 
 
 
@@ -1265,26 +1276,26 @@ Slack (MET) :             8.048ns  (arrival time - required time)
 From Clock:  mii_tx_clk
   To Clock:  rmii_ref_clk_ethernet_clk_wiz
 
-Setup :            0  Failing Endpoints,  Worst Slack       13.613ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.182ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack       13.784ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.262ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             13.613ns  (required time - arrival time)
+Slack (MET) :             13.784ns  (required time - arrival time)
   Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/phy_mii_tx_en_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
-  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[0]/D
+  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg/D
                             (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Path Group:             rmii_ref_clk_ethernet_clk_wiz
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            20.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@20.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        1.711ns  (logic 0.718ns (41.973%)  route 0.993ns (58.027%))
-  Logic Levels:           1  (LUT6=1)
-  Clock Path Skew:        -4.625ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.881ns = ( 24.881 - 20.000 ) 
-    Source Clock Delay      (SCD):    9.685ns
+  Data Path Delay:        1.950ns  (logic 0.718ns (36.826%)  route 1.232ns (63.174%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -4.264ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.884ns = ( 24.884 - 20.000 ) 
+    Source Clock Delay      (SCD):    9.327ns
     Clock Pessimism Removal (CPR):    0.179ns
   Clock Uncertainty:      0.082ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1305,18 +1316,18 @@ Slack (MET) :             13.613ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.626     5.179    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.456     5.635 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.327     7.962    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     8.058 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.627     9.685    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/CLK
-    SLICE_X3Y52          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/phy_mii_tx_en_reg_reg/C
+                         net (fo=28, routed)          1.627     5.180    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.456     5.636 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.958     7.595    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     7.691 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.636     9.327    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/CLK
+    SLICE_X5Y47          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/phy_mii_tx_en_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X3Y52          FDRE (Prop_fdre_C_Q)         0.419    10.104 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/phy_mii_tx_en_reg_reg/Q
-                         net (fo=5, routed)           0.993    11.097    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mii_tx_en
-    SLICE_X4Y53          LUT6 (Prop_lut6_I0_O)        0.299    11.396 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r[0]_i_1/O
-                         net (fo=1, routed)           0.000    11.396    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r[0]_i_1_n_0
-    SLICE_X4Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[0]/D
+    SLICE_X5Y47          FDRE (Prop_fdre_C_Q)         0.419     9.746 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/phy_mii_tx_en_reg_reg/Q
+                         net (fo=5, routed)           1.232    10.978    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mii_tx_en
+    SLICE_X2Y51          LUT4 (Prop_lut4_I0_O)        0.299    11.277 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_i_1/O
+                         net (fo=1, routed)           0.000    11.277    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_i_1_n_0
+    SLICE_X2Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg/D
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -1331,16 +1342,16 @@ Slack (MET) :             13.613ns  (required time - arrival time)
                                                      -3.129    21.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581    23.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091    23.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.507    24.881    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X4Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[0]/C
-                         clock pessimism              0.179    25.060    
-                         clock uncertainty           -0.082    24.978    
-    SLICE_X4Y53          FDCE (Setup_fdce_C_D)        0.031    25.009    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_r_reg[0]
+                         net (fo=28, routed)          1.510    24.884    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X2Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg/C
+                         clock pessimism              0.179    25.063    
+                         clock uncertainty           -0.082    24.981    
+    SLICE_X2Y51          FDCE (Setup_fdce_C_D)        0.079    25.060    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg
   -------------------------------------------------------------------
-                         required time                         25.009    
-                         arrival time                         -11.396    
+                         required time                         25.060    
+                         arrival time                         -11.277    
   -------------------------------------------------------------------
-                         slack                                 13.613    
+                         slack                                 13.784    
 
 
 
@@ -1348,19 +1359,19 @@ Slack (MET) :             13.613ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.182ns  (arrival time - required time)
+Slack (MET) :             0.262ns  (arrival time - required time)
   Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
                             (clock source 'mii_tx_clk'  {rise@0.000ns fall@20.000ns period=40.000ns})
-  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg/D
+  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[1]/D
                             (rising edge-triggered cell FDCE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Path Group:             rmii_ref_clk_ethernet_clk_wiz
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@20.000ns - mii_tx_clk fall@20.000ns)
-  Data Path Delay:        0.433ns  (logic 0.045ns (10.403%)  route 0.388ns (89.597%))
-  Logic Levels:           1  (LUT4=1)
+  Data Path Delay:        0.498ns  (logic 0.042ns (8.427%)  route 0.456ns (91.572%))
+  Logic Levels:           1  (LUT5=1)
   Clock Path Skew:        0.130ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    2.024ns = ( 22.024 - 20.000 ) 
-    Source Clock Delay      (SCD):    1.649ns = ( 21.649 - 20.000 ) 
+    Destination Clock Delay (DCD):    2.025ns = ( 22.025 - 20.000 ) 
+    Source Clock Delay      (SCD):    1.650ns = ( 21.650 - 20.000 ) 
     Clock Pessimism Removal (CPR):    0.245ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
@@ -1377,13 +1388,13 @@ Slack (MET) :             0.182ns  (arrival time - required time)
                                                      -1.061    20.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486    20.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026    20.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.593    21.508    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+                         net (fo=28, routed)          0.594    21.509    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
   -------------------------------------------------------------------    -------------------
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.141    21.649 f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           0.388    22.037    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg_0
-    SLICE_X2Y53          LUT4 (Prop_lut4_I1_O)        0.045    22.082 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_i_1/O
-                         net (fo=1, routed)           0.000    22.082    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_i_1_n_0
-    SLICE_X2Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg/D
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.141    21.650 f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.456    22.107    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg_0
+    SLICE_X3Y51          LUT5 (Prop_lut5_I3_O)        0.042    22.149 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd[1]_i_1/O
+                         net (fo=1, routed)           0.000    22.149    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd[1]_i_1_n_0
+    SLICE_X3Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[1]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -1398,15 +1409,15 @@ Slack (MET) :             0.182ns  (arrival time - required time)
                                                      -1.375    20.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530    21.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029    21.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.863    22.024    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X2Y53          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg/C
-                         clock pessimism             -0.245    21.779    
-    SLICE_X2Y53          FDCE (Hold_fdce_C_D)         0.121    21.900    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txen_reg
+                         net (fo=28, routed)          0.864    22.025    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[1]/C
+                         clock pessimism             -0.245    21.780    
+    SLICE_X3Y51          FDCE (Hold_fdce_C_D)         0.107    21.887    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_txd_reg[1]
   -------------------------------------------------------------------
-                         required time                        -21.900    
-                         arrival time                          22.082    
+                         required time                        -21.887    
+                         arrival time                          22.149    
   -------------------------------------------------------------------
-                         slack                                  0.182    
+                         slack                                  0.262    
 
 
 
@@ -1416,26 +1427,26 @@ Slack (MET) :             0.182ns  (arrival time - required time)
 From Clock:  sys_clk_pin
   To Clock:  mii_tx_clk
 
-Setup :            0  Failing Endpoints,  Worst Slack        6.107ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.026ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        5.792ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.214ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             6.107ns  (required time - arrival time)
-  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[5]/C
+Slack (MET) :             5.792ns  (required time - arrival time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[6]/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[5]/D
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[6]/D
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Path Group:             mii_tx_clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (mii_tx_clk rise@40.000ns - sys_clk_pin rise@30.000ns)
-  Data Path Delay:        7.253ns  (logic 0.419ns (5.777%)  route 6.834ns (94.223%))
+  Data Path Delay:        7.426ns  (logic 0.456ns (6.140%)  route 6.970ns (93.860%))
   Logic Levels:           0  
-  Clock Path Skew:        3.774ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    8.892ns = ( 48.892 - 40.000 ) 
-    Source Clock Delay      (SCD):    5.189ns = ( 35.189 - 30.000 ) 
+  Clock Path Skew:        3.456ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    8.573ns = ( 48.573 - 40.000 ) 
+    Source Clock Delay      (SCD):    5.187ns = ( 35.187 - 30.000 ) 
     Clock Pessimism Removal (CPR):    0.071ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1451,12 +1462,12 @@ Slack (MET) :             6.107ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.489    31.489 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.967    33.455    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096    33.551 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.637    35.189    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
-    SLICE_X4Y45          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[5]/C
+                         net (fo=762, routed)         1.635    35.187    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
+    SLICE_X4Y40          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[6]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X4Y45          FDRE (Prop_fdre_C_Q)         0.419    35.608 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[5]/Q
-                         net (fo=1, routed)           6.834    42.442    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg[5]
-    SLICE_X6Y45          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[5]/D
+    SLICE_X4Y40          FDRE (Prop_fdre_C_Q)         0.456    35.643 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[6]/Q
+                         net (fo=1, routed)           6.970    42.613    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg[6]
+    SLICE_X4Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[6]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock mii_tx_clk rise edge)
@@ -1471,20 +1482,20 @@ Slack (MET) :             6.107ns  (required time - arrival time)
                                                      -3.129    41.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581    43.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091    43.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.509    44.883    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.367    45.250 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.034    47.284    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.091    47.375 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.517    48.892    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
-    SLICE_X6Y45          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[5]/C
-                         clock pessimism              0.071    48.963    
-                         clock uncertainty           -0.180    48.783    
-    SLICE_X6Y45          FDRE (Setup_fdre_C_D)       -0.234    48.549    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[5]
+                         net (fo=28, routed)          1.510    44.884    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.367    45.251 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.714    46.965    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.091    47.056 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.516    48.573    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
+    SLICE_X4Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[6]/C
+                         clock pessimism              0.071    48.643    
+                         clock uncertainty           -0.180    48.463    
+    SLICE_X4Y41          FDRE (Setup_fdre_C_D)       -0.058    48.405    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[6]
   -------------------------------------------------------------------
-                         required time                         48.549    
-                         arrival time                         -42.442    
+                         required time                         48.405    
+                         arrival time                         -42.613    
   -------------------------------------------------------------------
-                         slack                                  6.107    
+                         slack                                  5.792    
 
 
 
@@ -1492,19 +1503,19 @@ Slack (MET) :             6.107ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.026ns  (arrival time - required time)
-  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[4]/C
+Slack (MET) :             0.214ns  (arrival time - required time)
+  Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[2]/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[4]/D
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[2]/D
                             (rising edge-triggered cell FDRE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Path Group:             mii_tx_clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (mii_tx_clk rise@0.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        2.888ns  (logic 0.141ns (4.882%)  route 2.747ns (95.118%))
+  Data Path Delay:        2.831ns  (logic 0.141ns (4.981%)  route 2.690ns (95.019%))
   Logic Levels:           0  
-  Clock Path Skew:        2.592ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    4.288ns
-    Source Clock Delay      (SCD):    1.508ns
+  Clock Path Skew:        2.390ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    4.086ns
+    Source Clock Delay      (SCD):    1.507ns
     Clock Pessimism Removal (CPR):    0.188ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1520,12 +1531,12 @@ Slack (MET) :             0.026ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.257     0.257 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.631     0.888    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.914 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.595     1.508    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
-    SLICE_X4Y45          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[4]/C
+                         net (fo=762, routed)         0.594     1.507    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/logic_clk
+    SLICE_X4Y40          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[2]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X4Y45          FDRE (Prop_fdre_C_Q)         0.141     1.649 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[4]/Q
-                         net (fo=1, routed)           2.747     4.396    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg[4]
-    SLICE_X6Y45          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[4]/D
+    SLICE_X4Y40          FDRE (Prop_fdre_C_Q)         0.141     1.648 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg_reg[2]/Q
+                         net (fo=1, routed)           2.690     4.338    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_sync_commit_reg[2]
+    SLICE_X4Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[2]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock mii_tx_clk rise edge)
@@ -1540,20 +1551,20 @@ Slack (MET) :             0.026ns  (arrival time - required time)
                                                      -1.375     0.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530     1.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029     1.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.863     2.024    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.175     2.199 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           1.197     3.396    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.029     3.425 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         0.864     4.288    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
-    SLICE_X6Y45          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[4]/C
-                         clock pessimism             -0.188     4.100    
-                         clock uncertainty            0.180     4.281    
-    SLICE_X6Y45          FDRE (Hold_fdre_C_D)         0.090     4.371    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[4]
+                         net (fo=28, routed)          0.864     2.025    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.175     2.200 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.994     3.194    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.029     3.223 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         0.863     4.086    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/tx_clk
+    SLICE_X4Y41          FDRE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[2]/C
+                         clock pessimism             -0.188     3.898    
+                         clock uncertainty            0.180     4.078    
+    SLICE_X4Y41          FDRE (Hold_fdre_C_D)         0.046     4.124    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/wr_ptr_commit_sync_reg_reg[2]
   -------------------------------------------------------------------
-                         required time                         -4.371    
-                         arrival time                           4.396    
+                         required time                         -4.124    
+                         arrival time                           4.338    
   -------------------------------------------------------------------
-                         slack                                  0.026    
+                         slack                                  0.214    
 
 
 
@@ -1564,27 +1575,27 @@ Path Group:  **async_default**
 From Clock:  rmii_ref_clk_ethernet_clk_wiz
   To Clock:  rmii_ref_clk_ethernet_clk_wiz
 
-Setup :            0  Failing Endpoints,  Worst Slack       18.239ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.400ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack       18.006ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.354ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             18.239ns  (required time - arrival time)
+Slack (MET) :             18.006ns  (required time - arrival time)
   Source:                 u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/C
                             (rising edge-triggered cell FDPE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
-  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/CLR
+  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg/CLR
                             (recovery check against rising-edge clock rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Path Group:             **async_default**
   Path Type:              Recovery (Max at Slow Process Corner)
   Requirement:            20.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@20.000ns - rmii_ref_clk_ethernet_clk_wiz rise@0.000ns)
-  Data Path Delay:        1.302ns  (logic 0.518ns (39.794%)  route 0.784ns (60.206%))
+  Data Path Delay:        1.447ns  (logic 0.518ns (35.802%)  route 0.929ns (64.198%))
   Logic Levels:           0  
-  Clock Path Skew:        0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.881ns = ( 24.881 - 20.000 ) 
-    Source Clock Delay      (SCD):    5.111ns
-    Clock Pessimism Removal (CPR):    0.257ns
+  Clock Path Skew:        -0.061ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.884ns = ( 24.884 - 20.000 ) 
+    Source Clock Delay      (SCD):    5.124ns
+    Clock Pessimism Removal (CPR):    0.179ns
   Clock Uncertainty:      0.082ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
     Discrete Jitter          (DJ):    0.147ns
@@ -1604,12 +1615,12 @@ Slack (MET) :             18.239ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.558     5.111    u_ethernet_mii_rmii_bridge/rmii_ref_clk
-    SLICE_X8Y51          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/C
+                         net (fo=28, routed)          1.570     5.124    u_ethernet_mii_rmii_bridge/rmii_ref_clk
+    SLICE_X8Y49          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X8Y51          FDPE (Prop_fdpe_C_Q)         0.518     5.629 f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/Q
-                         net (fo=10, routed)          0.784     6.413    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/out[0]
-    SLICE_X4Y54          FDCE                                         f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/CLR
+    SLICE_X8Y49          FDPE (Prop_fdpe_C_Q)         0.518     5.642 f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/Q
+                         net (fo=10, routed)          0.929     6.571    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/out[0]
+    SLICE_X0Y52          FDCE                                         f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -1624,16 +1635,16 @@ Slack (MET) :             18.239ns  (required time - arrival time)
                                                      -3.129    21.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581    23.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091    23.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.507    24.881    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X4Y54          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/C
-                         clock pessimism              0.257    25.138    
-                         clock uncertainty           -0.082    25.057    
-    SLICE_X4Y54          FDCE (Recov_fdce_C_CLR)     -0.405    24.652    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]
+                         net (fo=28, routed)          1.510    24.884    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X0Y52          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg/C
+                         clock pessimism              0.179    25.063    
+                         clock uncertainty           -0.082    24.981    
+    SLICE_X0Y52          FDCE (Recov_fdce_C_CLR)     -0.405    24.576    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mode_speed_r_reg
   -------------------------------------------------------------------
-                         required time                         24.652    
-                         arrival time                          -6.413    
+                         required time                         24.576    
+                         arrival time                          -6.571    
   -------------------------------------------------------------------
-                         slack                                 18.239    
+                         slack                                 18.006    
 
 
 
@@ -1641,20 +1652,20 @@ Slack (MET) :             18.239ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.400ns  (arrival time - required time)
-  Source:                 u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_reg_inv/C
+Slack (MET) :             0.354ns  (arrival time - required time)
+  Source:                 u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/C
                             (rising edge-triggered cell FDPE clocked by rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
-  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/CLR
+  Destination:            u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/CLR
                             (removal check against rising-edge clock rmii_ref_clk_ethernet_clk_wiz  {rise@0.000ns fall@10.000ns period=20.000ns})
   Path Group:             **async_default**
   Path Type:              Removal (Min at Fast Process Corner)
   Requirement:            0.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@0.000ns - rmii_ref_clk_ethernet_clk_wiz rise@0.000ns)
-  Data Path Delay:        0.347ns  (logic 0.141ns (40.610%)  route 0.206ns (59.390%))
+  Data Path Delay:        0.559ns  (logic 0.164ns (29.313%)  route 0.395ns (70.687%))
   Logic Levels:           0  
-  Clock Path Skew:        0.039ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    2.024ns
-    Source Clock Delay      (SCD):    1.506ns
-    Clock Pessimism Removal (CPR):    0.478ns
+  Clock Path Skew:        0.298ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    2.025ns
+    Source Clock Delay      (SCD):    1.482ns
+    Clock Pessimism Removal (CPR):    0.245ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
@@ -1670,12 +1681,12 @@ Slack (MET) :             0.400ns  (arrival time - required time)
                                                      -1.061     0.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486     0.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026     0.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.591     1.506    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X4Y54          FDPE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_reg_inv/C
+                         net (fo=28, routed)          0.567     1.482    u_ethernet_mii_rmii_bridge/rmii_ref_clk
+    SLICE_X8Y49          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X4Y54          FDPE (Prop_fdpe_C_Q)         0.141     1.647 f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_reg_inv/Q
-                         net (fo=14, routed)          0.206     1.854    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn
-    SLICE_X1Y54          FDCE                                         f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/CLR
+    SLICE_X8Y49          FDPE (Prop_fdpe_C_Q)         0.164     1.646 f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[3]/Q
+                         net (fo=10, routed)          0.395     2.042    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/out[0]
+    SLICE_X1Y52          FDCE                                         f  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -1690,15 +1701,15 @@ Slack (MET) :             0.400ns  (arrival time - required time)
                                                      -1.375     0.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530     1.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029     1.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.863     2.024    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X1Y54          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]/C
-                         clock pessimism             -0.478     1.545    
-    SLICE_X1Y54          FDCE (Remov_fdce_C_CLR)     -0.092     1.453    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/phy_rmii_txd_reg[0]
+                         net (fo=28, routed)          0.864     2.025    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X1Y52          FDCE                                         r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]/C
+                         clock pessimism             -0.245     1.780    
+    SLICE_X1Y52          FDCE (Remov_fdce_C_CLR)     -0.092     1.688    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rstn_shift_reg[3]
   -------------------------------------------------------------------
-                         required time                         -1.453    
-                         arrival time                           1.854    
+                         required time                         -1.688    
+                         arrival time                           2.042    
   -------------------------------------------------------------------
-                         slack                                  0.400    
+                         slack                                  0.354    
 
 
 
@@ -1709,14 +1720,14 @@ Path Group:  **async_default**
 From Clock:  sys_clk_pin
   To Clock:  rmii_ref_clk_ethernet_clk_wiz
 
-Setup :            0  Failing Endpoints,  Worst Slack        7.416ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.299ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        7.419ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.329ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             7.416ns  (required time - arrival time)
+Slack (MET) :             7.419ns  (required time - arrival time)
   Source:                 bridge_rst_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Destination:            u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE
@@ -1724,11 +1735,11 @@ Slack (MET) :             7.416ns  (required time - arrival time)
   Path Group:             **async_default**
   Path Type:              Recovery (Max at Slow Process Corner)
   Requirement:            10.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@20.000ns - sys_clk_pin rise@10.000ns)
-  Data Path Delay:        1.650ns  (logic 0.478ns (28.962%)  route 1.172ns (71.038%))
+  Data Path Delay:        1.813ns  (logic 0.456ns (25.156%)  route 1.357ns (74.844%))
   Logic Levels:           0  
-  Clock Path Skew:        -0.222ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.815ns = ( 24.815 - 20.000 ) 
-    Source Clock Delay      (SCD):    5.107ns = ( 15.107 - 10.000 ) 
+  Clock Path Skew:        -0.227ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.826ns = ( 24.826 - 20.000 ) 
+    Source Clock Delay      (SCD):    5.124ns = ( 15.124 - 10.000 ) 
     Clock Pessimism Removal (CPR):    0.071ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1744,12 +1755,12 @@ Slack (MET) :             7.416ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.489    11.489 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.967    13.455    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096    13.551 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.556    15.107    logic_clk
-    SLICE_X8Y50          FDRE                                         r  bridge_rst_reg_reg/C
+                         net (fo=762, routed)         1.572    15.124    logic_clk
+    SLICE_X9Y49          FDRE                                         r  bridge_rst_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X8Y50          FDRE (Prop_fdre_C_Q)         0.478    15.585 f  bridge_rst_reg_reg/Q
-                         net (fo=4, routed)           1.172    16.758    u_ethernet_mii_rmii_bridge/rst
-    SLICE_X8Y51          FDPE                                         f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE
+    SLICE_X9Y49          FDRE (Prop_fdre_C_Q)         0.456    15.580 f  bridge_rst_reg_reg/Q
+                         net (fo=4, routed)           1.357    16.937    u_ethernet_mii_rmii_bridge/rst
+    SLICE_X8Y49          FDPE                                         f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -1764,16 +1775,16 @@ Slack (MET) :             7.416ns  (required time - arrival time)
                                                      -3.129    21.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581    23.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091    23.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.441    24.815    u_ethernet_mii_rmii_bridge/rmii_ref_clk
-    SLICE_X8Y51          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
-                         clock pessimism              0.071    24.886    
-                         clock uncertainty           -0.180    24.705    
-    SLICE_X8Y51          FDPE (Recov_fdpe_C_PRE)     -0.532    24.173    u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]
+                         net (fo=28, routed)          1.451    24.826    u_ethernet_mii_rmii_bridge/rmii_ref_clk
+    SLICE_X8Y49          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
+                         clock pessimism              0.071    24.896    
+                         clock uncertainty           -0.180    24.716    
+    SLICE_X8Y49          FDPE (Recov_fdpe_C_PRE)     -0.361    24.355    u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]
   -------------------------------------------------------------------
-                         required time                         24.173    
-                         arrival time                         -16.758    
+                         required time                         24.355    
+                         arrival time                         -16.937    
   -------------------------------------------------------------------
-                         slack                                  7.416    
+                         slack                                  7.419    
 
 
 
@@ -1781,7 +1792,7 @@ Slack (MET) :             7.416ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.299ns  (arrival time - required time)
+Slack (MET) :             0.329ns  (arrival time - required time)
   Source:                 bridge_rst_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Destination:            u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE
@@ -1789,11 +1800,11 @@ Slack (MET) :             0.299ns  (arrival time - required time)
   Path Group:             **async_default**
   Path Type:              Removal (Min at Fast Process Corner)
   Requirement:            0.000ns  (rmii_ref_clk_ethernet_clk_wiz rise@0.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        0.685ns  (logic 0.148ns (21.593%)  route 0.537ns (78.407%))
+  Data Path Delay:        0.765ns  (logic 0.141ns (18.439%)  route 0.624ns (81.561%))
   Logic Levels:           0  
-  Clock Path Skew:        0.330ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    1.995ns
-    Source Clock Delay      (SCD):    1.476ns
+  Clock Path Skew:        0.327ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    1.997ns
+    Source Clock Delay      (SCD):    1.482ns
     Clock Pessimism Removal (CPR):    0.188ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1809,12 +1820,12 @@ Slack (MET) :             0.299ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.257     0.257 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.631     0.888    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.914 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.563     1.476    logic_clk
-    SLICE_X8Y50          FDRE                                         r  bridge_rst_reg_reg/C
+                         net (fo=762, routed)         0.569     1.482    logic_clk
+    SLICE_X9Y49          FDRE                                         r  bridge_rst_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X8Y50          FDRE (Prop_fdre_C_Q)         0.148     1.624 f  bridge_rst_reg_reg/Q
-                         net (fo=4, routed)           0.537     2.162    u_ethernet_mii_rmii_bridge/rst
-    SLICE_X8Y51          FDPE                                         f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE
+    SLICE_X9Y49          FDRE (Prop_fdre_C_Q)         0.141     1.623 f  bridge_rst_reg_reg/Q
+                         net (fo=4, routed)           0.624     2.247    u_ethernet_mii_rmii_bridge/rst
+    SLICE_X8Y49          FDPE                                         f  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/PRE
   -------------------------------------------------------------------    -------------------
 
                          (clock rmii_ref_clk_ethernet_clk_wiz rise edge)
@@ -1829,16 +1840,16 @@ Slack (MET) :             0.299ns  (arrival time - required time)
                                                      -1.375     0.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530     1.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029     1.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.834     1.995    u_ethernet_mii_rmii_bridge/rmii_ref_clk
-    SLICE_X8Y51          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
-                         clock pessimism             -0.188     1.807    
-                         clock uncertainty            0.180     1.987    
-    SLICE_X8Y51          FDPE (Remov_fdpe_C_PRE)     -0.124     1.863    u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]
+                         net (fo=28, routed)          0.837     1.997    u_ethernet_mii_rmii_bridge/rmii_ref_clk
+    SLICE_X8Y49          FDPE                                         r  u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]/C
+                         clock pessimism             -0.188     1.809    
+                         clock uncertainty            0.180     1.989    
+    SLICE_X8Y49          FDPE (Remov_fdpe_C_PRE)     -0.071     1.918    u_ethernet_mii_rmii_bridge/rmii_reset_sync_reg[0]
   -------------------------------------------------------------------
-                         required time                         -1.863    
-                         arrival time                           2.162    
+                         required time                         -1.918    
+                         arrival time                           2.247    
   -------------------------------------------------------------------
-                         slack                                  0.299    
+                         slack                                  0.329    
 
 
 
@@ -1849,14 +1860,14 @@ Path Group:  **async_default**
 From Clock:  mii_tx_clk
   To Clock:  sys_clk_pin
 
-Setup :            0  Failing Endpoints,  Worst Slack        3.483ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        1.931ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        3.969ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        1.705ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             3.483ns  (required time - arrival time)
+Slack (MET) :             3.969ns  (required time - arrival time)
   Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/C
                             (rising edge-triggered cell FDPE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE
@@ -1864,11 +1875,11 @@ Slack (MET) :             3.483ns  (required time - arrival time)
   Path Group:             **async_default**
   Path Type:              Recovery (Max at Slow Process Corner)
   Requirement:            10.000ns  (sys_clk_pin rise@10.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        1.325ns  (logic 0.456ns (34.422%)  route 0.869ns (65.578%))
+  Data Path Delay:        1.193ns  (logic 0.518ns (43.418%)  route 0.675ns (56.582%))
   Logic Levels:           0  
-  Clock Path Skew:        -4.653ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.893ns = ( 14.893 - 10.000 ) 
-    Source Clock Delay      (SCD):    9.616ns
+  Clock Path Skew:        -4.299ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.892ns = ( 14.892 - 10.000 ) 
+    Source Clock Delay      (SCD):    9.261ns
     Clock Pessimism Removal (CPR):    0.071ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1889,16 +1900,16 @@ Slack (MET) :             3.483ns  (required time - arrival time)
                                                      -3.333     1.796 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.661     3.457    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.096     3.553 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.626     5.179    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.456     5.635 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.327     7.962    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     8.058 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.558     9.616    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/CLK
-    SLICE_X9Y50          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/C
+                         net (fo=28, routed)          1.627     5.180    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.456     5.636 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.958     7.595    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.096     7.691 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.570     9.261    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/CLK
+    SLICE_X8Y48          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X9Y50          FDPE (Prop_fdpe_C_Q)         0.456    10.072 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/Q
-                         net (fo=41, routed)          0.869    10.941    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/tx_rst
-    SLICE_X7Y47          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE
+    SLICE_X8Y48          FDPE (Prop_fdpe_C_Q)         0.518     9.779 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/Q
+                         net (fo=41, routed)          0.675    10.454    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/tx_rst
+    SLICE_X7Y43          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -1908,16 +1919,16 @@ Slack (MET) :             3.483ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.418    11.418 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.862    13.280    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    13.371 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.521    14.893    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/logic_clk
-    SLICE_X7Y47          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/C
-                         clock pessimism              0.071    14.963    
-                         clock uncertainty           -0.180    14.783    
-    SLICE_X7Y47          FDPE (Recov_fdpe_C_PRE)     -0.359    14.424    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]
+                         net (fo=762, routed)         1.520    14.892    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/logic_clk
+    SLICE_X7Y43          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/C
+                         clock pessimism              0.071    14.962    
+                         clock uncertainty           -0.180    14.782    
+    SLICE_X7Y43          FDPE (Recov_fdpe_C_PRE)     -0.359    14.423    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]
   -------------------------------------------------------------------
-                         required time                         14.424    
-                         arrival time                         -10.941    
+                         required time                         14.423    
+                         arrival time                         -10.454    
   -------------------------------------------------------------------
-                         slack                                  3.483    
+                         slack                                  3.969    
 
 
 
@@ -1925,7 +1936,7 @@ Slack (MET) :             3.483ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             1.931ns  (arrival time - required time)
+Slack (MET) :             1.705ns  (arrival time - required time)
   Source:                 u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/C
                             (rising edge-triggered cell FDPE clocked by mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE
@@ -1933,11 +1944,11 @@ Slack (MET) :             1.931ns  (arrival time - required time)
   Path Group:             **async_default**
   Path Type:              Removal (Min at Fast Process Corner)
   Requirement:            0.000ns  (sys_clk_pin rise@0.000ns - mii_tx_clk rise@0.000ns)
-  Data Path Delay:        0.543ns  (logic 0.141ns (25.980%)  route 0.402ns (74.020%))
+  Data Path Delay:        0.494ns  (logic 0.164ns (33.195%)  route 0.330ns (66.805%))
   Logic Levels:           0  
-  Clock Path Skew:        -1.473ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    2.025ns
-    Source Clock Delay      (SCD):    3.310ns
+  Clock Path Skew:        -1.296ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    2.024ns
+    Source Clock Delay      (SCD):    3.132ns
     Clock Pessimism Removal (CPR):    0.188ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -1958,16 +1969,16 @@ Slack (MET) :             1.931ns  (arrival time - required time)
                                                      -1.061     0.404 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.486     0.890    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.026     0.916 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.593     1.508    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.141     1.649 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           1.070     2.719    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.026     2.745 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         0.565     3.310    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/CLK
-    SLICE_X9Y50          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/C
+                         net (fo=28, routed)          0.594     1.509    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.141     1.650 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.889     2.540    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.026     2.566 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         0.567     3.132    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/CLK
+    SLICE_X8Y48          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X9Y50          FDPE (Prop_fdpe_C_Q)         0.141     3.451 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/Q
-                         net (fo=41, routed)          0.402     3.853    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/tx_rst
-    SLICE_X7Y47          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE
+    SLICE_X8Y48          FDPE (Prop_fdpe_C_Q)         0.164     3.296 f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[3]/Q
+                         net (fo=41, routed)          0.330     3.626    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/tx_rst
+    SLICE_X7Y43          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/PRE
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -1977,16 +1988,16 @@ Slack (MET) :             1.931ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.445     0.445 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.685     1.129    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     1.158 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.867     2.025    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/logic_clk
-    SLICE_X7Y47          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/C
-                         clock pessimism             -0.188     1.837    
-                         clock uncertainty            0.180     2.017    
-    SLICE_X7Y47          FDPE (Remov_fdpe_C_PRE)     -0.095     1.922    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]
+                         net (fo=762, routed)         0.866     2.024    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/logic_clk
+    SLICE_X7Y43          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]/C
+                         clock pessimism             -0.188     1.836    
+                         clock uncertainty            0.180     2.016    
+    SLICE_X7Y43          FDPE (Remov_fdpe_C_PRE)     -0.095     1.921    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/s_reset_sync_inst/sync_reg_reg[0]
   -------------------------------------------------------------------
-                         required time                         -1.922    
-                         arrival time                           3.853    
+                         required time                         -1.921    
+                         arrival time                           3.626    
   -------------------------------------------------------------------
-                         slack                                  1.931    
+                         slack                                  1.705    
 
 
 
@@ -1997,14 +2008,14 @@ Path Group:  **async_default**
 From Clock:  sys_clk_pin
   To Clock:  sys_clk_pin
 
-Setup :            0  Failing Endpoints,  Worst Slack        1.815ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.530ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        1.640ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.723ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             1.815ns  (required time - arrival time)
+Slack (MET) :             1.640ns  (required time - arrival time)
   Source:                 camera_rst_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Destination:            u_camera_pipeline/u_capture_1/data_meta_reg[7]/CLR
@@ -2012,12 +2023,12 @@ Slack (MET) :             1.815ns  (required time - arrival time)
   Path Group:             **async_default**
   Path Type:              Recovery (Max at Slow Process Corner)
   Requirement:            10.000ns  (sys_clk_pin rise@10.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        7.327ns  (logic 0.642ns (8.763%)  route 6.685ns (91.237%))
+  Data Path Delay:        7.477ns  (logic 0.642ns (8.586%)  route 6.835ns (91.414%))
   Logic Levels:           1  (LUT1=1)
-  Clock Path Skew:        -0.028ns (DCD - SCD + CPR)
+  Clock Path Skew:        -0.052ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    4.891ns = ( 14.891 - 10.000 ) 
-    Source Clock Delay      (SCD):    5.107ns
-    Clock Pessimism Removal (CPR):    0.188ns
+    Source Clock Delay      (SCD):    5.124ns
+    Clock Pessimism Removal (CPR):    0.180ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
     Total Input Jitter      (TIJ):    0.000ns
@@ -2033,14 +2044,14 @@ Slack (MET) :             1.815ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.489     1.489 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.967     3.455    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     3.551 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.556     5.107    logic_clk
-    SLICE_X10Y50         FDRE                                         r  camera_rst_reg_reg/C
+                         net (fo=762, routed)         1.572     5.124    logic_clk
+    SLICE_X12Y49         FDRE                                         r  camera_rst_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X10Y50         FDRE (Prop_fdre_C_Q)         0.518     5.625 f  camera_rst_reg_reg/Q
-                         net (fo=1, routed)           0.521     6.147    camera_rst_reg
-    SLICE_X10Y50         LUT1 (Prop_lut1_I0_O)        0.124     6.271 f  camera_rst_reg_inst/O
-                         net (fo=413, routed)         6.164    12.434    u_camera_pipeline/u_capture_1/rst
-    ILOGIC_X1Y90         FDCE                                         f  u_camera_pipeline/u_capture_1/data_meta_reg[7]/CLR
+    SLICE_X12Y49         FDRE (Prop_fdre_C_Q)         0.518     5.642 f  camera_rst_reg_reg/Q
+                         net (fo=1, routed)           0.360     6.002    camera_rst_reg
+    SLICE_X12Y49         LUT1 (Prop_lut1_I0_O)        0.124     6.126 f  camera_rst_reg_inst/O
+                         net (fo=457, routed)         6.475    12.601    u_camera_pipeline/u_capture_1/rst
+    ILOGIC_X1Y88         FDCE                                         f  u_camera_pipeline/u_capture_1/data_meta_reg[7]/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -2050,16 +2061,16 @@ Slack (MET) :             1.815ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.418    11.418 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.862    13.280    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    13.371 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.520    14.891    u_camera_pipeline/u_capture_1/sys_clk
-    ILOGIC_X1Y90         FDCE                                         r  u_camera_pipeline/u_capture_1/data_meta_reg[7]/C
-                         clock pessimism              0.188    15.080    
-                         clock uncertainty           -0.035    15.044    
-    ILOGIC_X1Y90         FDCE (Recov_fdce_C_CLR)     -0.795    14.249    u_camera_pipeline/u_capture_1/data_meta_reg[7]
+                         net (fo=762, routed)         1.520    14.891    u_camera_pipeline/u_capture_1/sys_clk
+    ILOGIC_X1Y88         FDCE                                         r  u_camera_pipeline/u_capture_1/data_meta_reg[7]/C
+                         clock pessimism              0.180    15.072    
+                         clock uncertainty           -0.035    15.036    
+    ILOGIC_X1Y88         FDCE (Recov_fdce_C_CLR)     -0.795    14.241    u_camera_pipeline/u_capture_1/data_meta_reg[7]
   -------------------------------------------------------------------
-                         required time                         14.249    
-                         arrival time                         -12.434    
+                         required time                         14.241    
+                         arrival time                         -12.601    
   -------------------------------------------------------------------
-                         slack                                  1.815    
+                         slack                                  1.640    
 
 
 
@@ -2067,20 +2078,20 @@ Slack (MET) :             1.815ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.530ns  (arrival time - required time)
+Slack (MET) :             0.723ns  (arrival time - required time)
   Source:                 camera_rst_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_camera_pipeline/u_capture_1/pclk_high_count_reg[0]/CLR
+  Destination:            u_camera_pipeline/u_capture_1/href_meta_reg/CLR
                             (removal check against rising-edge clock sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             **async_default**
   Path Type:              Removal (Min at Fast Process Corner)
   Requirement:            0.000ns  (sys_clk_pin rise@0.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        0.738ns  (logic 0.209ns (28.333%)  route 0.529ns (71.667%))
+  Data Path Delay:        0.671ns  (logic 0.209ns (31.161%)  route 0.462ns (68.839%))
   Logic Levels:           1  (LUT1=1)
-  Clock Path Skew:        0.275ns (DCD - SCD - CPR)
+  Clock Path Skew:        0.015ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    1.996ns
-    Source Clock Delay      (SCD):    1.476ns
-    Clock Pessimism Removal (CPR):    0.245ns
+    Source Clock Delay      (SCD):    1.482ns
+    Clock Pessimism Removal (CPR):    0.499ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
@@ -2091,14 +2102,14 @@ Slack (MET) :             0.530ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.257     0.257 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.631     0.888    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.914 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.563     1.476    logic_clk
-    SLICE_X10Y50         FDRE                                         r  camera_rst_reg_reg/C
+                         net (fo=762, routed)         0.569     1.482    logic_clk
+    SLICE_X12Y49         FDRE                                         r  camera_rst_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X10Y50         FDRE (Prop_fdre_C_Q)         0.164     1.640 f  camera_rst_reg_reg/Q
-                         net (fo=1, routed)           0.163     1.804    camera_rst_reg
-    SLICE_X10Y50         LUT1 (Prop_lut1_I0_O)        0.045     1.849 f  camera_rst_reg_inst/O
-                         net (fo=413, routed)         0.366     2.214    u_camera_pipeline/u_capture_1/rst
-    SLICE_X12Y43         FDCE                                         f  u_camera_pipeline/u_capture_1/pclk_high_count_reg[0]/CLR
+    SLICE_X12Y49         FDRE (Prop_fdre_C_Q)         0.164     1.646 f  camera_rst_reg_reg/Q
+                         net (fo=1, routed)           0.112     1.759    camera_rst_reg
+    SLICE_X12Y49         LUT1 (Prop_lut1_I0_O)        0.045     1.804 f  camera_rst_reg_inst/O
+                         net (fo=457, routed)         0.349     2.153    u_camera_pipeline/u_capture_1/rst
+    SLICE_X14Y44         FDCE                                         f  u_camera_pipeline/u_capture_1/href_meta_reg/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -2108,15 +2119,15 @@ Slack (MET) :             0.530ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.445     0.445 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.685     1.129    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     1.158 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.838     1.996    u_camera_pipeline/u_capture_1/sys_clk
-    SLICE_X12Y43         FDCE                                         r  u_camera_pipeline/u_capture_1/pclk_high_count_reg[0]/C
-                         clock pessimism             -0.245     1.751    
-    SLICE_X12Y43         FDCE (Remov_fdce_C_CLR)     -0.067     1.684    u_camera_pipeline/u_capture_1/pclk_high_count_reg[0]
+                         net (fo=762, routed)         0.838     1.996    u_camera_pipeline/u_capture_1/sys_clk
+    SLICE_X14Y44         FDCE                                         r  u_camera_pipeline/u_capture_1/href_meta_reg/C
+                         clock pessimism             -0.499     1.497    
+    SLICE_X14Y44         FDCE (Remov_fdce_C_CLR)     -0.067     1.430    u_camera_pipeline/u_capture_1/href_meta_reg
   -------------------------------------------------------------------
-                         required time                         -1.684    
-                         arrival time                           2.214    
+                         required time                         -1.430    
+                         arrival time                           2.153    
   -------------------------------------------------------------------
-                         slack                                  0.530    
+                         slack                                  0.723    
 
 
 
@@ -2135,17 +2146,17 @@ Min Delay             8 Endpoints
 Max Delay Paths
 --------------------------------------------------------------------------------------
 Slack:                    inf
-  Source:                 taxi_logic_rst_reg_reg/C
+  Source:                 taxi_mac_rst_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/PRE
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/PRE
                             (recovery check against rising-edge clock mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Path Group:             (none)
   Path Type:              Recovery (Max at Slow Process Corner)
-  Data Path Delay:        1.710ns  (logic 0.478ns (27.949%)  route 1.232ns (72.051%))
+  Data Path Delay:        1.255ns  (logic 0.456ns (36.339%)  route 0.799ns (63.661%))
   Logic Levels:           0  
-  Clock Path Skew:        3.786ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    8.893ns
-    Source Clock Delay      (SCD):    5.107ns
+  Clock Path Skew:        3.384ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    8.508ns
+    Source Clock Delay      (SCD):    5.124ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -2162,12 +2173,12 @@ Slack:                    inf
     E3                   IBUF (Prop_ibuf_I_O)         1.489     1.489 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.967     3.455    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     3.551 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.556     5.107    logic_clk
-    SLICE_X8Y50          FDRE                                         r  taxi_logic_rst_reg_reg/C
+                         net (fo=762, routed)         1.572     5.124    logic_clk
+    SLICE_X9Y48          FDRE                                         r  taxi_mac_rst_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X8Y50          FDRE (Prop_fdre_C_Q)         0.478     5.585 f  taxi_logic_rst_reg_reg/Q
-                         net (fo=37, routed)          1.232     6.818    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/logic_rst
-    SLICE_X7Y48          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/PRE
+    SLICE_X9Y48          FDRE (Prop_fdre_C_Q)         0.456     5.580 f  taxi_mac_rst_reg_reg/Q
+                         net (fo=4, routed)           0.799     6.379    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/mac_rst
+    SLICE_X8Y48          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/PRE
   -------------------------------------------------------------------    -------------------
 
                          (clock mii_tx_clk rise edge)
@@ -2182,12 +2193,12 @@ Slack:                    inf
                                                      -3.129     1.702 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           1.581     3.283    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.091     3.374 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          1.509     4.883    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.367     5.250 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           2.034     7.284    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.091     7.375 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         1.518     8.893    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/tx_clk
-    SLICE_X7Y48          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/C
+                         net (fo=28, routed)          1.510     4.884    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.367     5.251 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           1.714     6.965    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.091     7.056 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         1.451     8.508    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/CLK
+    SLICE_X8Y48          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/C
 
 
 
@@ -2196,17 +2207,17 @@ Slack:                    inf
 Min Delay Paths
 --------------------------------------------------------------------------------------
 Slack:                    inf
-  Source:                 taxi_mac_rst_reg_reg/C
+  Source:                 taxi_logic_rst_reg_reg/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/PRE
+  Destination:            u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/PRE
                             (removal check against rising-edge clock mii_tx_clk  {rise@0.000ns fall@20.000ns period=40.000ns})
   Path Group:             (none)
   Path Type:              Removal (Min at Fast Process Corner)
-  Data Path Delay:        0.454ns  (logic 0.164ns (36.139%)  route 0.290ns (63.861%))
+  Data Path Delay:        0.475ns  (logic 0.128ns (26.959%)  route 0.347ns (73.041%))
   Logic Levels:           0  
-  Clock Path Skew:        2.783ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    4.259ns
-    Source Clock Delay      (SCD):    1.476ns
+  Clock Path Skew:        2.605ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    4.087ns
+    Source Clock Delay      (SCD):    1.481ns
     Clock Pessimism Removal (CPR):    -0.000ns
   Clock Uncertainty:      0.180ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -2223,12 +2234,12 @@ Slack:                    inf
     E3                   IBUF (Prop_ibuf_I_O)         0.257     0.257 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.631     0.888    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.914 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.563     1.476    logic_clk
-    SLICE_X8Y50          FDRE                                         r  taxi_mac_rst_reg_reg/C
+                         net (fo=762, routed)         0.568     1.481    logic_clk
+    SLICE_X9Y45          FDRE                                         r  taxi_logic_rst_reg_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X8Y50          FDRE (Prop_fdre_C_Q)         0.164     1.640 f  taxi_mac_rst_reg_reg/Q
-                         net (fo=4, routed)           0.290     1.930    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/mac_rst
-    SLICE_X9Y50          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/PRE
+    SLICE_X9Y45          FDRE (Prop_fdre_C_Q)         0.128     1.609 f  taxi_logic_rst_reg_reg/Q
+                         net (fo=37, routed)          0.347     1.956    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/logic_rst
+    SLICE_X7Y45          FDPE                                         f  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/PRE
   -------------------------------------------------------------------    -------------------
 
                          (clock mii_tx_clk rise edge)
@@ -2243,12 +2254,12 @@ Slack:                    inf
                                                      -1.375     0.602 r  u_ethernet_clk_wiz/inst/mmcm_adv_inst/CLKOUT0
                          net (fo=1, routed)           0.530     1.131    u_ethernet_clk_wiz/inst/rmii_ref_clk_ethernet_clk_wiz
     BUFGCTRL_X0Y2        BUFG (Prop_bufg_I_O)         0.029     1.160 r  u_ethernet_clk_wiz/inst/clkout1_buf/O
-                         net (fo=28, routed)          0.863     2.024    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
-    SLICE_X3Y53          FDCE (Prop_fdce_C_Q)         0.175     2.199 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
-                         net (fo=7, routed)           1.197     3.396    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
-    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.029     3.425 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
-                         net (fo=177, routed)         0.834     4.259    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/CLK
-    SLICE_X9Y50          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/tx_reset_sync_inst/sync_reg_reg[0]/C
+                         net (fo=28, routed)          0.864     2.025    u_ethernet_mii_rmii_bridge/u_rmii_phy_if/rmii_ref_clk
+    SLICE_X3Y51          FDCE (Prop_fdce_C_Q)         0.175     2.200 r  u_ethernet_mii_rmii_bridge/u_rmii_phy_if/mac_mii_txc_reg/Q
+                         net (fo=7, routed)           0.994     3.194    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_tx_clk
+    BUFGCTRL_X0Y1        BUFG (Prop_bufg_I_O)         0.029     3.223 r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/eth_mac_mii_inst/mii_phy_if_inst/mii_bufg_inst/O
+                         net (fo=177, routed)         0.864     4.087    u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/tx_clk
+    SLICE_X7Y45          FDPE                                         r  u_taxi_ethernet_subsystem/u_taxi_eth_mac_mii_fifo/tx_fifo/fifo_inst/m_reset_sync_inst/sync_reg_reg[0]/C
 
 
 
@@ -2371,7 +2382,7 @@ Slack:                    inf
                             (output port)
   Path Group:             (none)
   Path Type:              Max at Slow Process Corner
-  Data Path Delay:        7.967ns  (logic 4.021ns (50.468%)  route 3.946ns (49.532%))
+  Data Path Delay:        8.040ns  (logic 4.083ns (50.784%)  route 3.957ns (49.216%))
   Logic Levels:           1  (OBUF=1)
   Clock Uncertainty:      0.025ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.050ns
@@ -2388,13 +2399,13 @@ Slack:                    inf
     E3                   IBUF (Prop_ibuf_I_O)         1.489     1.489 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.967     3.455    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     3.551 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.556     5.107    logic_clk
-    SLICE_X15Y51         FDRE                                         r  phy_ready_reg/C
+                         net (fo=762, routed)         1.572     5.124    logic_clk
+    SLICE_X12Y49         FDRE                                         r  phy_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X15Y51         FDRE (Prop_fdre_C_Q)         0.456     5.563 r  phy_ready_reg/Q
-                         net (fo=5, routed)           3.946     9.510    ETH_RSTN_OBUF
-    B3                   OBUF (Prop_obuf_I_O)         3.565    13.075 r  ETH_RSTN_OBUF_inst/O
-                         net (fo=0)                   0.000    13.075    ETH_RSTN
+    SLICE_X12Y49         FDRE (Prop_fdre_C_Q)         0.518     5.642 r  phy_ready_reg/Q
+                         net (fo=5, routed)           3.957     9.599    ETH_RSTN_OBUF
+    B3                   OBUF (Prop_obuf_I_O)         3.565    13.163 r  ETH_RSTN_OBUF_inst/O
+                         net (fo=0)                   0.000    13.163    ETH_RSTN
     B3                                                                r  ETH_RSTN (OUT)
   -------------------------------------------------------------------    -------------------
 
@@ -2411,7 +2422,7 @@ Slack:                    inf
                             (output port)
   Path Group:             (none)
   Path Type:              Min at Fast Process Corner
-  Data Path Delay:        2.837ns  (logic 1.406ns (49.579%)  route 1.430ns (50.421%))
+  Data Path Delay:        2.855ns  (logic 1.429ns (50.064%)  route 1.426ns (49.936%))
   Logic Levels:           1  (OBUF=1)
   Clock Uncertainty:      0.025ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.050ns
@@ -2428,13 +2439,13 @@ Slack:                    inf
     E3                   IBUF (Prop_ibuf_I_O)         0.257     0.257 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.631     0.888    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.914 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.563     1.476    logic_clk
-    SLICE_X15Y51         FDRE                                         r  phy_ready_reg/C
+                         net (fo=762, routed)         0.569     1.482    logic_clk
+    SLICE_X12Y49         FDRE                                         r  phy_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X15Y51         FDRE (Prop_fdre_C_Q)         0.141     1.617 r  phy_ready_reg/Q
-                         net (fo=5, routed)           1.430     3.048    ETH_RSTN_OBUF
-    B3                   OBUF (Prop_obuf_I_O)         1.265     4.313 r  ETH_RSTN_OBUF_inst/O
-                         net (fo=0)                   0.000     4.313    ETH_RSTN
+    SLICE_X12Y49         FDRE (Prop_fdre_C_Q)         0.164     1.646 r  phy_ready_reg/Q
+                         net (fo=5, routed)           1.426     3.072    ETH_RSTN_OBUF
+    B3                   OBUF (Prop_obuf_I_O)         1.265     4.337 r  ETH_RSTN_OBUF_inst/O
+                         net (fo=0)                   0.000     4.337    ETH_RSTN
     B3                                                                r  ETH_RSTN (OUT)
   -------------------------------------------------------------------    -------------------
 
@@ -2457,14 +2468,14 @@ Max Delay Paths
 Slack:                    inf
   Source:                 CPU_RESETN
                             (input port)
-  Destination:            phy_reset_count_reg[4]/R
+  Destination:            phy_reset_count_reg[0]/R
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             (none)
   Path Type:              Setup (Max at Slow Process Corner)
-  Data Path Delay:        5.702ns  (logic 1.656ns (29.039%)  route 4.046ns (70.961%))
+  Data Path Delay:        6.129ns  (logic 1.656ns (27.015%)  route 4.474ns (72.985%))
   Logic Levels:           2  (IBUF=1 LUT2=1)
-  Clock Path Skew:        4.809ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    4.809ns
+  Clock Path Skew:        4.826ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    4.826ns
     Source Clock Delay      (SCD):    0.000ns
     Clock Pessimism Removal (CPR):    0.000ns
   Clock Uncertainty:      0.025ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
@@ -2478,10 +2489,10 @@ Slack:                    inf
     C12                                               0.000     0.000 f  CPU_RESETN (IN)
                          net (fo=0)                   0.000     0.000    CPU_RESETN
     C12                  IBUF (Prop_ibuf_I_O)         1.506     1.506 f  CPU_RESETN_IBUF_inst/O
-                         net (fo=4, routed)           3.088     4.594    CPU_RESETN_IBUF
-    SLICE_X15Y50         LUT2 (Prop_lut2_I0_O)        0.150     4.744 r  phy_reset_count[0]_i_1/O
-                         net (fo=20, routed)          0.958     5.702    phy_reset_count0
-    SLICE_X14Y50         FDRE                                         r  phy_reset_count_reg[4]/R
+                         net (fo=4, routed)           3.185     4.691    CPU_RESETN_IBUF
+    SLICE_X12Y49         LUT2 (Prop_lut2_I0_O)        0.150     4.841 r  phy_reset_count[0]_i_1/O
+                         net (fo=20, routed)          1.289     6.129    phy_reset_count0
+    SLICE_X13Y49         FDRE                                         r  phy_reset_count_reg[0]/R
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -2491,8 +2502,8 @@ Slack:                    inf
     E3                   IBUF (Prop_ibuf_I_O)         1.418     1.418 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           1.862     3.280    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091     3.371 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         1.438     4.809    logic_clk
-    SLICE_X14Y50         FDRE                                         r  phy_reset_count_reg[4]/C
+                         net (fo=762, routed)         1.454     4.826    logic_clk
+    SLICE_X13Y49         FDRE                                         r  phy_reset_count_reg[0]/C
 
 
 
@@ -2501,9 +2512,9 @@ Slack:                    inf
 Min Delay Paths
 --------------------------------------------------------------------------------------
 Slack:                    inf
-  Source:                 GPIO_CAM1[2]
+  Source:                 GPIO_CAM1[1]
                             (input port)
-  Destination:            u_camera_pipeline/u_capture_1/data_meta_reg[2]/D
+  Destination:            u_camera_pipeline/u_capture_1/data_meta_reg[1]/D
                             (rising edge-triggered cell FDCE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             (none)
   Path Type:              Hold (Min at Fast Process Corner)
@@ -2516,11 +2527,11 @@ Slack:                    inf
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
-    J2                                                0.000     0.000 r  GPIO_CAM1[2] (IN)
-                         net (fo=0)                   0.000     0.000    GPIO_CAM1[2]
-    J2                   IBUF (Prop_ibuf_I_O)         0.231     0.231 r  GPIO_CAM1_IBUF[2]_inst/O
-                         net (fo=1, routed)           0.000     0.231    u_camera_pipeline/u_capture_1/cam1_data[2]
-    ILOGIC_X1Y55         FDCE                                         r  u_camera_pipeline/u_capture_1/data_meta_reg[2]/D
+    J2                                                0.000     0.000 r  GPIO_CAM1[1] (IN)
+                         net (fo=0)                   0.000     0.000    GPIO_CAM1[1]
+    J2                   IBUF (Prop_ibuf_I_O)         0.231     0.231 r  GPIO_CAM1_IBUF[1]_inst/O
+                         net (fo=1, routed)           0.000     0.231    u_camera_pipeline/u_capture_1/camera_data[1]
+    ILOGIC_X1Y55         FDCE                                         r  u_camera_pipeline/u_capture_1/data_meta_reg[1]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -2530,8 +2541,8 @@ Slack:                    inf
     E3                   IBUF (Prop_ibuf_I_O)         0.445     0.445 r  u_sys_clk_ibuf/O
                          net (fo=2, routed)           0.685     1.129    sys_clk_ibuf
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     1.158 r  u_logic_clk_bufg/O
-                         net (fo=656, routed)         0.855     2.013    u_camera_pipeline/u_capture_1/sys_clk
-    ILOGIC_X1Y55         FDCE                                         r  u_camera_pipeline/u_capture_1/data_meta_reg[2]/C
+                         net (fo=762, routed)         0.855     2.013    u_camera_pipeline/u_capture_1/sys_clk
+    ILOGIC_X1Y55         FDCE                                         r  u_camera_pipeline/u_capture_1/data_meta_reg[1]/C
 
 
 

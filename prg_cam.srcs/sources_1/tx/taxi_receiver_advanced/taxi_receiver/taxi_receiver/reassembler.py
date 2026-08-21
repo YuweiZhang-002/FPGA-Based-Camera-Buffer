@@ -77,6 +77,8 @@ class CompletedFrame:
     ended_at: float = 0.0
     saw_first: bool = False
     saw_last: bool = False
+    capture_started_at: float = 0.0
+    capture_ended_at: float = 0.0
 
     def to_bytes(self, expected_rows: Optional[int] = None) -> bytes:
         """Concatenate rows 0..expected_rows-1 in order; any row not
@@ -377,6 +379,11 @@ class FrameReassembler:
         else:
             status = FrameStatus.PARTIAL
 
+        accepted_capture_times = [
+            record.capture_timestamp
+            for record in session.packet_records
+            if record.accepted and record.capture_timestamp > 0.0
+        ]
         completed = CompletedFrame(
             camera_id=session.camera_id,
             frame_id=session.frame_id,
@@ -393,6 +400,12 @@ class FrameReassembler:
             conflicting_duplicates=session.conflicting_duplicates,
             started_at=session.started_at,
             ended_at=ended_at,
+            capture_started_at=(
+                min(accepted_capture_times) if accepted_capture_times else 0.0
+            ),
+            capture_ended_at=(
+                max(accepted_capture_times) if accepted_capture_times else 0.0
+            ),
             saw_first=session.saw_first,
             saw_last=session.saw_last,
         )

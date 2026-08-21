@@ -1,0 +1,851 @@
+{
+  "schema": "taxi_receiver.camera_calibration/1",
+  "created_utc": "2026-08-19T03:25:51.955546Z",
+  "camera_id": 1,
+  "model": "opencv_fisheye",
+  "image_size": {
+    "width": 640,
+    "height": 480
+  },
+  "K": [
+    [
+      436.24136356960156,
+      0.0,
+      325.8608179035909
+    ],
+    [
+      0.0,
+      437.3805907038149,
+      231.47045403826033
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "dist_coeffs": [
+    0.2982699387824675,
+    1.0975809018569525,
+    0.13221935852585984,
+    -2.4001763465991774
+  ],
+  "dist_coeff_order": [
+    "k1",
+    "k2",
+    "k3",
+    "k4"
+  ],
+  "pattern": {
+    "type": "asymmetric_circles",
+    "columns": 4,
+    "rows": 11,
+    "base_spacing_mm": 20.0,
+    "dot_diameter_mm": 10.0,
+    "asymmetric_coordinate_rule": "x=(2*column+(row%2))*base_spacing_mm; y=row*base_spacing_mm",
+    "detected_point_count": 44,
+    "used_point_count": 44,
+    "excluded_point_indices": []
+  },
+  "quality": {
+    "status": "acceptable",
+    "rms_px": 0.1873016041822702,
+    "accepted_images": 150,
+    "rejected_images": 0,
+    "mean_view_rmse_px": 0.18087800324934786,
+    "median_view_rmse_px": 0.16802060036559902,
+    "max_view_rmse_px": 0.3998230525589297,
+    "monotonic_limit_theta_deg": 46.8755265641716,
+    "views": [
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21573.pgm",
+        "rmse_px": 0.1601904731971561,
+        "maximum_px": 0.46820134188008544
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21584.pgm",
+        "rmse_px": 0.1673268703618313,
+        "maximum_px": 0.4039340751360587
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21592.pgm",
+        "rmse_px": 0.3127777787377915,
+        "maximum_px": 0.5394268373456674
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21598.pgm",
+        "rmse_px": 0.1724065342167516,
+        "maximum_px": 0.3274881359794376
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21604.pgm",
+        "rmse_px": 0.14454806832861958,
+        "maximum_px": 0.3393998466465932
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21611.pgm",
+        "rmse_px": 0.148155297535304,
+        "maximum_px": 0.27902213238642615
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21617.pgm",
+        "rmse_px": 0.1462517845806795,
+        "maximum_px": 0.33666787848587804
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21623.pgm",
+        "rmse_px": 0.15264086919011569,
+        "maximum_px": 0.2800982528034514
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21630.pgm",
+        "rmse_px": 0.15286078194732733,
+        "maximum_px": 0.3070073911711332
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21636.pgm",
+        "rmse_px": 0.1316264885884029,
+        "maximum_px": 0.26749661104938655
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21642.pgm",
+        "rmse_px": 0.153885391304836,
+        "maximum_px": 0.29057017572892346
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21648.pgm",
+        "rmse_px": 0.17037383781547474,
+        "maximum_px": 0.4351827874297659
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21654.pgm",
+        "rmse_px": 0.15319232330156632,
+        "maximum_px": 0.280878140811182
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21660.pgm",
+        "rmse_px": 0.15448293279744058,
+        "maximum_px": 0.2877219668563469
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21666.pgm",
+        "rmse_px": 0.14470680134147285,
+        "maximum_px": 0.363922342765096
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21673.pgm",
+        "rmse_px": 0.15750868744906146,
+        "maximum_px": 0.3086944011699457
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21679.pgm",
+        "rmse_px": 0.2618681301578776,
+        "maximum_px": 0.5190623290036095
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21694.pgm",
+        "rmse_px": 0.18710623233605259,
+        "maximum_px": 0.46157470886960944
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21833.pgm",
+        "rmse_px": 0.22514119004815675,
+        "maximum_px": 0.6522603610935145
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21839.pgm",
+        "rmse_px": 0.19861378530751483,
+        "maximum_px": 0.4544897451090474
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21845.pgm",
+        "rmse_px": 0.19863571890597526,
+        "maximum_px": 0.5121016056819931
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21851.pgm",
+        "rmse_px": 0.1766019973081317,
+        "maximum_px": 0.4146363156933754
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21859.pgm",
+        "rmse_px": 0.18475376375235777,
+        "maximum_px": 0.42864322979051117
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21982.pgm",
+        "rmse_px": 0.1954349680366974,
+        "maximum_px": 0.46096190130639536
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21988.pgm",
+        "rmse_px": 0.16195302604088796,
+        "maximum_px": 0.4059728248142653
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\21994.pgm",
+        "rmse_px": 0.1636335995978817,
+        "maximum_px": 0.3355187188135953
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22000.pgm",
+        "rmse_px": 0.13026741143395684,
+        "maximum_px": 0.2520497875406921
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22006.pgm",
+        "rmse_px": 0.12042906448897762,
+        "maximum_px": 0.2671970616832914
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22012.pgm",
+        "rmse_px": 0.3116099953748861,
+        "maximum_px": 0.6554081571996259
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22018.pgm",
+        "rmse_px": 0.1380189619103018,
+        "maximum_px": 0.2854618283764887
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22025.pgm",
+        "rmse_px": 0.12357238656871837,
+        "maximum_px": 0.23935620004759356
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22031.pgm",
+        "rmse_px": 0.13234576178889987,
+        "maximum_px": 0.31600097072566025
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22038.pgm",
+        "rmse_px": 0.14222997038002208,
+        "maximum_px": 0.2840710778351039
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22044.pgm",
+        "rmse_px": 0.1381522356888125,
+        "maximum_px": 0.2919062659062551
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22050.pgm",
+        "rmse_px": 0.16386080580833265,
+        "maximum_px": 0.34510208760304084
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22057.pgm",
+        "rmse_px": 0.14518297504731073,
+        "maximum_px": 0.3686053143030663
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22063.pgm",
+        "rmse_px": 0.3998230525589297,
+        "maximum_px": 0.9973907034676698
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22185.pgm",
+        "rmse_px": 0.21683434544215338,
+        "maximum_px": 0.5352219156336693
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22191.pgm",
+        "rmse_px": 0.11898017982461294,
+        "maximum_px": 0.24613071103067982
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22197.pgm",
+        "rmse_px": 0.13496002531091775,
+        "maximum_px": 0.22666809198432844
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22203.pgm",
+        "rmse_px": 0.1473756547971125,
+        "maximum_px": 0.2902189394912295
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22209.pgm",
+        "rmse_px": 0.13680388241568972,
+        "maximum_px": 0.3053655032883276
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22216.pgm",
+        "rmse_px": 0.16634076164525796,
+        "maximum_px": 0.3580741885960425
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22231.pgm",
+        "rmse_px": 0.22876929302595353,
+        "maximum_px": 0.511367354125107
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22441.pgm",
+        "rmse_px": 0.15229100849797184,
+        "maximum_px": 0.31811986874647075
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22449.pgm",
+        "rmse_px": 0.18211668561663097,
+        "maximum_px": 0.49248866913313716
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22455.pgm",
+        "rmse_px": 0.1699853061828221,
+        "maximum_px": 0.3906766717031971
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22461.pgm",
+        "rmse_px": 0.16570310430896631,
+        "maximum_px": 0.4734697382051121
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22467.pgm",
+        "rmse_px": 0.15758100391745894,
+        "maximum_px": 0.2938133753462344
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22473.pgm",
+        "rmse_px": 0.19708951154796492,
+        "maximum_px": 0.5031852586473915
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22594.pgm",
+        "rmse_px": 0.15438423677482477,
+        "maximum_px": 0.2604357645035495
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22617.pgm",
+        "rmse_px": 0.1604743459033879,
+        "maximum_px": 0.40941755115737866
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22762.pgm",
+        "rmse_px": 0.1784695748002799,
+        "maximum_px": 0.41977117126942287
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22768.pgm",
+        "rmse_px": 0.1687103199259408,
+        "maximum_px": 0.33079019905292023
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22775.pgm",
+        "rmse_px": 0.15161901894450205,
+        "maximum_px": 0.37133069556914955
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22781.pgm",
+        "rmse_px": 0.13394983250825085,
+        "maximum_px": 0.2816706557172695
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22878.pgm",
+        "rmse_px": 0.33535232827152023,
+        "maximum_px": 0.8014963338425529
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22884.pgm",
+        "rmse_px": 0.18492258701684244,
+        "maximum_px": 0.36496968913881966
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22890.pgm",
+        "rmse_px": 0.15235110915662664,
+        "maximum_px": 0.307639658169612
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\22896.pgm",
+        "rmse_px": 0.2676274038401716,
+        "maximum_px": 0.5907973259515447
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23292.pgm",
+        "rmse_px": 0.19285746507098142,
+        "maximum_px": 0.41566960899716815
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23298.pgm",
+        "rmse_px": 0.17383826518486065,
+        "maximum_px": 0.3442891438459329
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23304.pgm",
+        "rmse_px": 0.14979119484128667,
+        "maximum_px": 0.2759993146678603
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23310.pgm",
+        "rmse_px": 0.15791563612935974,
+        "maximum_px": 0.2580995597315339
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23317.pgm",
+        "rmse_px": 0.139568861527266,
+        "maximum_px": 0.26844451694945565
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23323.pgm",
+        "rmse_px": 0.14508254348603808,
+        "maximum_px": 0.2761283819664934
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23329.pgm",
+        "rmse_px": 0.1562111941805959,
+        "maximum_px": 0.3020525259148837
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23336.pgm",
+        "rmse_px": 0.15302717116159276,
+        "maximum_px": 0.3122241546608613
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23342.pgm",
+        "rmse_px": 0.17117685428428064,
+        "maximum_px": 0.3530850701980499
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23348.pgm",
+        "rmse_px": 0.16306627233172166,
+        "maximum_px": 0.41547283238874244
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23355.pgm",
+        "rmse_px": 0.14293440674474792,
+        "maximum_px": 0.3090759546894744
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23362.pgm",
+        "rmse_px": 0.1604106160879172,
+        "maximum_px": 0.33227837255791337
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23368.pgm",
+        "rmse_px": 0.16690090795260584,
+        "maximum_px": 0.4199819976243819
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23374.pgm",
+        "rmse_px": 0.2086129725815907,
+        "maximum_px": 0.48544652755102147
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23498.pgm",
+        "rmse_px": 0.24042571866116777,
+        "maximum_px": 0.7344166031322318
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23506.pgm",
+        "rmse_px": 0.2359938546460932,
+        "maximum_px": 0.5559179959113661
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23512.pgm",
+        "rmse_px": 0.2925181336020919,
+        "maximum_px": 0.5541991142122888
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23518.pgm",
+        "rmse_px": 0.161685557362764,
+        "maximum_px": 0.608640028343452
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23524.pgm",
+        "rmse_px": 0.14792308420178554,
+        "maximum_px": 0.31067313724154366
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23530.pgm",
+        "rmse_px": 0.18954790314567083,
+        "maximum_px": 0.32223329519327853
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23536.pgm",
+        "rmse_px": 0.20750863008914008,
+        "maximum_px": 0.5191159574361437
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23542.pgm",
+        "rmse_px": 0.1552281018718618,
+        "maximum_px": 0.3391144075060184
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23548.pgm",
+        "rmse_px": 0.14148755544406943,
+        "maximum_px": 0.2593359343213528
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23554.pgm",
+        "rmse_px": 0.1676648442132533,
+        "maximum_px": 0.3124312347114223
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23560.pgm",
+        "rmse_px": 0.1618695748908433,
+        "maximum_px": 0.346009332100775
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23567.pgm",
+        "rmse_px": 0.14438482437657815,
+        "maximum_px": 0.2889740184177674
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23575.pgm",
+        "rmse_px": 0.1606588582165361,
+        "maximum_px": 0.31350330343183885
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23581.pgm",
+        "rmse_px": 0.14413695894415562,
+        "maximum_px": 0.259606228347833
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23587.pgm",
+        "rmse_px": 0.1589542172486974,
+        "maximum_px": 0.34298937534816604
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23593.pgm",
+        "rmse_px": 0.16837635651794475,
+        "maximum_px": 0.33812162882994834
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23705.pgm",
+        "rmse_px": 0.15637781353633098,
+        "maximum_px": 0.32819193091848337
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23711.pgm",
+        "rmse_px": 0.15731552344773467,
+        "maximum_px": 0.30288675554669203
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23717.pgm",
+        "rmse_px": 0.17379532960419522,
+        "maximum_px": 0.31710782328294884
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23723.pgm",
+        "rmse_px": 0.23743362342813648,
+        "maximum_px": 0.4606160373226144
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23729.pgm",
+        "rmse_px": 0.18611795952988197,
+        "maximum_px": 0.4198038600915955
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23735.pgm",
+        "rmse_px": 0.16450506098002277,
+        "maximum_px": 0.299819787272141
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23741.pgm",
+        "rmse_px": 0.17700159619722788,
+        "maximum_px": 0.36394372124985414
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23764.pgm",
+        "rmse_px": 0.17981621354650132,
+        "maximum_px": 0.3677984487769347
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23770.pgm",
+        "rmse_px": 0.1510563458415803,
+        "maximum_px": 0.2646329253294501
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\23776.pgm",
+        "rmse_px": 0.2319385973127493,
+        "maximum_px": 0.4810089921193863
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24092.pgm",
+        "rmse_px": 0.18849243743539346,
+        "maximum_px": 0.3692518020916621
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24098.pgm",
+        "rmse_px": 0.16925296318355268,
+        "maximum_px": 0.3391415996723056
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24297.pgm",
+        "rmse_px": 0.20806520896766317,
+        "maximum_px": 0.5738858402786366
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24303.pgm",
+        "rmse_px": 0.17185460757495985,
+        "maximum_px": 0.4052275034341584
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24309.pgm",
+        "rmse_px": 0.1703734781926517,
+        "maximum_px": 0.3971219790534894
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24316.pgm",
+        "rmse_px": 0.17532793585266362,
+        "maximum_px": 0.3118099368121791
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24322.pgm",
+        "rmse_px": 0.1638132947516331,
+        "maximum_px": 0.3207159946165977
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24328.pgm",
+        "rmse_px": 0.16337453440311284,
+        "maximum_px": 0.3144388143123518
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24334.pgm",
+        "rmse_px": 0.20502030613328415,
+        "maximum_px": 0.34156724690691975
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24340.pgm",
+        "rmse_px": 0.15632494345340156,
+        "maximum_px": 0.2982376142002346
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24373.pgm",
+        "rmse_px": 0.1797665767701162,
+        "maximum_px": 0.38267820984486856
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24382.pgm",
+        "rmse_px": 0.14785685304676824,
+        "maximum_px": 0.2854931438553702
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24388.pgm",
+        "rmse_px": 0.3547730729031609,
+        "maximum_px": 0.8164785525814212
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24417.pgm",
+        "rmse_px": 0.16877689840334026,
+        "maximum_px": 0.35166015883461543
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24423.pgm",
+        "rmse_px": 0.2114428468211857,
+        "maximum_px": 0.41056194011496816
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\24755.pgm",
+        "rmse_px": 0.18509848194503856,
+        "maximum_px": 0.49271685503662693
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25001.pgm",
+        "rmse_px": 0.19906102375873097,
+        "maximum_px": 0.4753256242505092
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25015.pgm",
+        "rmse_px": 0.17322903016424981,
+        "maximum_px": 0.36458885476695163
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25027.pgm",
+        "rmse_px": 0.24529119700629262,
+        "maximum_px": 0.510764460214144
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25173.pgm",
+        "rmse_px": 0.19052097477879995,
+        "maximum_px": 0.4443703756213016
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25179.pgm",
+        "rmse_px": 0.1730326678669469,
+        "maximum_px": 0.3234351016273301
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25185.pgm",
+        "rmse_px": 0.14698360265056892,
+        "maximum_px": 0.29057780933581545
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25192.pgm",
+        "rmse_px": 0.2157185740020732,
+        "maximum_px": 0.48719819328255065
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25198.pgm",
+        "rmse_px": 0.16725325005441277,
+        "maximum_px": 0.3690494211845545
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25204.pgm",
+        "rmse_px": 0.17232302430004073,
+        "maximum_px": 0.37010857574880734
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25210.pgm",
+        "rmse_px": 0.19178519308837036,
+        "maximum_px": 0.34554939999853573
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25442.pgm",
+        "rmse_px": 0.1687843839352772,
+        "maximum_px": 0.5154338625592509
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25449.pgm",
+        "rmse_px": 0.1720091851575882,
+        "maximum_px": 0.41556530798003927
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25459.pgm",
+        "rmse_px": 0.17740510397140133,
+        "maximum_px": 0.4986590378970831
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25466.pgm",
+        "rmse_px": 0.1491922464014121,
+        "maximum_px": 0.33367012410643654
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25474.pgm",
+        "rmse_px": 0.3771631200652834,
+        "maximum_px": 1.0005750878749775
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25492.pgm",
+        "rmse_px": 0.20565700655822447,
+        "maximum_px": 0.39033160524089155
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25498.pgm",
+        "rmse_px": 0.17554211703681633,
+        "maximum_px": 0.39931912705977074
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25504.pgm",
+        "rmse_px": 0.1821669862703975,
+        "maximum_px": 0.3172778861043665
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25511.pgm",
+        "rmse_px": 0.17296981458007785,
+        "maximum_px": 0.4536561288489348
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25517.pgm",
+        "rmse_px": 0.3576917868738189,
+        "maximum_px": 0.965158262077104
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25568.pgm",
+        "rmse_px": 0.210354201787137,
+        "maximum_px": 0.372682736924922
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25574.pgm",
+        "rmse_px": 0.17068586545003075,
+        "maximum_px": 0.36473056425293915
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25580.pgm",
+        "rmse_px": 0.18815421828423892,
+        "maximum_px": 0.4176540933199564
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25789.pgm",
+        "rmse_px": 0.15432419718098284,
+        "maximum_px": 0.3179880062728714
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25795.pgm",
+        "rmse_px": 0.14771834287810176,
+        "maximum_px": 0.31811274078621904
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25801.pgm",
+        "rmse_px": 0.15538613127294942,
+        "maximum_px": 0.32851909516129324
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25807.pgm",
+        "rmse_px": 0.1515492423058461,
+        "maximum_px": 0.31792152227792836
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25814.pgm",
+        "rmse_px": 0.2686843282103358,
+        "maximum_px": 0.5650623369043574
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25857.pgm",
+        "rmse_px": 0.24814459754986584,
+        "maximum_px": 0.5956822918587241
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25863.pgm",
+        "rmse_px": 0.16924489958698222,
+        "maximum_px": 0.400512781919981
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25869.pgm",
+        "rmse_px": 0.1586231506134382,
+        "maximum_px": 0.30113799775540795
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25875.pgm",
+        "rmse_px": 0.14594030269156338,
+        "maximum_px": 0.3258729778517563
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25881.pgm",
+        "rmse_px": 0.1560725531123873,
+        "maximum_px": 0.3613351140826584
+      },
+      {
+        "path": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train\\cam1\\25887.pgm",
+        "rmse_px": 0.21344565678737734,
+        "maximum_px": 0.5738817133265955
+      }
+    ],
+    "warnings": []
+  },
+  "selection": {
+    "strategy": "attempt18_locked_refit_v2_shared_frames",
+    "distortion_terms_fitted": 4,
+    "opencv_flags": [
+      "CALIB_RECOMPUTE_EXTRINSIC",
+      "CALIB_FIX_SKEW"
+    ],
+    "source_dataset": "D:\\prg\\prg_cam\\images\\new_Temp\\attempt18_extrinsics_locked_train",
+    "frame_index_csv": "D:\\prg\\prg_cam\\build\\attempt18_extrinsics_locked_audit\\02_train_pairs_quasi_static_strict_0p2\\frames_cam1.csv",
+    "excluded_extrinsic_pair_frames": [
+      "21608",
+      "21626",
+      "21672",
+      "21852",
+      "22021",
+      "22036",
+      "22055",
+      "22212",
+      "22616",
+      "22770",
+      "22783",
+      "23312",
+      "23334",
+      "23353",
+      "23360",
+      "23565",
+      "23570",
+      "23574",
+      "24311",
+      "25187",
+      "25460",
+      "25467",
+      "25507",
+      "25808",
+      "25908"
+    ],
+    "supersedes": "cam1_intrinsics_mask26.json"
+  }
+}

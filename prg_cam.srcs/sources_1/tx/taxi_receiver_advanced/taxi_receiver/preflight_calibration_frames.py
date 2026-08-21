@@ -359,9 +359,15 @@ def run_watch(args: argparse.Namespace, settings: DetectorSettings) -> int:
                 )
                 stats.append(stat)
                 poses = len(count_distinct_poses(stats, args.width, args.height))
+                valid_frames = sum(item.ok for item in stats)
                 marker = "ok" if stat.ok else "--"
                 detail = "GRID OK" if stat.ok else f"cand={stat.candidates} {stat.reason[:40]}"
-                print(f"[{marker}] {path.name:<20} {detail:<52} poses={poses}", flush=True)
+                print(
+                    f"[{marker}] {path.name:<20} {detail:<52} "
+                    f"valid_frames={valid_frames}/{len(stats)} "
+                    f"poses={poses}/{args.min_poses}",
+                    flush=True,
+                )
             time.sleep(args.poll_interval)
     except KeyboardInterrupt:
         print()

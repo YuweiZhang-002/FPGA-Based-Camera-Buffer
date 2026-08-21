@@ -3,6 +3,13 @@
 Layered re-implementation of the original single-file `0x88B5` TAXI
 Ethernet receiver prototype.
 
+双相机外参标定的完整采集、静止配对、固定内参求解和两轮 holdout 流程见
+[`EXTRINSIC_CALIBRATION.md`](EXTRINSIC_CALIBRATION.md)。
+更换 cam1 后，仅重做 cam1 内参并重新生成双目外参的简化流程见
+[`CAM1_REPLACEMENT_CALIBRATION.md`](CAM1_REPLACEMENT_CALIBRATION.md)。
+污染/非污染板历史模型的 K/D、统计量、FOV、鱼眼可逆域和检测距离对照见
+[`CALIBRATION_MODEL_COMPARISON.md`](CALIBRATION_MODEL_COMPARISON.md)。
+
 ```
 taxi_receiver/
   capture.py          Layer 1 - Capture            (only module that may import scapy, and lazily)
@@ -297,18 +304,20 @@ and regenerates the final CRC when enabled:
 | 126    | 1     | CRC16 high byte, or `FF` placeholder     |
 | 127    | 1     | CRC16 low byte, or `FF` placeholder      |
 
-The offset-13 status allocation is `0x01` FPGA buffer overflow and `0x08` input
-length error. `0x10` remains reserved for a future entry CRC check but is not
-generated while the MCU emits an `FF FF` placeholder. CRC mode is explicit:
+The offset-13 status allocation is `0x01` FPGA buffer overflow, `0x08` input
+length error and `0x10` MCU-to-FPGA ingress CRC mismatch. CRC mode is explicit:
 `enabled` uses CRC-16/CCITT-FALSE (poly `0x1021`, init `0xFFFF`, no
 reflection, xorout 0) over offsets 0..125, while `placeholder` emits `FF FF`
 and records `crc_checked=False`. It is selected with `--crc-mode` and is not
 inferred from the received tail value.
 
-The FPGA does not compare the MCU ingress placeholder with a calculated CRC.
-At FPGA exit, enabled mode always regenerates CRC after the offset-4/13 patches,
-so the PC continues to validate the final outgoing packet with `--crc-mode
-enabled`.
+With `CAMERA_INGRESS_CRC_ENABLE=1`, Camera_Capture compares the MCU big-endian
+tail against its calculation before any FPGA patch. A valid-length mismatch
+sets offset-13 bit `0x10`; malformed lengths use `0x08` because their CRC
+positions are not trustworthy. At FPGA exit, `CAMERA_CRC_ENABLE=1` always
+regenerates CRC after the offset-4/13 patches, so the PC validates the outgoing
+packet with `--crc-mode enabled` while `fpga_crc_error` independently identifies
+damage that happened before the FPGA egress CRC was generated.
 
 ## Layer 6: recover threshold pixels at `on_completed_frame`
 

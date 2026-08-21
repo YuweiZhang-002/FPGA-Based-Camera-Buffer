@@ -88,8 +88,9 @@ module Line_Buffer #(
     // ========================================================================
     // RX-ONLY FLAGS / REGISTERS -- 仅 RX agent 写入或判断
     // ========================================================================
-    // Offset 13 is the FPGA receiver diagnostic status byte.  It remains
-    // disjoint from RP2354 sender_row_flags at offset 9.
+    // Offset 13 is the FPGA receiver diagnostic status byte. It remains
+    // disjoint from RP2354 sender_row_flags at offset 9. This agent treats the
+    // byte opaquely, preserving Capture's 0x08 length and 0x10 ingress-CRC bits.
     localparam [7:0] FPGA_STATUS_FRAME_OVERFLOW = 8'h01;
     localparam [7:0] FPGA_STATUS_LENGTH_ERROR   = 8'h08;
 

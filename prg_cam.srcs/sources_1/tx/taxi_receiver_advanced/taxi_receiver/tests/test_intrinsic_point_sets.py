@@ -7,7 +7,15 @@ import cv2
 import numpy as np
 import pytest
 
-from taxi_receiver.binary_calibration import asymmetric_object_points
+from taxi_receiver.binary_calibration import (
+    CalibrationFit,
+    DetectionResult,
+    DetectorSettings,
+    ViewRecord,
+    asymmetric_object_points,
+    build_calibration_document,
+    fit_calibration,
+)
 from taxi_receiver.extrinsic_config import (
     ExtrinsicValidationError,
     intrinsic_point_set,
@@ -108,6 +116,106 @@ def test_full_count_without_index_fields_means_the_full_grid() -> None:
     document["pattern"].pop("excluded_point_indices")
 
     assert intrinsic_point_set(document) == frozenset(range(44))
+
+
+def test_generated_intrinsic_declares_the_full_point_set() -> None:
+    centers = np.asarray(
+        [
+            [80.0 + 60.0 * (index % 4), 40.0 + 35.0 * (index // 4)]
+            for index in range(44)
+        ],
+        dtype=np.float32,
+    )
+    detection = DetectionResult(
+        found=True,
+        reason="accepted_for_calibration",
+        centers=centers,
+        candidates=[],
+        metrics={"nearest_neighbor_spacing_px": 35.0},
+    )
+    record = ViewRecord(
+        path=Path("frame1.pgm"),
+        detection=detection,
+        accepted=True,
+        reason="accepted",
+        reprojection_rmse_px=0.2,
+    )
+    fit = CalibrationFit(
+        rms_px=0.2,
+        K=np.asarray(
+            [[430.0, 0.0, 320.0], [0.0, 432.0, 240.0], [0.0, 0.0, 1.0]],
+            dtype=np.float64,
+        ),
+        D=np.zeros((4, 1), dtype=np.float64),
+        rvecs=[np.zeros((3, 1), dtype=np.float64)],
+        tvecs=[np.asarray([[0.0], [0.0], [500.0]], dtype=np.float64)],
+        per_view_rmse_px=[0.2],
+    )
+
+    document = build_calibration_document(
+        fit,
+        [record],
+        [0],
+        [],
+        DetectorSettings(columns=4, rows=11),
+        (640, 480),
+        "fisheye",
+        1,
+        20.0,
+        10.0,
+        True,
+    )
+
+    assert document["pattern"]["used_point_count"] == 44
+    assert document["pattern"]["excluded_point_indices"] == []
+    assert intrinsic_point_set(document) == frozenset(range(44))
+    assert document["solver_constraints"] == {
+        "fixed_distortion_coefficients": ["k3", "k4"],
+        "free_distortion_coefficients": ["k1", "k2"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("constraint", "expect_k3"),
+    [
+        ({"fisheye_fix_k3_k4": True}, True),
+        ({"fisheye_fix_k4": True}, False),
+    ],
+)
+def test_constrained_fisheye_passes_fix_flags_to_opencv(
+    monkeypatch, constraint, expect_k3
+) -> None:
+    objects = asymmetric_object_points(4, 11, 20.0)
+    K = np.asarray(
+        [[430.0, 0.0, 320.0], [0.0, 432.0, 240.0], [0.0, 0.0, 1.0]],
+        dtype=np.float64,
+    )
+    D = np.zeros((4, 1), dtype=np.float64)
+    rvec = np.asarray([[0.08], [-0.12], [0.02]], dtype=np.float64)
+    tvec = np.asarray([[-60.0], [-90.0], [600.0]], dtype=np.float64)
+    points, _ = cv2.fisheye.projectPoints(
+        objects.reshape(1, -1, 3), rvec, tvec, K, D
+    )
+    observed_flags: list[int] = []
+
+    def fake_calibrate(object_sets, image_sets, image_size, K0, D0, *, flags, criteria):
+        observed_flags.append(flags)
+        return 0.0, K.copy(), D.copy(), [rvec.copy()], [tvec.copy()]
+
+    monkeypatch.setattr(cv2.fisheye, "calibrate", fake_calibrate)
+    fit = fit_calibration(
+        [points.reshape(-1, 2)],
+        objects,
+        (640, 480),
+        "fisheye",
+        **constraint,
+    )
+
+    fix_k3 = int(getattr(cv2.fisheye, "CALIB_FIX_K3", 1 << 6))
+    fix_k4 = int(getattr(cv2.fisheye, "CALIB_FIX_K4", 1 << 7))
+    assert bool(observed_flags[0] & fix_k3) is expect_k3
+    assert observed_flags[0] & fix_k4
+    assert fit.D.reshape(-1)[2:].tolist() == [0.0, 0.0]
 
 
 def test_holdout_rejects_recorded_point_set_that_differs_from_intrinsics() -> None:

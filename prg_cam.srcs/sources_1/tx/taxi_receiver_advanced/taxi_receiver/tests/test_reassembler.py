@@ -1,5 +1,10 @@
 from taxi_receiver.camera_parser import parse_camera_mode
-from taxi_receiver.reassembler import FrameReassembler, NullReassembler
+from taxi_receiver.reassembler import (
+    CompletedFrame,
+    FrameReassembler,
+    FrameStatus,
+    NullReassembler,
+)
 from taxi_receiver.packet_format import (
     FLAG_LAST_ROW,
     ROW_BYTES,
@@ -32,6 +37,33 @@ def test_null_reassembler_never_completes():
     pkt = _parsed(0, 1, 0, FLAG_LAST_ROW)
     assert reassembler.on_row(pkt) is None
     assert reassembler.flush() == []
+
+
+def test_completed_frame_preserves_the_legacy_positional_field_order():
+    frame = CompletedFrame(
+        0,
+        7,
+        1,
+        {0: bytes(ROW_BYTES)},
+        [],
+        False,
+        FrameStatus.COMPLETE,
+        "last_row",
+        1,
+        [],
+        [],
+        0,
+        0,
+        10.0,
+        11.0,
+        True,
+        True,
+    )
+
+    assert frame.saw_first is True
+    assert frame.saw_last is True
+    assert frame.capture_started_at == 0.0
+    assert frame.capture_ended_at == 0.0
 
 
 def test_frame_reassembler_completes_on_last_row():

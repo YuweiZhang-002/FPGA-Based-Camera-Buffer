@@ -34,6 +34,7 @@ module tb_Camera_Capture_Pclk_Glitch;
         .CAM_ID          (2'd0),
         .PACKET_BYTES    (PACKET_BYTES),
         .LINES_PER_FRAME (480),
+        .INGRESS_CRC_ENABLE(1'b0), // glitch test uses no CRC vector
         .PCLK_FILTER_LEN (2)
     ) dut (
         .pclk                 (pclk),

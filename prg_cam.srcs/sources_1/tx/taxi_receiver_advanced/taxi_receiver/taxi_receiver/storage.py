@@ -154,7 +154,7 @@ class StorageAndPipeline:
             existing = json.loads(metadata_path.read_text(encoding="utf-8"))
         except Exception:
             return False
-        return _stable_metadata(existing) == _stable_metadata(metadata)
+        return _archive_metadata_matches(existing, metadata)
 
     def __call__(self, frame: CompletedFrame) -> None:
         self.archive(frame)
@@ -186,6 +186,17 @@ class StorageAndPipeline:
             "started_at_monotonic": frame.started_at,
             "ended_at_monotonic": frame.ended_at,
             "duration_seconds": max(0.0, frame.ended_at - frame.started_at),
+            "capture_started_at": (
+                frame.capture_started_at if frame.capture_started_at > 0.0 else None
+            ),
+            "capture_ended_at": (
+                frame.capture_ended_at if frame.capture_ended_at > 0.0 else None
+            ),
+            "capture_center_timestamp": (
+                0.5 * (frame.capture_started_at + frame.capture_ended_at)
+                if frame.capture_started_at > 0.0 and frame.capture_ended_at > 0.0
+                else None
+            ),
             "raw_size_bytes": len(raw),
             "raw_sha256": hashlib.sha256(raw).hexdigest(),
             "width": None,
@@ -436,3 +447,22 @@ def _stable_metadata(metadata: dict[str, object]) -> dict[str, object]:
         for key, value in metadata.items()
         if key not in volatile_keys
     }
+
+
+def _archive_metadata_matches(
+    existing: dict[str, object],
+    expected: dict[str, object],
+) -> bool:
+    """Compare archives while accepting metadata created before capture timing."""
+
+    existing_stable = _stable_metadata(existing)
+    expected_stable = _stable_metadata(expected)
+    for key in (
+        "capture_started_at",
+        "capture_ended_at",
+        "capture_center_timestamp",
+    ):
+        if key not in existing_stable or key not in expected_stable:
+            existing_stable.pop(key, None)
+            expected_stable.pop(key, None)
+    return existing_stable == expected_stable

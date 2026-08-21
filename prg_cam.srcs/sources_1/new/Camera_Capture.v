@@ -17,6 +17,10 @@ module Camera_Capture #(
     parameter [1:0]   CAM_ID          = 2'd0, // 本实例固定相机编号
     parameter integer PACKET_BYTES    = 128,  // href 内期望的 pclk byte 数
     parameter integer LINES_PER_FRAME = 480,  // 无 VSYNC 时用于帧回卷
+    // 1 compares the MCU-provided big-endian CRC tail against CRC-16/
+    // CCITT-FALSE over offsets 0..PACKET_BYTES-3. A mismatch is reported in
+    // FPGA status bit 0x10; packet bytes still continue to Byte_Replacer.
+    parameter         INGRESS_CRC_ENABLE = 1'b1,
     // PCLK high qualification depth (>=2).  A byte requires this many
     // consecutive synchronized high samples, which rejects a one-sample high
     // glitch.  Hardware ILA showed that a real DATA transition can be bounded
@@ -38,7 +42,7 @@ module Camera_Capture #(
     output reg        line_start,  // href 上升沿单周期脉冲：重置/预留 LB 写 slot
     output reg        line_end,    // href 下降沿单周期脉冲：提交 LB 写 slot
     output wire [1:0] line_cam_id, // 常量 CAM_ID，与行包 metadata 一起提交
-    output reg  [7:0] line_flags,  // FPGA receiver diagnostic status byte
+    output reg  [7:0] line_flags,  // registered with line_end for Line_Buffer
 
     output wire [15:0] current_row_idx,       // 调试：当前行编号，0 起始
     output wire [15:0] current_byte_count,    // 调试：当前 href 已观察到的 byte 数
@@ -54,6 +58,25 @@ module Camera_Capture #(
     localparam [7:0] FPGA_STATUS_FRAME_OVERFLOW = 8'h01;
     localparam [7:0] FPGA_STATUS_LENGTH_ERROR   = 8'h08;
     localparam [7:0] FPGA_STATUS_CRC_ERROR      = 8'h10;
+
+    // Byte-serial CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, refin=false,
+    // refout=false, xorout=0. This matches Byte_Replacer and the Python host.
+    function [15:0] crc16_byte;
+        input [15:0] crc_in;
+        input [7:0]  data_in;
+        integer bit_index;
+        reg [15:0] crc_work;
+        begin
+            crc_work = crc_in ^ {data_in, 8'h00};
+            for (bit_index = 0; bit_index < 8; bit_index = bit_index + 1) begin
+                if (crc_work[15])
+                    crc_work = {crc_work[14:0], 1'b0} ^ 16'h1021;
+                else
+                    crc_work = {crc_work[14:0], 1'b0};
+            end
+            crc16_byte = crc_work;
+        end
+    endfunction
 
     // ========================================================================
     // COHERENT ASYNC FRONT-END (MODIFIED 2026-07-24)
@@ -120,6 +143,21 @@ module Camera_Capture #(
     (* MARK_DEBUG = "TRUE" *) reg capture_armed;
     (* MARK_DEBUG = "TRUE" *) reg line_active;
     (* MARK_DEBUG = "TRUE" *) reg line_end_pending;
+
+    // ========================================================================
+    // INGRESS-CRC REGISTERS -- only the capture/row agent writes these
+    // ========================================================================
+    // ingress_crc accumulates bytes 0..125. ingress_received_crc captures the
+    // MCU's big-endian bytes at offsets 126/127. Comparison is meaningful only
+    // after a complete 128-byte row; malformed lengths are reported as 0x08.
+    (* MARK_DEBUG = "TRUE" *) reg [15:0] ingress_crc;
+    (* MARK_DEBUG = "TRUE" *) reg [15:0] ingress_received_crc;
+
+    wire line_length_error = (byte_count != PACKET_BYTES);
+    (* MARK_DEBUG = "TRUE" *)
+    wire ingress_crc_error = (INGRESS_CRC_ENABLE != 0) &&
+                             !line_length_error &&
+                             (ingress_received_crc != ingress_crc);
 
     assign line_cam_id        = CAM_ID;
     assign current_row_idx    = row_idx;
@@ -204,6 +242,8 @@ module Camera_Capture #(
             capture_armed          <= 1'b0;
             line_active            <= 1'b0;
             line_end_pending       <= 1'b0;
+            ingress_crc            <= 16'hFFFF;
+            ingress_received_crc   <= 16'd0;
         end else begin
             // 三个输出均为事件脉冲，默认每拍清零，仅在下方条件中拉高。
             byte_valid <= 1'b0;
@@ -227,6 +267,8 @@ module Camera_Capture #(
                     line_start <= 1'b1;
                     line_active <= 1'b1;
                     byte_count <= 16'd0;
+                    ingress_crc <= 16'hFFFF;
+                    ingress_received_crc <= 16'd0;
                 end
             end else if (pclk_pulse && line_active) begin
                 // Saturation preserves an unambiguous length-error indication
@@ -244,6 +286,18 @@ module Camera_Capture #(
                 // event per accepted PCLK cycle.
                 byte_data  <= data_sync;
                 byte_valid <= 1'b1;
+
+                // byte_count is the current zero-based wire offset before its
+                // nonblocking increment. The final two bytes are the received
+                // CRC and therefore never feed the calculation itself.
+                if (INGRESS_CRC_ENABLE != 0) begin
+                    if (byte_count < PACKET_BYTES - 2)
+                        ingress_crc <= crc16_byte(ingress_crc, data_sync);
+                    else if (byte_count == PACKET_BYTES - 2)
+                        ingress_received_crc[15:8] <= data_sync;
+                    else if (byte_count == PACKET_BYTES - 1)
+                        ingress_received_crc[7:0] <= data_sync;
+                end
             end
 
             // HREF has less qualification latency than pclk_pulse.  Do not
@@ -260,14 +314,17 @@ module Camera_Capture #(
                     capture_armed <= 1'b0;
                 last_line_byte_count <= byte_count;
                 length_error_pulse <= (byte_count != PACKET_BYTES);
+                // line_end and line_flags are registered together. Line_Buffer
+                // observes both on the following sys_clk edge, so the status
+                // belongs to this row without a separate commit state flag.
+                line_flags <=
+                    (line_length_error ? FPGA_STATUS_LENGTH_ERROR : 8'd0) |
+                    (ingress_crc_error ? FPGA_STATUS_CRC_ERROR : 8'd0);
                 // MODIFIED (2026-07-24): FPGA 侧不再自行生成 FIRST_ROW/LAST_ROW。
                 // 那份内部 row_idx 计数器与真实帧边界不同步（每帧固定在
                 // row_idx=2/75/76 附近产生错误标志）；真实的 FIRST_LINE/FINAL_LINE
                 // 已由 RP2350A 固件 packet_generator() 正确写入包内 offset 9。
                 // Byte_Replacer 保持 offset 9 原样，并把此状态独立写入 offset 13。
-                line_flags <= (byte_count == PACKET_BYTES)
-                              ? 8'd0 : FPGA_STATUS_LENGTH_ERROR;
-
                 // row_idx 仅保留用于 current_row_idx 调试输出与无 VSYNC 帧回卷；
                 // 不再参与 line_flags。
                 if (row_idx == LINES_PER_FRAME - 1)
@@ -278,8 +335,8 @@ module Camera_Capture #(
         end
     end
 
-    // FRAME_OVERFLOW is asserted by Line_Buffer. CRC_ERROR remains a reserved
-    // offset-13 allocation while MCU ingress CRC comparison is disabled;
-    // Camera_Capture does not drive either bit.
+    // FRAME_OVERFLOW is asserted later by Line_Buffer. Camera_Capture owns the
+    // length and ingress-CRC bits; Byte_Replacer writes their ORed status to
+    // offset 13 and recalculates the packet's independent egress CRC.
 
 endmodule

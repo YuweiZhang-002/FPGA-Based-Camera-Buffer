@@ -33,6 +33,7 @@ module tb_Camera_Capture_Pclk_Low_Runt;
         .CAM_ID              (2'd0),
         .PACKET_BYTES        (PACKET_BYTES),
         .LINES_PER_FRAME     (480),
+        .INGRESS_CRC_ENABLE  (1'b0), // low-runt test uses no CRC vector
         .PCLK_FILTER_LEN     (2),
         .PCLK_LOW_FILTER_LEN (1)
     ) dut (

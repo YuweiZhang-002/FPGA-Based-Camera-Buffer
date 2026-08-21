@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import dataclass, field
+from functools import partial
 import math
 from pathlib import Path
 import re
@@ -444,6 +445,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--spacing-mm", type=float, default=20.0)
     parser.add_argument("--dot-diameter-mm", type=float, default=10.0)
     parser.add_argument("--model", choices=("fisheye", "pinhole-rational"), default="fisheye")
+    fisheye_constraints = parser.add_mutually_exclusive_group()
+    fisheye_constraints.add_argument(
+        "--fisheye-fix-k3-k4",
+        action="store_true",
+        help="fix fisheye k3 and k4 at zero; solve only k1 and k2",
+    )
+    fisheye_constraints.add_argument(
+        "--fisheye-fix-k4",
+        action="store_true",
+        help="fix fisheye k4 at zero; solve k1, k2, and k3",
+    )
     parser.add_argument("--fov-deg", type=float, default=120.0)
     parser.add_argument("--min-views", type=int, default=15)
     parser.add_argument("--min-final-poses", type=int, default=25)
@@ -477,6 +489,8 @@ def _validate_arguments(parser: argparse.ArgumentParser, args: argparse.Namespac
         parser.error("refill round and candidate limits must be positive")
     if args.pose_shift_fraction <= 0 or args.pose_scale_ratio <= 1.0:
         parser.error("pose thresholds must be positive and scale ratio must exceed 1")
+    if (args.fisheye_fix_k3_k4 or args.fisheye_fix_k4) and args.model != "fisheye":
+        parser.error("fisheye distortion constraints require --model fisheye")
 
 
 def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
@@ -514,6 +528,11 @@ def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
             f"at least {args.min_final_poses} are required"
         )
 
+    solve = partial(
+        calibrate_with_outlier_rejection,
+        fisheye_fix_k3_k4=args.fisheye_fix_k3_k4,
+        fisheye_fix_k4=args.fisheye_fix_k4,
+    )
     result = refill_rejected_poses(
         clusters,
         make_object_points(settings, args.spacing_mm),
@@ -525,6 +544,7 @@ def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
         fov_degrees=args.fov_deg,
         max_refill_rounds=args.max_refill_rounds,
         max_candidates_per_pose=args.max_candidates_per_pose,
+        solve=solve,
     )
     document = build_calibration_document(
         result.fit,
@@ -537,6 +557,8 @@ def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
         args.camera_id,
         args.spacing_mm,
         args.dot_diameter_mm,
+        args.fisheye_fix_k3_k4,
+        args.fisheye_fix_k4,
     )
     document["selection"] = {
         "strategy": "pose_cluster_refill_v1",

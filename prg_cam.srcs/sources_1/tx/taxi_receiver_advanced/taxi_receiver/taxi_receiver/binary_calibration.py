@@ -549,7 +549,13 @@ def fit_calibration(
     image_size: tuple[int, int],
     model: str,
     fov_degrees: float = 120.0,
+    fisheye_fix_k3_k4: bool = False,
+    fisheye_fix_k4: bool = False,
 ) -> CalibrationFit:
+    if fisheye_fix_k3_k4 and fisheye_fix_k4:
+        raise ValueError("choose only one fisheye distortion constraint")
+    if (fisheye_fix_k3_k4 or fisheye_fix_k4) and model != "fisheye":
+        raise ValueError("fisheye k3/k4 constraints require the fisheye model")
     K0 = _initial_camera_matrix(image_size, model, fov_degrees)
     criteria = (
         cv2.TERM_CRITERIA_COUNT | cv2.TERM_CRITERIA_EPS,
@@ -565,6 +571,11 @@ def fit_calibration(
             | _fisheye_flag("CALIB_CHECK_COND", 1 << 2)
             | _fisheye_flag("CALIB_FIX_SKEW", 1 << 3)
         )
+        if fisheye_fix_k3_k4:
+            flags |= _fisheye_flag("CALIB_FIX_K3", 1 << 6)
+            flags |= _fisheye_flag("CALIB_FIX_K4", 1 << 7)
+        elif fisheye_fix_k4:
+            flags |= _fisheye_flag("CALIB_FIX_K4", 1 << 7)
         rms, K, D, rvecs, tvecs = cv2.fisheye.calibrate(
             objects,
             images,
@@ -574,6 +585,18 @@ def fit_calibration(
             flags=flags,
             criteria=criteria,
         )
+        fixed_values = (
+            np.asarray(D, dtype=np.float64).reshape(-1)[2:4]
+            if fisheye_fix_k3_k4
+            else np.asarray(D, dtype=np.float64).reshape(-1)[3:4]
+        )
+        if (fisheye_fix_k3_k4 or fisheye_fix_k4) and not np.allclose(
+            fixed_values,
+            0.0,
+            rtol=0.0,
+            atol=1e-12,
+        ):
+            raise ValueError("OpenCV did not preserve fixed fisheye coefficients at zero")
         std_intrinsics = None
     else:
         objects = [object_points.astype(np.float32) for _ in image_points]
@@ -623,6 +646,8 @@ def calibrate_with_outlier_rejection(
     min_views: int,
     max_view_rmse_px: float,
     fov_degrees: float,
+    fisheye_fix_k3_k4: bool = False,
+    fisheye_fix_k4: bool = False,
 ) -> tuple[CalibrationFit, list[int], list[dict[str, float | str]]]:
     active = [
         index
@@ -641,6 +666,8 @@ def calibrate_with_outlier_rejection(
             image_size,
             model,
             fov_degrees,
+            fisheye_fix_k3_k4,
+            fisheye_fix_k4,
         )
         for index, error in zip(active, fit.per_view_rmse_px, strict=True):
             record = records[index]
@@ -674,6 +701,8 @@ def calibrate_with_outlier_rejection(
             image_size,
             model,
             fov_degrees,
+            fisheye_fix_k3_k4,
+            fisheye_fix_k4,
         )
 
     for index, error in zip(active, fit.per_view_rmse_px, strict=True):
@@ -785,7 +814,18 @@ def build_calibration_document(
     camera_id: int | None,
     spacing_mm: float,
     dot_diameter_mm: float,
+    fisheye_fix_k3_k4: bool = False,
+    fisheye_fix_k4: bool = False,
 ) -> dict[str, Any]:
+    if fisheye_fix_k3_k4 and fisheye_fix_k4:
+        raise ValueError("choose only one fisheye distortion constraint")
+    fixed_distortion_coefficients = (
+        ["k3", "k4"]
+        if model == "fisheye" and fisheye_fix_k3_k4
+        else ["k4"]
+        if model == "fisheye" and fisheye_fix_k4
+        else []
+    )
     coverage = _pose_and_coverage_metrics(records, active, fit, image_size)
     status, warnings = _quality_status(fit, coverage, len(active))
     distortion_names = (
@@ -803,10 +843,19 @@ def build_calibration_document(
         "K": fit.K.tolist(),
         "dist_coeffs": fit.D.reshape(-1).tolist(),
         "dist_coeff_order": list(distortion_names),
+        "solver_constraints": {
+            "fixed_distortion_coefficients": fixed_distortion_coefficients,
+            "free_distortion_coefficients": [
+                name for name in distortion_names
+                if name not in fixed_distortion_coefficients
+            ],
+        },
         "pattern": {
             "type": f"{settings.pattern}_circles",
             "columns": settings.columns,
             "rows": settings.rows,
+            "used_point_count": settings.point_count,
+            "excluded_point_indices": [],
             "base_spacing_mm": spacing_mm,
             "dot_diameter_mm": dot_diameter_mm,
             "asymmetric_coordinate_rule": (
@@ -934,6 +983,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--spacing-mm", type=float, default=20.0)
     parser.add_argument("--dot-diameter-mm", type=float, default=10.0)
     parser.add_argument("--model", choices=("fisheye", "pinhole-rational"), default="fisheye")
+    fisheye_constraints = parser.add_mutually_exclusive_group()
+    fisheye_constraints.add_argument(
+        "--fisheye-fix-k3-k4",
+        action="store_true",
+        help="fix fisheye k3 and k4 at zero; solve only k1 and k2",
+    )
+    fisheye_constraints.add_argument(
+        "--fisheye-fix-k4",
+        action="store_true",
+        help="fix fisheye k4 at zero; solve k1, k2, and k3",
+    )
     parser.add_argument("--fov-deg", type=float, default=120.0, help="initialization only")
     parser.add_argument("--min-views", type=int, default=15)
     parser.add_argument("--max-view-rmse-px", type=float, default=1.5)
@@ -965,6 +1025,8 @@ def _validate_arguments(parser: argparse.ArgumentParser, args: argparse.Namespac
         parser.error("--fov-deg must be in [60, 179)")
     if args.close_kernel < 1:
         parser.error("--close-kernel must be positive")
+    if (args.fisheye_fix_k3_k4 or args.fisheye_fix_k4) and args.model != "fisheye":
+        parser.error("fisheye distortion constraints require --model fisheye")
 
 
 def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
@@ -1010,6 +1072,8 @@ def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
             args.min_views,
             args.max_view_rmse_px,
             args.fov_deg,
+            args.fisheye_fix_k3_k4,
+            args.fisheye_fix_k4,
         )
     except (ValueError, cv2.error):
         # Detection failures need to remain actionable even when there are too
@@ -1028,6 +1092,8 @@ def run(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]]:
         args.camera_id,
         args.spacing_mm,
         args.dot_diameter_mm,
+        args.fisheye_fix_k3_k4,
+        args.fisheye_fix_k4,
     )
     _write_json_atomic(args.output, document)
     write_view_report(report_path, records)

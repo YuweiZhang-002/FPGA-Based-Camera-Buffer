@@ -9,9 +9,9 @@
 //   offset 126/127 CRC high/low, or explicit FF/FF placeholder
 //
 // Each bank owns its bytes, cam_id and status until its final output handshake.
-// The MCU ingress tail is accepted without comparison while the MCU emits the
-// FF/FF placeholder. CRC_ENABLE controls only the FPGA egress CRC: enabled
-// regenerates offsets 126/127 after all patches; disabled emits FF/FF.
+// Camera_Capture audits the MCU ingress tail before this module. CRC_ENABLE
+// controls the independent FPGA egress CRC: enabled regenerates offsets
+// 126/127 after all patches; disabled emits FF/FF.
 //////////////////////////////////////////////////////////////////////////////////
 module Byte_Replacer #(
     parameter integer PACKET_BYTES       = 128,

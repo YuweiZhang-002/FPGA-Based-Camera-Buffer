@@ -12,6 +12,10 @@ param(
 
     [int]$QueueDepth = 65536,
 
+    # Preserve the receiver CLI's legacy 8 MiB default for existing callers.
+    # Sustained dual-camera calibration capture passes 64 MiB explicitly.
+    [int]$PcapBufferSize = 8388608,
+
     [int]$FrameOutputQueueDepth = 256,
 
     [string]$ImagesRoot = '',
@@ -42,6 +46,14 @@ param(
     [string]$PublishImages = 'process',
 
     [int]$PublisherQueueDepth = 256,
+
+    [int]$CsvQueueDepth = 65536,
+
+    [ValidateSet('auto', 'drop', 'block')]
+    [string]$CsvBackpressure = 'auto',
+
+    [ValidateSet('msb_first', 'lsb_first')]
+    [string]$BitOrder = 'msb_first',
 
     # session_audit_v2.csv is synchronous and overlaps rows_v2.csv. 'auto'
     # means off for live capture.
@@ -84,6 +96,7 @@ $receiverArgs = @(
     '--max-missing-rows', $MaxMissingRows,
     '--max-consecutive-missing', $MaxConsecutiveMissing,
     '--queue-depth', $QueueDepth,
+    '--pcap-buffer-size', $PcapBufferSize,
     '--frame-output-queue-depth', $FrameOutputQueueDepth,
     '--images-root', $ImagesRoot,
     '--split-by-camera', $SplitByCamera,
@@ -91,6 +104,9 @@ $receiverArgs = @(
     '--publish-frames', $PublishFrames,
     '--publish-images', $PublishImages,
     '--publisher-queue-depth', $PublisherQueueDepth,
+    '--csv-queue-depth', $CsvQueueDepth,
+    '--csv-backpressure', $CsvBackpressure,
+    '--bit-order', $BitOrder,
     '--session-audit', $SessionAudit
 )
 if (-not [string]::IsNullOrWhiteSpace($OutputRoot)) {

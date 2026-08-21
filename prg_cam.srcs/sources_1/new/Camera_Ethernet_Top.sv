@@ -19,6 +19,7 @@ module Camera_Ethernet_Top #(
     // HREF/PCLK events. Set this generic only after cam1 is wired and verified.
     parameter bit     ENABLE_CAM1 = 1'b1,
     parameter bit     CAMERA_CRC_ENABLE = 1'b1,
+    parameter bit     CAMERA_INGRESS_CRC_ENABLE = 1'b1,
     parameter integer CAMERA_LINES_PER_FRAME = 480
 ) (
     input  wire       CLK100MHZ,
@@ -227,17 +228,22 @@ module Camera_Ethernet_Top #(
         camera_line_flags_dbg[3];
     (* MARK_DEBUG = "TRUE" *) wire        camera_length_error_pulse_dbg;
     (* MARK_DEBUG = "TRUE" *) wire        camera_capture_byte_valid_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera_crc_error_pulse_dbg =
+        camera_line_end_dbg && camera_line_flags_dbg[4];
     (* MARK_DEBUG = "TRUE" *) wire [15:0] camera1_current_byte_count_dbg;
     (* MARK_DEBUG = "TRUE" *) wire [15:0] camera1_last_line_byte_count_dbg;
     (* MARK_DEBUG = "TRUE" *) wire [7:0]  camera1_line_flags_dbg;
     (* MARK_DEBUG = "TRUE" *) wire        camera1_line_end_dbg;
     (* MARK_DEBUG = "TRUE" *) wire        camera1_length_error_pulse_dbg;
     (* MARK_DEBUG = "TRUE" *) wire        camera1_capture_byte_valid_dbg;
+    (* MARK_DEBUG = "TRUE" *) wire        camera1_crc_error_pulse_dbg =
+        camera1_line_end_dbg && camera1_line_flags_dbg[4];
 
     Camera_Pipeline #(
         .LINES_PER_FRAME   (CAMERA_LINES_PER_FRAME),
         .PACKET_FIFO_DEPTH (512),
         .CRC_ENABLE        (CAMERA_CRC_ENABLE),
+        .INGRESS_CRC_ENABLE(CAMERA_INGRESS_CRC_ENABLE),
         .ENABLE_CAM1       (ENABLE_CAM1)
     ) u_camera_pipeline (
         .sys_clk                  (logic_clk),

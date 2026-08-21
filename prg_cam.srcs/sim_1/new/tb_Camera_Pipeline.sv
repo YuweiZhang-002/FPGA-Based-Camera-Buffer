@@ -243,7 +243,12 @@ module tb_Camera_Pipeline;
         // neither malformed row contaminates the next normal row.
         build_packet(0, 2'd0, 8'h00);
         build_packet(1, 2'd1, 8'h00);
-        build_packet(2, 2'd0, 8'h00);
+        // Packet 2 carries a deliberately damaged MCU CRC. Camera_Capture must
+        // set only ingress-audit bit 0x10, after which Byte_Replacer protects
+        // that patched status with a new valid egress CRC.
+        build_packet(2, 2'd0, 8'h10);
+        source_packet[2*PACKET_BYTES+127] =
+            source_packet[2*PACKET_BYTES+127] ^ 8'h01;
         build_packet(3, 2'd2, 8'h08);
         build_packet(4, 2'd3, 8'h08);
         build_packet(5, 2'd2, 8'h00);
@@ -286,7 +291,7 @@ module tb_Camera_Pipeline;
         end
 
         if (errors == 0)
-            $display("PASS: 4-camera arbitration, 127/129 normalization, status and CRC-16");
+            $display("PASS: ingress CRC audit, egress CRC, arbitration and length normalization");
         else
             $display("FAIL: %0d errors", errors);
         $finish;

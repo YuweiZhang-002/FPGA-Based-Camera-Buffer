@@ -314,6 +314,8 @@ def test_publication_envelope_round_trip_preserves_missing_rows():
         status=FrameStatus.PARTIAL,
         close_reason="frame_switch",
         expected_rows=3,
+        capture_started_at=1234.0,
+        capture_ended_at=1234.062,
         saw_first=True,
         saw_last=False,
     )
@@ -322,6 +324,8 @@ def test_publication_envelope_round_trip_preserves_missing_rows():
 
     assert restored.camera_id == 1
     assert restored.frame_id == 77
+    assert restored.capture_started_at == 1234.0
+    assert restored.capture_ended_at == 1234.062
     assert restored.status is FrameStatus.PARTIAL
     assert restored.missing_rows == [1]
     # Row 1 stays absent; row 2 is a genuine all-zero row and must be kept.

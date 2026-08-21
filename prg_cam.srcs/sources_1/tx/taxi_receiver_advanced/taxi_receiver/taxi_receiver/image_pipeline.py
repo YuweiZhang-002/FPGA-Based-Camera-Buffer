@@ -161,6 +161,8 @@ class _PublishedFrameEnvelope:
     close_reason: str
     started_at: float
     ended_at: float
+    capture_started_at: float
+    capture_ended_at: float
     saw_first: bool
     saw_last: bool
     rows_blob: bytes
@@ -196,6 +198,8 @@ def _frame_to_envelope(frame: CompletedFrame) -> _PublishedFrameEnvelope:
         close_reason=frame.close_reason,
         started_at=frame.started_at,
         ended_at=frame.ended_at,
+        capture_started_at=frame.capture_started_at,
+        capture_ended_at=frame.capture_ended_at,
         saw_first=frame.saw_first,
         saw_last=frame.saw_last,
         rows_blob=rows_blob,
@@ -227,6 +231,8 @@ def _envelope_to_frame(envelope: _PublishedFrameEnvelope) -> CompletedFrame:
         conflicting_duplicates=0,
         started_at=envelope.started_at,
         ended_at=envelope.ended_at,
+        capture_started_at=envelope.capture_started_at,
+        capture_ended_at=envelope.capture_ended_at,
         saw_first=envelope.saw_first,
         saw_last=envelope.saw_last,
     )
@@ -862,6 +868,17 @@ class CameraImagePipeline:
         metadata = {
             "cam_id": frame.camera_id,
             "frame_id": frame.frame_id,
+            "capture_started_at": (
+                frame.capture_started_at if frame.capture_started_at > 0.0 else None
+            ),
+            "capture_ended_at": (
+                frame.capture_ended_at if frame.capture_ended_at > 0.0 else None
+            ),
+            "capture_center_timestamp": (
+                0.5 * (frame.capture_started_at + frame.capture_ended_at)
+                if frame.capture_started_at > 0.0 and frame.capture_ended_at > 0.0
+                else None
+            ),
             "status": output_status,
             "close_reason": frame.close_reason,
             "width": recovered.width,
@@ -1275,7 +1292,7 @@ class CameraImagePipeline:
             existing_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         except Exception:
             return False
-        return _stable_publication_metadata(existing_metadata) == _stable_publication_metadata(metadata)
+        return _publication_metadata_matches(existing_metadata, metadata)
 
 
 def _stable_publication_metadata(metadata: dict[str, object]) -> dict[str, object]:
@@ -1287,3 +1304,27 @@ def _stable_publication_metadata(metadata: dict[str, object]) -> dict[str, objec
         for key, value in metadata.items()
         if key not in volatile_keys
     }
+
+
+def _publication_metadata_matches(
+    existing: dict[str, object],
+    expected: dict[str, object],
+) -> bool:
+    """Compare metadata while accepting sidecars from before capture timing.
+
+    Capture timing remains strict when both documents contain a field.  A
+    field is ignored only when either document predates that one optional
+    addition; every other stable metadata field must still match exactly.
+    """
+
+    existing_stable = _stable_publication_metadata(existing)
+    expected_stable = _stable_publication_metadata(expected)
+    for key in (
+        "capture_started_at",
+        "capture_ended_at",
+        "capture_center_timestamp",
+    ):
+        if key not in existing_stable or key not in expected_stable:
+            existing_stable.pop(key, None)
+            expected_stable.pop(key, None)
+    return existing_stable == expected_stable

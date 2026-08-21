@@ -14,6 +14,12 @@ if {[lsearch -exact $active_generics "USE_CAMERA_PIPELINE=1"] < 0} {
 if {[lsearch -exact $active_generics "ENABLE_CAM1=1"] < 0} {
     error "Camera1 is not enabled in sources_1 generics: $active_generics"
 }
+if {[lsearch -exact $active_generics "CAMERA_CRC_ENABLE=1"] < 0} {
+    error "Camera egress CRC-16 is not enabled in sources_1 generics: $active_generics"
+}
+if {[lsearch -exact $active_generics "CAMERA_INGRESS_CRC_ENABLE=1"] < 0} {
+    error "Camera ingress CRC audit is not enabled in sources_1 generics: $active_generics"
+}
 
 foreach required_module {
     Alarmer Camera_Capture Line_Buffer Byte_Replacer Byte_FIFO
