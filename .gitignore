@@ -13,8 +13,10 @@
 # Repository metadata and documentation.
 !/.gitignore
 !/README.md
+!/README.zh-CN.md
 !/docs/
 !/scripts/
+!/scripts_ps/
 
 # Authored Vivado sources: legacy and current.
 !/project_camera.srcs/
@@ -35,3 +37,14 @@
 *.hw/
 *.sim/
 *.ip_user_files/
+*.bit
+*.ltx
+*.dcp
+*.pcap
+*.pcapng
+*.raw
+*.pgm
+*.png
+*.csv
+__pycache__/
+.pytest_cache/

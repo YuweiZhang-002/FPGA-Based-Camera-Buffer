@@ -2,6 +2,9 @@
 // DEPRECATED (2026-07 FIFO/SRAM refactor): unrelated SPI metadata prototype;
 // it is not part of the active camera-to-packet path.
 `ifdef ENABLE_DEPRECATED_LOCATION_PATH
+// 注释导读：这是旧 SPI 位流转 byte 的实验模块，不属于相机包链。
+// spi_pulse 是经 Alarmer 同步后的 SPI 上升沿；temp_data 是 8-bit 移位寄存器；
+// ptr 标记当前接收的 bit 位置；ready/loc_valid 只在第 8 bit 到达时保持一拍。
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -24,7 +27,9 @@
 
 
 module Location_Generator(
+    // clk=系统处理时钟；spi_clk=异步串行时钟；rst=高有效异步复位。
     input            clk, spi_clk, rst,
+    // data_stream 是 spi_clk 边沿上的串行 bit；loc_valid 在组满 byte 后一拍有效。
     input            data_stream,
     output wire[7:0] loc_data,
     output wire      loc_valid
@@ -32,9 +37,9 @@ module Location_Generator(
 
     localparam MODULE_DEPRECATED = 1'b1;
     
-    reg [7:0] temp_data;
-    reg [2:0] ptr;
-    reg       ready;
+    reg [7:0] temp_data; // 左移输入缓存，最新 bit 进入 bit0
+    reg [2:0] ptr;       // 3-bit 自然回卷计数器：0..7
+    reg       ready;     // 输出事件寄存器，每拍默认清零
     assign loc_data  = temp_data;
     assign loc_valid = ready;
 
@@ -55,6 +60,7 @@ module Location_Generator(
             ptr       <= 3'd0;
             ready     <= 1'b0;
         end else begin
+            // valid 为 pulse 而不是 level；消费者必须在该拍采样 loc_data。
             ready <= 1'b0;
             if (spi_pulse) begin
                 // BUGFIX: old code {temp_data[7:1], data_stream} only wrote bit0 and

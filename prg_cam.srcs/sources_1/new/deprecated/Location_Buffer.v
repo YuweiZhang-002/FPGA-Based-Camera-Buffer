@@ -1,6 +1,11 @@
 `timescale 1ns / 1ps
 // DEPRECATED (2026-07 FIFO/SRAM refactor): old location/Ethernet container.
 `ifdef ENABLE_DEPRECATED_LOCATION_PATH
+// 注释导读：该原型把四路定位 byte 写入 unified_buf 的四个 16-byte 分区。
+// grant[i] 在这里是“写使能”而不是当前 FIFO 架构的包级仲裁授权；wr_ptrN
+// 是各分区独立 0..15 游标。每收到第 14 个定位 byte 时，同时写入 cam_id
+// 和 bufcnt 到分区末两字节。eth_tx_* 端口尚无发送 SM 驱动，因此本模块
+// 即使解除宏保护也不能形成完整 AXI-Stream 输出。
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -54,10 +59,11 @@ module Location_Buffer #(
     // ==========================================
     // 模块 A：统一的 64 字节巨型缓冲池
     // ==========================================
+    // 地址 0..15/16..31/32..47/48..63 分别属于 camera 0..3。
     reg [7:0] unified_buf [0:TOTAL_DEPTH-1];
     
     // 4 个独立的写入局部游标，范围永远是 0 ~ 15
-    reg [3:0] wr_ptr0, wr_ptr1, wr_ptr2, wr_ptr3;
+    reg [3:0] wr_ptr0, wr_ptr1, wr_ptr2, wr_ptr3; // 4-bit 自然回卷
     
     // ==========================================
     // 模块 B：纯并行接收逻辑 (无死锁追加 Append)
@@ -68,11 +74,13 @@ module Location_Buffer #(
             wr_ptr2 <= 4'd0; wr_ptr3 <= 4'd0;
         end else begin
             if (frame_done) begin
+                // frame_done 只复位写游标，并未启动下方声明的 Ethernet 输出。
                 wr_ptr0 <= 4'd0; wr_ptr1 <= 4'd0;
                 wr_ptr2 <= 4'd0; wr_ptr3 <= 4'd0;
             end else begin
                 // 【通道 0 追加】：基地址为 0
                 if (grant[0]) begin
+                    // wr_ptr==13 时当前 loc 写 offset13，附加字段写 offset14/15。
                     unified_buf[0 + wr_ptr0] <= cam0_loc;
                     if (wr_ptr0 == 13) begin
                         unified_buf[0 + 14] <= {6'd0, cam0_id};

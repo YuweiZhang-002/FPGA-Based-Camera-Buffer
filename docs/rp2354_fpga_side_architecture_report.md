@@ -2,8 +2,6 @@
 
 > 2026-07-17 implementation note: 本文前半部分保留早期架构取舍记录；当前可综合实现已经更新为四相机、100 MHz `sys_clk` 主域和固定 128-byte 输入包。最新模块级事实以 [fpga_module_structure.md](fpga_module_structure.md) 和 [fpga_fifo_refactor_status.md](fpga_fifo_refactor_status.md) 为准。
 
-> GitHub archive note: 本文中指向 `prg_cam.gen/`、本地 `.xpr` 和综合生成文件的旧证据链接用于记录原始评审环境；这些 Vivado 生成物按照仓库策略不上传。当前可复现源文件位于 `prg_cam.srcs/`。
-
 本文是基于当前仓库事实、并结合新的项目目标重新写出的架构评审。它不是对现有 Verilog 做语法优化，而是从系统层面重新裁剪：保留还有效的能力，删除为旧目标准备的过度设计，给出可验证的最小版本和未来高带宽版本的分层路线。
 
 当前仓库里能核实的基础事实是：工程器件是 xc7a50ticsg324-1L，板卡是 Nexys A7 50T，工具链是 Vivado v2025.2.1。现存的 `Pixel_Generator`、`Line_Generator`、`AXI4_Compiler` 已移动到 `new/deprecated/`，仅用于记录重构前的 4-bit 组字、旧行缓存和 AXI4/DDR2 架构。[Pixel_Generator.v](../prg_cam.srcs/sources_1/new/deprecated/Pixel_Generator.v) [Line_Generator.v](../prg_cam.srcs/sources_1/new/deprecated/Line_Generator.v) [AXI4_Compiler.v](../prg_cam.srcs/sources_1/new/deprecated/AXI4_Compiler.v)

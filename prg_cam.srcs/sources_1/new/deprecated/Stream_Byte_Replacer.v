@@ -2,6 +2,9 @@
 // DEPRECATED (2026-07-17): superseded by Byte_Replacer.v, which patches both
 // required header fields and regenerates CRC-16 for fixed 128-byte packets.
 `ifdef ENABLE_DEPRECATED_STREAM_BYTE_REPLACER
+// 注释导读：该旧模块只能替换一个固定 offset，不能合并 flags 或计算 CRC。
+// 它是无缓存组合 ready/valid 级：in_ready=out_ready、out_valid=in_valid；
+// byte_index 只在 transfer_fire 时递增，packet_last 握手后回到 0。
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: Stream_Byte_Replacer
 //
@@ -12,9 +15,9 @@
 // Recommended placement: Packet_Formatter -> this module -> Byte_FIFO.
 //////////////////////////////////////////////////////////////////////////////////
 module Stream_Byte_Replacer #(
-    parameter integer ENABLE           = 0,
-    parameter integer BYTE_OFFSET      = 0,
-    parameter [7:0]   REPLACEMENT_BYTE = 8'hFF
+    parameter integer ENABLE           = 0,     // 0 时完全透传
+    parameter integer BYTE_OFFSET      = 0,     // 从 0 开始的目标 byte 位置
+    parameter [7:0]   REPLACEMENT_BYTE = 8'hFF // 目标位置输出值
 )(
     input  wire       clk,
     input  wire       rst,
@@ -30,12 +33,13 @@ module Stream_Byte_Replacer #(
     output wire       out_packet_last
 );
 
-    reg [6:0] byte_index;
-    wire transfer_fire = in_valid && in_ready;
+    reg [6:0] byte_index; // 当前包内 offset；宽度只支持最多 128 个位置
+    wire transfer_fire = in_valid && in_ready; // stall 时必须保持 index
 
     assign in_ready        = out_ready;
     assign out_valid       = in_valid;
     assign out_packet_last = in_packet_last;
+    // 三元选择是纯组合替换，不改变 valid/last 的时序。
     assign out_data        = (ENABLE && (byte_index == BYTE_OFFSET))
                              ? REPLACEMENT_BYTE : in_data;
 

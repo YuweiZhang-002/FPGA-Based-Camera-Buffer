@@ -1,0 +1,12 @@
+open_vcd fixed_frame_rmii.vcd
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/logic_clk
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/rmii_ref_clk
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/rmii_tx_en
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/rmii_txd
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/frame_data
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/frame_valid
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/frame_ready
+log_vcd /tb_Fixed_Frame_Taxi_Rmii/frame_last
+run all
+close_vcd
+quit

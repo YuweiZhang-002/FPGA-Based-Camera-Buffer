@@ -3,6 +3,14 @@
 // the active design. Historical source is retained only for archaeology.
 // Define ENABLE_DEPRECATED_AXI_DDR2 explicitly to compile this legacy module.
 `ifdef ENABLE_DEPRECATED_AXI_DDR2
+// 注释导读（历史模块）：
+// 1) fifo0 接收 pixel/px_valid，fifo1 接收 fifo0 搬运结果；两级 count 分别
+//    表示各自 FIFO 中尚未消费的 16-bit word。
+// 2) line_active 是旧式 permit/drawback 包所有权 flag；words_out_count 达到
+//    LINE_WORDS 后产生 drawback_r 一拍，通知旧仲裁器释放。
+// 3) *_latched 在 permit 起始时冻结行/帧 metadata，避免发送期间上游翻转。
+// 4) 本版本已经把所有 AXI 输出绑为 0，因此 AXI4_CompilerSM 没有被实例化；
+//    文件只用于解释废弃架构，不能作为当前 DDR writer 使用。
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: AXI4_Compiler
 // Role: FIFO-based stream compiler (AXI4-DDR2 path deprecated).
@@ -13,9 +21,9 @@
 // - No DDR2 write is performed in this module.
 //////////////////////////////////////////////////////////////////////////////////
 module AXI4_Compiler #(
-    parameter LINE_WORDS  = 640,
-    parameter FIFO0_DEPTH = 1024,
-    parameter FIFO1_DEPTH = 1024
+    parameter LINE_WORDS  = 640,  // 旧协议中一行包含的 16-bit word 数
+    parameter FIFO0_DEPTH = 1024, // ingress FIFO 深度
+    parameter FIFO1_DEPTH = 1024  // formatter/egress FIFO 深度
 )(
     // ---- Input Data Interface ----
     input  wire [15:0]  pixel,
@@ -94,6 +102,7 @@ module AXI4_Compiler #(
     localparam FIFO0_AW = clog2(FIFO0_DEPTH);
     localparam FIFO1_AW = clog2(FIFO1_DEPTH);
 
+    // 两级存储用于解耦输入与旧输出消费；当前模块无可见 egress data 端口。
     reg [15:0] fifo0_mem [0:FIFO0_DEPTH-1];
     reg [15:0] fifo1_mem [0:FIFO1_DEPTH-1];
 
@@ -105,23 +114,26 @@ module AXI4_Compiler #(
     reg [FIFO1_AW-1:0] fifo1_rd_ptr;
     reg [FIFO1_AW:0]   fifo1_count;
 
-    reg line_active;
-    reg [10:0] words_out_count;
+    reg line_active;             // 1：已接受 permit，正在计数一整行
+    reg [10:0] words_out_count;  // 已从 fifo1 消费的行内 word 数
 
     reg [2:0] done_cam_id_r;
     reg [3:0] done_frame_ptr_r;
     reg       frame_done_pulse_r;
     reg       drawback_r;
 
+    // 一行事务开始时锁存，直到该行结束；避免 metadata 与 FIFO 数据错位。
     reg       final_line_latched;
     reg [2:0] cam_id_latched;
     reg [3:0] frame_num_latched;
     reg [9:0] line_num_latched;
 
-    wire ingress_fire = px_valid && px_ready;
-    wire move_fire    = (fifo0_count != 0) && (fifo1_count != FIFO1_DEPTH);
-    wire egress_fire  = line_active && (fifo1_count != 0);
+    // fire 命名表示该拍真的改变所有权/计数：
+    wire ingress_fire = px_valid && px_ready; // 上游 word 进入 fifo0
+    wire move_fire    = (fifo0_count != 0) && (fifo1_count != FIFO1_DEPTH); // L0->L1
+    wire egress_fire  = line_active && (fifo1_count != 0); // 旧式内部消费
 
+    // 唯一反压点：fifo0 满时停止接受 pixel。
     assign px_ready = (fifo0_count != FIFO0_DEPTH);
 
     assign drawback        = drawback_r;
@@ -182,6 +194,7 @@ module AXI4_Compiler #(
             drawback_r         <= 1'b0;
 
             if (permit && !line_active) begin
+                // permit 是电平，line_active 防止同一授权被重复启动。
                 line_active        <= 1'b1;
                 words_out_count    <= 11'd0;
                 final_line_latched <= is_final_line;
@@ -207,6 +220,7 @@ module AXI4_Compiler #(
             end
 
             case ({ingress_fire, move_fire})
+                // 同时写入和搬出时 fifo0_count 保持。
                 2'b10: fifo0_count <= fifo0_count + 1'b1;
                 2'b01: fifo0_count <= fifo0_count - 1'b1;
                 default: fifo0_count <= fifo0_count;
@@ -243,6 +257,7 @@ module AXI4_Compiler #(
             end
 
             case ({move_fire, egress_fire})
+                // 同时搬入和消费时 fifo1_count 保持。
                 2'b10: fifo1_count <= fifo1_count + 1'b1;
                 2'b01: fifo1_count <= fifo1_count - 1'b1;
                 default: fifo1_count <= fifo1_count;
