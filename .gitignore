@@ -18,6 +18,8 @@
 !/scripts_matlab/
 
 # Keep only the numbered report series and their English companions.
+/docs/*
+!/docs/reports/
 /docs/reports/*
 !/docs/reports/00_PRG_CAM-PROTOCOL-01_working_protocol.md
 !/docs/reports/00_PRG_CAM-PROTOCOL-01_working_protocol_en.md
@@ -42,11 +44,18 @@
 !/docs/reports/10_project_innovations_and_contributions.md
 !/docs/reports/10_project_innovations_and_contributions_en.md
 
+# Reserve a narrow area for MATLAB figures 5.1 through 5.5.
 /scripts_matlab/*
-!/scripts_matlab/analyze_host_packet_loss.m
-!/scripts_matlab/run_s2_historical_comparison.m
-!/scripts_matlab/README_host_packet_loss.md
-!/scripts_matlab/generate_experiment_4_2_4_figures.m
+!/scripts_matlab/figures_5_1_to_5_5/
+!/scripts_matlab/figures_5_1_to_5_5/**
+
+# Evidence and literature files stay local unless explicitly whitelisted.
+*.pdf
+*.pcap
+*.pcapng
+*.rpt
+*.wdb
+*.txt
 
 # Authored Vivado sources: legacy and current.
 !/project_camera.srcs/
