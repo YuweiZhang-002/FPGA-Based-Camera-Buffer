@@ -136,6 +136,8 @@ $vivado = '<VIVADO_BIN>'
 
 The scripts are the reproducibility entry points: `check_project.tcl`, `synth_fifo_pipeline.tcl`, `build_ethernet_ila.tcl`, `program_ethernet_ila.tcl`, `rebuild_gui_ethernet.tcl`, and `capture_ethernet_ila.tcl`. Outputs include `Camera_Ethernet_Top.bit`, `Camera_Ethernet_Top_ila.bit`, `Camera_Ethernet_Top_ila.ltx`, routed DCP, timing summary, DRC report, and utilization report. Local Vivado paths must be replaced by the user.
 
+For the exact build -> program -> bounded trigger observation -> CSV capture sequence, probe names in the current A3 ILA layout, bit/LTX pairing rules, and a preflight-capable PowerShell driver, see [Vivado Tcl, ILA capture, and bitstream automation](docs/ILA_TCL_AUTOMATION.md).
+
 ### External Ethernet dependencies
 
 Third-party TAXI and RMII source trees are deliberately not vendored. Before running Ethernet synthesis, fetch them into the exact paths documented in [THIRD_PARTY_DEPENDENCIES.md](THIRD_PARTY_DEPENDENCIES.md). The `.gitignore` protects those local trees from an accidental `git add -A`. The detailed six-layer receiver, CSV/PGM output, intrinsic calibration, stereo pairing, and extrinsic validation implementation belongs to [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver); it is not duplicated here.
@@ -146,8 +148,8 @@ Third-party TAXI and RMII source trees are deliberately not vendored. Before run
 prg_cam.srcs/                 active RTL, simulation, constraints
 project_camera.srcs/          legacy AXI4/DDR reference sources
 docs/                         architecture, reports, and reproduction notes
-scripts/                      Vivado Tcl and debug PowerShell
-scripts_ps/                   FPGA runtime helpers
+scripts/                      Vivado Tcl build and debug entry points
+scripts_ps/                   preflight-capable PowerShell runtime drivers
 ```
 
 Generated Vivado output, logs, caches, runs, bitstreams, PCAP/PCAPNG, image datasets, Python caches, and locally fetched third-party source trees are excluded by `.gitignore` and are not release inputs.

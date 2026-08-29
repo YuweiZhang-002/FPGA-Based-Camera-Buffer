@@ -8,6 +8,8 @@
 
 仓库包含 FPGA RTL、仿真、约束、Vivado Tcl、调试辅助脚本和架构文档。`prg_cam.srcs/` 是 active tree；`project_camera.srcs/` 保留为旧 AXI4/DDR 工程；`prg_cam.srcs/sources_1/new/deprecated/` 是废弃 RTL，不属于 active synthesis source set。
 
+带 ILA 的 bit/LTX 构建、FPGA 编程、有界 trigger 观察、CSV 抓取和 plain bit 生成的当前入口见 [Vivado Tcl、ILA 抓取与 bitstream 自动化](docs/ILA_TCL_AUTOMATION.md)。
+
 ```mermaid
 flowchart LR
     GPIO[Camera GPIO] --> CC[Camera_Capture]

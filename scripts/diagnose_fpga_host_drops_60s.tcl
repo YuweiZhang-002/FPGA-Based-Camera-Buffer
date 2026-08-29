@@ -1,5 +1,5 @@
-# Compare FPGA-side cumulative packet-drop counters over one observation window
-# and keep the ILA armed for any packet FIFO almost-full event in between.
+# Compare the FPGA-side CAM1 cumulative packet-drop counter over one observation
+# window and keep the ILA armed for any packet FIFO almost-full event in between.
 #
 # Optional environment variables:
 #   DROP_DIAG_SECONDS   observation duration, default 60
@@ -8,6 +8,9 @@
 set script_dir [file dirname [file normalize [info script]]]
 set project_root [file dirname $script_dir]
 set ltx_file [file normalize [file join $project_root build ethernet_ila Camera_Ethernet_Top_ila.ltx]]
+if {![file exists $ltx_file]} {
+    error "Required ILA probe file not found: $ltx_file"
+}
 
 if {[info exists ::env(DROP_DIAG_SECONDS)] && $::env(DROP_DIAG_SECONDS) ne ""} {
     set observe_seconds $::env(DROP_DIAG_SECONDS)
@@ -56,7 +59,7 @@ proc capture_snapshot {ila trigger_probe csv_file label} {
     }
     set status [get_property STATUS.CORE_STATUS $ila]
     if {[string match -nocase "*waiting for trigger*" $status]} {
-        error "$label snapshot did not see the free-running snapshot clock within 5 seconds"
+        error "$label snapshot did not see camera packet activity within 5 seconds"
     }
 
     wait_on_hw_ila $ila
@@ -86,14 +89,12 @@ if {[llength $ilas] != 1} {
 set ila [lindex $ilas 0]
 
 # Fail before the timed run if the bit/ltx pair does not expose the requested
-# evidence.  The four variables below are intentionally retained in the CSV.
-# phy_ref_clk is free-running after the Ethernet clock wizard locks, so it can
-# snapshot counters even when the camera path is idle. frame_handshake remains
-# in the captured probe set and is used later to distinguish idle from traffic.
-set snapshot_clock [exact_probe $ila phy_ref_clk 1]
+# evidence. camera_packet_valid is present in the current A3 probe layout and
+# provides a deterministic activity trigger while camera packets are flowing.
+# This diagnostic therefore requires live camera traffic for both snapshots.
+set snapshot_clock [exact_probe $ila camera_packet_valid 1]
 exact_probe $ila frame_handshake 1
 set fifo_almost_full [exact_probe $ila camera_packet_fifo_almost_full 1]
-exact_probe $ila camera_drop_count_0 32
 exact_probe $ila camera_drop_count_1 32
 exact_probe $ila camera_packet_fifo_level 16
 exact_probe $ila tx_fifo_overflow 1
@@ -136,7 +137,7 @@ set_property FULL_PROBES.FILE $ltx_file $device
 refresh_hw_device -update_hw_probes true $device
 set ilas [get_hw_ilas -quiet -of_objects $device]
 set ila [lindex $ilas 0]
-set snapshot_clock [exact_probe $ila phy_ref_clk 1]
+set snapshot_clock [exact_probe $ila camera_packet_valid 1]
 
 capture_snapshot $ila $snapshot_clock $end_csv END
 puts "DROP_DIAG_RESULT=PASS"

@@ -2,6 +2,8 @@
 
 > 目标：复刻“内部AXIS → Taxi/MII → RMII → FPGA引脚 → PHY → PC”的分层取证。ILA证明芯片内部，示波器证明芯片外，PCAP证明网卡真正接收；三者不能互相替代。
 
+> **版本提示：** 本文保留的是早期 21-probe ILA 设计说明，不是当前 A3 运行清单。当前 `scripts/build_ethernet_ila.tcl` 配置 64 个 probe，并以 CAM1 诊断为重点。实际构建、编程、触发与 CSV 导出必须以 [ILA_TCL_AUTOMATION.md](../ILA_TCL_AUTOMATION.md) 和本次 `.bit/.ltx` 配对日志为准；本文后续的 21-probe 表只作历史架构参考。
+
 ## 事实来源范围
 
 - ILA构建/采集：`../../scripts/build_ethernet_ila.tcl`、`../../scripts/capture_ethernet_ila.tcl`、`../../scripts/program_ethernet_ila.tcl`。
