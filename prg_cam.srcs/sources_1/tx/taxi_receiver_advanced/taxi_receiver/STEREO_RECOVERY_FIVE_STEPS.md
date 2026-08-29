@@ -100,8 +100,8 @@ $horizontalSpanMm = [double](Read-Host '同一行第1到第4圆心跨度 mm（�
 $verticalSpanMm = [double](Read-Host '第1到第11行纵向跨度 mm（约200）')
 $dotDiameterMm = [double](Read-Host '多个圆平均直径 mm（约10）')
 $maximumWarpMm = [double](Read-Host '整块板最大翘曲/离平面量 mm')
-$opticalBaselineMm = [double](Read-Host '两个镜头光学中心距离 mm（此前估计22）')
-$opticalAxisAngleDeg = [double](Read-Host '两条光轴夹角 deg（此前估计3）')
+$opticalBaselineMm = [double](Read-Host '两个镜头光学中心距离 mm（当前名义值25）')
+$opticalAxisAngleDeg = [double](Read-Host '两条光轴夹角 deg（当前名义值5）')
 
 $spacingX = $horizontalSpanMm / 6.0
 $spacingY = $verticalSpanMm / 10.0

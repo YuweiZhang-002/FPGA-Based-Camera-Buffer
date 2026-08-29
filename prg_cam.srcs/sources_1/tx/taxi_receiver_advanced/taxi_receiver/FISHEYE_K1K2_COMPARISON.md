@@ -378,7 +378,7 @@ if ($LASTEXITCODE -ne 0) { throw "Constrained stereo workflow failed: $LASTEXITC
 脚本会先验证 stillness 绑定的两份内参 SHA256，再生成 `pairs.csv`，只有配对状态为 `ready`
 才调用外参求解；因此不会再出现 mismatch 后继续读取不存在文件所引发的连锁 Null 错误。
 
-机械测量的约 `22 mm` 基线和约 `3°` 夹角只作为结果 sanity check，不应写成求解器硬约束。
+当前装配采用 `25 mm` 名义基线和 `5°` 名义夹角，只作为结果 sanity check，不应写成求解器硬约束。
 正式接受仍以脚本的 stereo RMS、逐对平移离散度、`tz` 随深度漂移等数值门限为准。
 
 ## 8. 失败时查看证据

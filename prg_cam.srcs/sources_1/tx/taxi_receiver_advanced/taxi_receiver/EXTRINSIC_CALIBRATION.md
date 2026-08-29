@@ -1,5 +1,15 @@
 # 双相机外参标定执行手册
 
+> **当前执行状态：120°+120°技术归档，外参受控不发布。** 当前两份K1/K2/K3
+> 内参及其独立holdout已经存在，`build/stereo_final_20260821/01_pairs`也已产生23个
+> `ready` pairs；数值求解输出保存在
+> `build/stereo_final_20260821/02_solve/cam0_to_new_cam1_extrinsics.rejected.json`。
+> 该候选为`quality.status=unacceptable`、`publishable=false`，原因是tx/ty未通过
+> depth-independence门。因此本文下方历史命令只作复刻结构参考，本轮不得继续采集、
+> 不得执行V1/V2挽救，也不得生成或提升正式`cam0_to_cam1_extrinsics.json`。
+> 历史full44/mask26 `release`组合仍必须被当前严格点集门拒绝
+> （`taxi_receiver/extrinsic_config.py:61-177`）。
+
 本文适用于当前 `cam0 + cam1`、640×480 二值图像、4×11 非对称圆点板和
 OpenCV fisheye 模型。外参作为独立配置发布；不会修改或重新优化原有内参。
 历史污染/非污染模型的完整参数和数值域对照见
@@ -7,7 +17,7 @@ OpenCV fisheye 模型。外参作为独立配置发布；不会修改或重新�
 
 ## 1. 固定输入和变换方向
 
-经审计的内参来源是：
+以下是历史单相机发布来源，不等于当前严格双目输入已经兼容：
 
 | 相机 | 来源 | SHA256 |
 |---|---|---|
@@ -32,11 +42,13 @@ Attempt9 是旧 cam1 配置，独立验证不通过；不能替代上表的 cam1
 X_cam1 = R_cam1_from_cam0 * X_cam0 + t_cam1_from_cam0
 ```
 
-平移单位为 mm。cam1 内参训练时删除过索引26，但 Attempt15 已用干净板完整
-44点通过固定内参验证；外参阶段使用 `[0..43]` 全部44点。
+平移单位为 mm。cam1 内参训练时删除过索引26；Attempt15虽用干净板完整44点通过
+固定内参验证，当前外参阶段也不能据此擅自把其计算点集改写为`[0..43]`。
 
-cam0 鱼眼模型在图像角点外只剩约2.33°单调余量。采集时应让44个圆点完整
-位于 cam0 已验证范围内，不要把圆点压到 cam0 四角。
+Attempt15证明固定cam1 K/D可以在clean-board full44检测上通过单相机holdout，
+但不会重写`cam1_intrinsics_mask26.json`中的`excluded_point_indices=[26]`。
+因此当前严格求解器仍把它解析为43点，不能与cam0 full44配对。cam0 鱼眼模型在
+图像角点外只剩约2.33°单调余量这一历史风险仍成立，但它不是绕过点集门的理由。
 
 不得重新采用的历史候选也保存在 manifest 中。`source.path`、
 `validation_evidence[].source_path` 和
@@ -96,11 +108,10 @@ $receiverRoot = Join-Path $repo `
 $python = `
   'C:\Users\Z\AppData\Local\Python\pythoncore-3.14-64\python.exe'
 
-# 内参必须显式选一套。attempt19 因为新开 shell 拿回了本文档的默认值，
-# 整轮都跑在过期的 full44/mask26 上，直到事后按 sha256 反查才发现。
-# 判断依据：求解器现在会在 stdout 首行打印内参文件名和单调裕量，
-# cam0 裕量 2.333deg 就是 full44 的指纹。
-$intrinsicSet = 'refit2'   # 'refit2' | 'release'
+# 以下refit2分支只保留为历史诊断复放示例，不是当前120°+120°归档输入。
+# 当前已接受K/D位于build/cam1_replacement_20260820_run01的17/19 solve目录，
+# 但本轮不重新求解或发布外参；正式阶段2手册将给出未来复刻时的参数化入口。
+$intrinsicSet = 'refit2'   # 'refit2' only; legacy 'release' is blocked
 
 switch ($intrinsicSet) {
   'refit2' {
@@ -113,12 +124,10 @@ switch ($intrinsicSet) {
       'calibration_configs\cam1_intrinsics_refit2_k1k2k3k4.json'
   }
   'release' {
-    # release_manifest.json 里登记的一对。cam0 的 numerical_domain 是
-    # limited_margin（角点外只剩 2.333deg），畸变多项式在那之后不再单调。
-    $cam0Intrinsic = Join-Path $receiverRoot `
-      'calibration_configs\cam0_intrinsics_full44.json'
-    $cam1Intrinsic = Join-Path $receiverRoot `
-      'calibration_configs\cam1_intrinsics_mask26.json'
+    throw (
+      'Blocked: legacy release pair is cam0 full44 versus cam1 mask26. ' +
+      'Current strict point-set validation forbids this stereo pairing.'
+    )
   }
   default { throw "unknown intrinsic set: $intrinsicSet" }
 }
@@ -150,6 +159,49 @@ Set-Location $receiverRoot
 Get-FileHash -Algorithm SHA256 -LiteralPath $cam0Intrinsic
 Get-FileHash -Algorithm SHA256 -LiteralPath $cam1Intrinsic
 ```
+
+在采集任何双目Training之前，调用当前Python实现本身解析物点集合。该检查不复制
+Python规则，也不取交集；任何非零退出都必须停下：
+
+```powershell
+$pointSetProbe = @'
+import sys
+from pathlib import Path
+from taxi_receiver.extrinsic_config import (
+    intrinsic_point_set,
+    validate_intrinsic_pair,
+)
+
+doc0, _, _, doc1, _, _ = validate_intrinsic_pair(
+    Path(sys.argv[1]),
+    Path(sys.argv[2]),
+)
+points0 = intrinsic_point_set(doc0)
+points1 = intrinsic_point_set(doc1)
+print(
+    'INTRINSIC_POINT_SET_PASS ' +
+    f'count={len(points0)} indices={sorted(points0)} ' +
+    f'cam1_equal={points1 == points0}'
+)
+'@
+
+$pointSetOutput = @(
+  $pointSetProbe |
+    & $python - $cam0Intrinsic $cam1Intrinsic 2>&1
+)
+$pointSetExit = $LASTEXITCODE
+$pointSetOutput | ForEach-Object { Write-Host ([string]$_) }
+
+if ($pointSetExit -ne 0) {
+  throw "Intrinsic point-set identity failed with exit code $pointSetExit"
+}
+if (-not ($pointSetOutput -match '^INTRINSIC_POINT_SET_PASS ')) {
+  throw 'Intrinsic point-set check returned no PASS identity line'
+}
+```
+
+预期的唯一成功签名是`INTRINSIC_POINT_SET_PASS`，并且两机显示相同count/indices。
+历史`release`组合应在这里明确失败；这正是修正后的预期，而不是脚本故障。
 
 ## 3. 确认网卡和空目录
 

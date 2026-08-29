@@ -33,6 +33,19 @@ if {![string is integer -strict $trigger_position] ||
     error "ILA_TRIGGER_POSITION must be an integer in the range 0..4095"
 }
 
+# The normal event captures trigger on a one-bit high level.  Snapshot callers
+# may override this with (for example) eq1'b0 so an idle-low reset probe can
+# trigger immediately and expose whether CAM1 PCLK/HREF are physically active.
+if {[info exists ::env(ILA_TRIGGER_COMPARE_VALUE)] &&
+    $::env(ILA_TRIGGER_COMPARE_VALUE) ne ""} {
+    set trigger_compare_value $::env(ILA_TRIGGER_COMPARE_VALUE)
+} else {
+    set trigger_compare_value "eq1'b1"
+}
+if {$trigger_compare_value ni {"eq1'b0" "eq1'b1"}} {
+    error "ILA_TRIGGER_COMPARE_VALUE must be eq1'b0 or eq1'b1"
+}
+
 open_hw_manager
 connect_hw_server -allow_non_jtag
 open_hw_target
@@ -64,9 +77,9 @@ if {[get_property WIDTH $trigger_probe] != 1} {
 # override can reserve more pre-trigger history for slow camera-row events.
 set_property CONTROL.DATA_DEPTH 4096 $ila
 set_property CONTROL.TRIGGER_POSITION $trigger_position $ila
-set_property TRIGGER_COMPARE_VALUE eq1'b1 $trigger_probe
+set_property TRIGGER_COMPARE_VALUE $trigger_compare_value $trigger_probe
 
-puts "ILA_CAPTURE_ARMED trigger=${trigger_name}==1 depth=4096 position=$trigger_position"
+puts "ILA_CAPTURE_ARMED trigger=${trigger_name} compare=${trigger_compare_value} depth=4096 position=$trigger_position"
 run_hw_ila $ila
 wait_on_hw_ila $ila
 set data [upload_hw_ila_data $ila]

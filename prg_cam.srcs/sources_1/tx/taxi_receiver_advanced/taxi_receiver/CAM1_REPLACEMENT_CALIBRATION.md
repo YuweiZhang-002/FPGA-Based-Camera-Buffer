@@ -4,7 +4,7 @@
 每一个阶段的代码块都包含自己的工作目录、绝对数据路径、CameraIds、实时窗口和完整
 `run_receiver.ps1` 命令；重新打开 PowerShell 时直接重新执行当前阶段，不必先执行别节。
 
-旧 CAM1 内参和旧 cam0→cam1 外参不得继续使用。约22 mm基线和约3°夹角只用于外参
+旧 CAM1 内参和旧 cam0→cam1 外参不得继续使用。25 mm 名义基线和 5° 名义夹角只用于外参
 求解后的合理性检查，不作为求解强制输入。
 
 ## 0. 当前状态与执行索引
@@ -471,7 +471,7 @@ Set-Location -LiteralPath $receiverRoot
   -ArchiveExistingOutputs
 ```
 
-基线明显偏离约22 mm或旋转明显偏离约3°时检查打印间距、同步配对和机架；不要手改JSON。
+基线明显偏离 25 mm 或旋转明显偏离 5°时检查打印间距、同步配对和机架；不要手改 JSON。
 
 外参训练失败时，训练数据、pairs、solve和已经生成的holdout下游结果必须一起清理：
 
@@ -695,7 +695,7 @@ $targets | Where-Object { Test-Path -LiteralPath $_ } |
 - 外参V1、V2均为 `status=pass`；
 - 双向重投影 median≤0.8 px、P95≤1.2 px、max≤1.5 px；
 - 整流纵向P95≤1.2 px；
-- baseline/rotation与约22 mm/3°机械结构没有明显矛盾；
+- baseline/rotation 与 25 mm/5°名义机械结构没有明显矛盾；
 - cam0内参、新CAM1内参和新外参作为同一版本bundle发布，禁止混用旧CAM1 SHA或旧外参。
 
 历史污染/非污染板模型、FOV和鱼眼可逆性对照见
