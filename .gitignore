@@ -14,6 +14,7 @@
 !/.gitignore
 !/README.md
 !/README.zh-CN.md
+!/THIRD_PARTY_DEPENDENCIES.md
 !/docs/
 !/scripts/
 !/scripts_ps/
@@ -21,6 +22,11 @@
 # Authored Vivado sources: legacy and current.
 !/project_camera.srcs/
 !/prg_cam.srcs/
+
+# Local dependency closure. Build scripts expect these paths, but the source
+# trees are fetched separately and must never be staged into this repository.
+/prg_cam.srcs/sources_1/lib/
+/third_party/
 
 # Safety net for common Vivado-generated artifacts.
 *.jou

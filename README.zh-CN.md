@@ -120,6 +120,10 @@ $vivado = '<VIVADO_BIN>'
 
 主要脚本为 `check_project.tcl`、`synth_fifo_pipeline.tcl`、`build_ethernet_ila.tcl`、`program_ethernet_ila.tcl`、`rebuild_gui_ethernet.tcl` 和 `capture_ethernet_ila.tcl`。输出包括 `Camera_Ethernet_Top.bit`、`Camera_Ethernet_Top_ila.bit`、`Camera_Ethernet_Top_ila.ltx`、routed DCP、timing summary、DRC report 和 utilization report。Vivado 绝对路径必须由用户替换。
 
+### 外部 Ethernet 依赖
+
+本仓库有意不内嵌 TAXI 与 RMII 第三方源码。运行 Ethernet 综合前，应按 [THIRD_PARTY_DEPENDENCIES.md](THIRD_PARTY_DEPENDENCIES.md) 将上游项目放入脚本要求的精确路径；`.gitignore` 会阻止这些本地依赖被 `git add -A` 误上传。六层 Python 接收机、CSV/PGM 输出、内参、双目配对与外参验证的详细实现归属于 [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver)，不在 FPGA 仓库重复维护。
+
 ## 9. 仓库结构与排除项
 
 ```text
@@ -130,7 +134,7 @@ scripts/                      Vivado Tcl 与调试 PowerShell
 scripts_ps/                   FPGA 运行辅助脚本
 ```
 
-Vivado 生成目录、日志、cache、runs、bitstream、PCAP/PCAPNG、图像数据集和 Python cache 由 `.gitignore` 排除。
+Vivado 生成目录、日志、cache、runs、bitstream、PCAP/PCAPNG、图像数据集、Python cache 和本地下载的第三方源码均由 `.gitignore` 排除。
 
 ## 10. 基于真实 Git 历史的开发时间线
 
@@ -151,4 +155,4 @@ Vivado 生成目录、日志、cache、runs、bitstream、PCAP/PCAPNG、图像�
 
 ## License
 
-遵循仓库 license 及第三方 Taxi 源码所附 license。本仓库不包含 Host 接收机实现。
+当前 FPGA 仓库尚未声明顶层 `LICENSE` 文件；在仓库所有者补充许可证之前，自研 FPGA 内容按默认版权保护处理。TAXI 与 RMII 依赖由使用者另行获取并遵循各自上游许可证，本仓库不包含也不重新授权这些源码。Host 接收与标定实现遵循其独立仓库的许可证。

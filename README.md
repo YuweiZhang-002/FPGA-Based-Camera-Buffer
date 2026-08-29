@@ -136,6 +136,10 @@ $vivado = '<VIVADO_BIN>'
 
 The scripts are the reproducibility entry points: `check_project.tcl`, `synth_fifo_pipeline.tcl`, `build_ethernet_ila.tcl`, `program_ethernet_ila.tcl`, `rebuild_gui_ethernet.tcl`, and `capture_ethernet_ila.tcl`. Outputs include `Camera_Ethernet_Top.bit`, `Camera_Ethernet_Top_ila.bit`, `Camera_Ethernet_Top_ila.ltx`, routed DCP, timing summary, DRC report, and utilization report. Local Vivado paths must be replaced by the user.
 
+### External Ethernet dependencies
+
+Third-party TAXI and RMII source trees are deliberately not vendored. Before running Ethernet synthesis, fetch them into the exact paths documented in [THIRD_PARTY_DEPENDENCIES.md](THIRD_PARTY_DEPENDENCIES.md). The `.gitignore` protects those local trees from an accidental `git add -A`. The detailed six-layer receiver, CSV/PGM output, intrinsic calibration, stereo pairing, and extrinsic validation implementation belongs to [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver); it is not duplicated here.
+
 ## 13. Repository structure
 
 ```text
@@ -146,7 +150,7 @@ scripts/                      Vivado Tcl and debug PowerShell
 scripts_ps/                   FPGA runtime helpers
 ```
 
-Generated Vivado output, logs, caches, runs, bitstreams, PCAP/PCAPNG, image datasets, and Python caches are excluded by `.gitignore` and are not release inputs.
+Generated Vivado output, logs, caches, runs, bitstreams, PCAP/PCAPNG, image datasets, Python caches, and locally fetched third-party source trees are excluded by `.gitignore` and are not release inputs.
 
 ## 14. Development timeline
 
@@ -167,4 +171,4 @@ No board-level implementation or four-camera long-run result is claimed by repos
 
 ## License
 
-See the repository license and the licenses included with third-party Taxi sources. This repository does not contain the Host receiver implementation.
+No top-level license file has been declared in this repository yet; until the owner adds one, the authored FPGA material remains under default copyright. TAXI and RMII dependencies are obtained separately and remain under their upstream licenses. This repository does not relicense or contain them. The Host receiver and calibration implementation is released separately under that repository's license.
