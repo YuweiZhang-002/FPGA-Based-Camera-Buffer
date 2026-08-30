@@ -8,6 +8,8 @@
 
 ## 冷启动阅读顺序
 
+开始三个仓库的复刻流程前，先阅读[软件需求与已验证环境](SOFTWARE_REQUIREMENTS.zh-CN.md)（[English](SOFTWARE_REQUIREMENTS.md)）。其中严格区分项目要求版本与原工作站观测版本。
+
 1. [MCU 架构与代码](docs/ZH/01_mcu_architecture_and_code_guide.zh-CN.md)
 2. [MCU 构建、运行与调试](docs/ZH/02_mcu_build_run_and_debug_guide.zh-CN.md)
 3. [FPGA 架构与第三方源闭包](docs/ZH/03_fpga_architecture_third_party_and_dataflow.zh-CN.md)
@@ -176,4 +178,4 @@ Vivado 生成目录、日志、cache、runs、bitstream、PCAP/PCAPNG、图像�
 
 ## License
 
-当前 FPGA 仓库尚未声明顶层 `LICENSE` 文件；在仓库所有者补充许可证之前，自研 FPGA 内容按默认版权保护处理。TAXI 与 RMII 依赖由使用者另行获取并遵循各自上游许可证，本仓库不包含也不重新授权这些源码。Host 接收与标定实现遵循其独立仓库的许可证。
+本 FPGA 仓库的原创内容采用 [BSD 3-Clause License](LICENSE)，但文件或目录另有声明时以其声明为准。TAXI、FPGA-RMII-SMII、Xilinx IP 与开发工具继续遵循各自许可，BSD-3-Clause 不会对其重新授权。重新分发源码或整合 bitstream 前必须阅读[中文第三方通知](THIRD_PARTY_NOTICES.zh-CN.md)（[English](THIRD_PARTY_NOTICES.md)）。特别是，包含 TAXI、FPGA-RMII-SMII 或 Xilinx 内容的整合 bitstream 不得描述或分发为“仅 BSD-3-Clause”；对应上游许可证条件仍然适用。Host 接收与标定实现位于独立仓库，并同样采用 BSD 3-Clause License。

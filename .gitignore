@@ -12,9 +12,14 @@
 
 # Repository metadata and documentation.
 !/.gitignore
+!/LICENSE
 !/README.md
 !/README.zh-CN.md
 !/THIRD_PARTY_DEPENDENCIES.md
+!/THIRD_PARTY_NOTICES.md
+!/THIRD_PARTY_NOTICES.zh-CN.md
+!/SOFTWARE_REQUIREMENTS.md
+!/SOFTWARE_REQUIREMENTS.zh-CN.md
 !/docs/
 !/scripts/
 !/scripts_ps/

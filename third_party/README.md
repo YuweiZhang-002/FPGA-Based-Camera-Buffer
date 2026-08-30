@@ -52,3 +52,9 @@ if (@($dependencyRows | Where-Object {
 Cloning does not relicense these projects as part of PRG_CAM.  Review each
 upstream license before redistribution, and never use `git add -f` on a cloned
 dependency directory.
+
+The repository-root BSD 3-Clause License applies only to first-party authored
+material. TAXI remains CERN-OHL-S-2.0 (or its separately available commercial
+licence), while FPGA-RMII-SMII remains GPL-3.0. See
+`../THIRD_PARTY_NOTICES.md` for the redistribution boundary, including the
+warning that an integrated bitstream must not be described as BSD-only.

@@ -93,6 +93,8 @@ if (@($trackedThirdParty | Where-Object {
 }
 ```
 
-Each upstream project retains its own copyright and license. The FPGA
-repository currently has no top-level license; that governance decision is
-not inferred or filled in by the build scripts.
+Each upstream project retains its own copyright and licence. The repository
+root BSD 3-Clause License covers first-party authored material only; it does
+not relicense TAXI, FPGA-RMII-SMII, Xilinx IP, development tools, or integrated
+bitstreams. See `THIRD_PARTY_NOTICES.md` before redistribution. Build scripts
+do not change any component's licence.

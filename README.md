@@ -18,6 +18,11 @@ A reproducible Vivado project for a four-camera, fixed 128-byte packet pipeline.
 Read each architecture chapter before its execution chapter. The Chinese set is
 under [`docs/ZH`](docs/ZH/).
 
+Before starting the three-repository flow, read the authoritative
+[software requirements and validated environment](SOFTWARE_REQUIREMENTS.md)
+([中文](SOFTWARE_REQUIREMENTS.zh-CN.md)). It separates required versions from
+versions merely observed on the original workstation.
+
 ## 1. Project overview and scope
 
 This repository contains FPGA RTL, simulation sources, constraints, Vivado Tcl, debug helpers, and architecture documentation. The host receiver is maintained separately in [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver).
@@ -194,4 +199,13 @@ No board-level implementation or four-camera long-run result is claimed by repos
 
 ## License
 
-No top-level license file has been declared in this repository yet; until the owner adds one, the authored FPGA material remains under default copyright. TAXI and RMII dependencies are obtained separately and remain under their upstream licenses. This repository does not relicense or contain them. The Host receiver and calibration implementation is released separately under that repository's license.
+Original material authored for this FPGA repository is released under the
+[BSD 3-Clause License](LICENSE), unless a file or directory carries a different
+notice. TAXI, FPGA-RMII-SMII, Xilinx IP and development tools retain their own
+terms and are not relicensed by BSD-3-Clause. Read
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing source
+or any integrated bitstream. In particular, an integrated bitstream containing
+TAXI, FPGA-RMII-SMII, or Xilinx material must not be described or distributed
+as "BSD-3-Clause only"; the corresponding upstream licence conditions still
+apply. The Host receiver and calibration implementation is released separately
+under its own BSD 3-Clause License.
