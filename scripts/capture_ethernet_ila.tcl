@@ -3,14 +3,15 @@ set project_root [file dirname $script_dir]
 set output_dir [file normalize [file join $project_root build ethernet_ila]]
 set ltx_file [file normalize [file join $output_dir Camera_Ethernet_Top_ila.ltx]]
 
-# Select a one-bit trigger without rebuilding the ILA image.  The default
-# captures the exact Camera_Capture LENGTH_ERROR decision.  Example:
-#   $env:ILA_TRIGGER_NAME = "camera_packet_valid"
+# Select a one-bit trigger without rebuilding the ILA image.  The default is
+# a packet-path activity probe that exists in the current A3 ILA layout.
+# Example for a CAM1 CRC event:
+#   $env:ILA_TRIGGER_NAME = "camera1_crc_error_pulse_dbg"
 #   vivado.bat -mode batch -source scripts/capture_ethernet_ila.tcl
 if {[info exists ::env(ILA_TRIGGER_NAME)] && $::env(ILA_TRIGGER_NAME) ne ""} {
     set trigger_name $::env(ILA_TRIGGER_NAME)
 } else {
-    set trigger_name "camera_length_error_pulse_dbg"
+    set trigger_name "camera_packet_valid"
 }
 set safe_trigger_name [string map {"/" "_" "\\" "_" "[" "_" "]" "_"} $trigger_name]
 if {[info exists ::env(ILA_CAPTURE_CSV)] && $::env(ILA_CAPTURE_CSV) ne ""} {
@@ -18,9 +19,10 @@ if {[info exists ::env(ILA_CAPTURE_CSV)] && $::env(ILA_CAPTURE_CSV) ne ""} {
 } else {
     set csv_file [file normalize [file join $output_dir "${safe_trigger_name}_capture.csv"]]
 }
+file mkdir [file dirname $csv_file]
 
-# The default leaves most samples after a high-rate activity trigger.  A
-# LENGTH_ERROR investigation needs enough pre-trigger history to include the
+# The default leaves most samples after a high-rate activity trigger.  A slow
+# error investigation needs enough pre-trigger history to include the
 # complete approximately 1100-cycle camera row, so callers may override it:
 #   $env:ILA_TRIGGER_POSITION = "3072"
 if {[info exists ::env(ILA_TRIGGER_POSITION)] && $::env(ILA_TRIGGER_POSITION) ne ""} {
@@ -31,6 +33,9 @@ if {[info exists ::env(ILA_TRIGGER_POSITION)] && $::env(ILA_TRIGGER_POSITION) ne
 if {![string is integer -strict $trigger_position] ||
     $trigger_position < 0 || $trigger_position >= 4096} {
     error "ILA_TRIGGER_POSITION must be an integer in the range 0..4095"
+}
+if {![file exists $ltx_file]} {
+    error "Required ILA probe file not found: $ltx_file"
 }
 
 open_hw_manager

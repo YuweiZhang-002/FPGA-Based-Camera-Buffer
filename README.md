@@ -4,13 +4,26 @@
 
 A reproducible Vivado project for a four-camera, fixed 128-byte packet pipeline. The active design uses on-chip SRAM/FIFO buffering, packet-granular arbitration, FPGA-owned diagnostics, egress CRC regeneration, Ethernet/RMII output, and optional ILA instrumentation.
 
+## Cold-start reading order
+
+1. [MCU architecture and code](docs/01_mcu_architecture_and_code_guide.md)
+2. [MCU build, run and debug](docs/02_mcu_build_run_and_debug_guide.md)
+3. [FPGA architecture and third-party closure](docs/03_fpga_architecture_third_party_and_dataflow.md)
+4. [Vivado, Tcl, reports and ILA](docs/04_fpga_vivado_tcl_ila_build_and_debug.md)
+5. [Host receiver and publisher isolation](docs/05_host_receiver_architecture_and_reconstruction.md)
+6. [Host diagnostics and calibration](docs/06_host_execution_diagnostics_and_calibration.md)
+7. [Git and public release workflow](docs/07_git_clone_branch_commit_pr_and_release.md)
+
+Read each architecture chapter before its execution chapter. The Chinese set is
+under [`docs/ZH`](docs/ZH/).
+
 ## 1. Project overview and scope
 
 This repository contains FPGA RTL, simulation sources, constraints, Vivado Tcl, debug helpers, and architecture documentation. The host receiver is maintained separately in [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver).
 
 ```mermaid
 flowchart LR
-    GPIO[Camera GPIO] --> CC[Camera_Capture]
+    GPIO[RP2350 packet GPIO<br/>D7:0/PCLK/HREF] --> CC[Camera_Capture]
     CC --> LB[Line_Buffer]
     LB --> ARB[Round-robin Arbitration]
     ARB --> BR[Byte_Replacer]
@@ -33,7 +46,7 @@ Each camera writes complete rows into a four-slot Line Buffer. Arbitration owns 
 
 ## 4. Clocking and camera capture
 
-`DATA[7:0]`, `PCLK`, and `HREF/packet_valid` arrive from the camera. `sys_clk` and `pclk` are different clock domains. The current capture implementation synchronizes pclk activity into `sys_clk`; while HREF is high, only valid PCLK rising-edge samples are accepted. There is no VSYNC input. Row and frame boundaries come from the packet sequence and capture counters, with row 0 beginning a frame and row 479 ending the 480-row image.
+`DATA[7:0]`, `PCLK`, and `HREF/packet_valid` arrive from the RP2350 packet transmitter, not directly from the OV5640 sensor. `sys_clk` and this byte-clock domain are different clock domains. The current capture implementation synchronizes pclk activity into `sys_clk`; while HREF is high, only valid PCLK rising-edge samples are accepted. There is no VSYNC input. Row and frame boundaries come from packet metadata, with row 0 beginning a frame and row 479 ending the 480-row image.
 
 ```mermaid
 stateDiagram-v2
@@ -126,15 +139,22 @@ flowchart LR
 Core testbenches are under [simulation sources](prg_cam.srcs/sim_1/new/), including Camera_Capture HREF/PCLK boundary, narrow PCLK runt/glitch, 127/128/129-byte cases, ingress CRC, Byte_Replacer status separation, next-packet isolation, four-way arbitration, Line Buffer full/empty, Byte_FIFO backpressure, Ethernet frame handshake, and Taxi MII/RMII elaboration. Hardware tests require the target board, camera wiring, PHY, Vivado, and a privileged Host Npcap session.
 
 ```powershell
-$vivado = '<VIVADO_BIN>'
-& $vivado -mode batch -source .\scripts\check_project.tcl
-& $vivado -mode batch -source .\scripts\synth_fifo_pipeline.tcl
-& $vivado -mode batch -source .\scripts\build_ethernet_ila.tcl
-& $vivado -mode batch -source .\scripts\program_ethernet_ila.tcl
-& $vivado -mode batch -source .\scripts\capture_ethernet_ila.tcl
+$vivado = '<VIVADO_BIN>' # replace with vivado.bat
+$env:XILINX_LOCAL_USER_DATA = 'no'
+& $vivado -mode batch -nolog -nojournal -source .\scripts\recreate_project.tcl
+if ($LASTEXITCODE -ne 0) { throw 'project recreation failed' }
+& $vivado -mode batch -nolog -nojournal -source .\scripts\validate_recreated_project.tcl
+if ($LASTEXITCODE -ne 0) { throw 'isolated synthesis failed' }
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts_ps\run_ethernet_ila.ps1 -Action Build -VivadoBin $vivado
 ```
 
-The scripts are the reproducibility entry points: `check_project.tcl`, `synth_fifo_pipeline.tcl`, `build_ethernet_ila.tcl`, `program_ethernet_ila.tcl`, `rebuild_gui_ethernet.tcl`, and `capture_ethernet_ila.tcl`. Outputs include `Camera_Ethernet_Top.bit`, `Camera_Ethernet_Top_ila.bit`, `Camera_Ethernet_Top_ila.ltx`, routed DCP, timing summary, DRC report, and utilization report. Local Vivado paths must be replaced by the user.
+The cold-start authority is the isolated project created under `build/project_recreate_validation`; the historical root XPR is not an input to that flow. `run_ethernet_ila.ps1` dispatches build/program/observe/capture actions and records immutable run artifacts. Outputs include paired `Camera_Ethernet_Top_ila.bit`/`.ltx`, routed DCP, timing summary, DRC report, utilization report, log, and manifest. Local Vivado paths must be replaced by the user.
+
+For the exact build -> program -> bounded trigger observation -> CSV capture
+sequence, design-state requirements, report interpretation, bit/LTX pairing and
+the preflight-capable PowerShell driver, see
+[Vivado build, Tcl, ILA and debug](docs/04_fpga_vivado_tcl_ila_build_and_debug.md).
 
 ### External Ethernet dependencies
 
@@ -145,9 +165,10 @@ Third-party TAXI and RMII source trees are deliberately not vendored. Before run
 ```text
 prg_cam.srcs/                 active RTL, simulation, constraints
 project_camera.srcs/          legacy AXI4/DDR reference sources
-docs/                         architecture, reports, and reproduction notes
-scripts/                      Vivado Tcl and debug PowerShell
-scripts_ps/                   FPGA runtime helpers
+docs/                         seven English cold-start guides
+docs/ZH/                      seven matching Chinese guides
+scripts/                      Vivado Tcl build and debug entry points
+scripts_ps/                   preflight-capable PowerShell runtime drivers
 ```
 
 Generated Vivado output, logs, caches, runs, bitstreams, PCAP/PCAPNG, image datasets, Python caches, and locally fetched third-party source trees are excluded by `.gitignore` and are not release inputs.

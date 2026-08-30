@@ -6,7 +6,7 @@ set ltx_file [file normalize [file join $output_dir Camera_Ethernet_Top_ila.ltx]
 if {[info exists ::env(ILA_TRIGGER_NAME)] && $::env(ILA_TRIGGER_NAME) ne ""} {
     set trigger_name $::env(ILA_TRIGGER_NAME)
 } else {
-    set trigger_name "camera_length_error_pulse_dbg"
+    set trigger_name "camera_packet_valid"
 }
 if {[info exists ::env(ILA_OBSERVE_MS)] && $::env(ILA_OBSERVE_MS) ne ""} {
     set observe_ms $::env(ILA_OBSERVE_MS)
@@ -15,6 +15,9 @@ if {[info exists ::env(ILA_OBSERVE_MS)] && $::env(ILA_OBSERVE_MS) ne ""} {
 }
 if {![string is integer -strict $observe_ms] || $observe_ms < 1} {
     error "ILA_OBSERVE_MS must be a positive integer"
+}
+if {![file exists $ltx_file]} {
+    error "Required ILA probe file not found: $ltx_file"
 }
 
 open_hw_manager

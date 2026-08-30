@@ -21,7 +21,7 @@ set rtl_files [list \
     [file normalize [file join $project_root prg_cam.srcs sources_1 new Taxi_Ethernet_Subsystem.sv]] \
     [file normalize [file join $project_root prg_cam.srcs sources_1 new Ethernet_Mii_Rmii_Bridge.sv]] \
     [file normalize [file join $project_root prg_cam.srcs sources_1 new Camera_Ethernet_Top.sv]] \
-    [file normalize [file join $project_root prg_cam.srcs sources_1 lib FPGA-RMII-SMII-main RTL rmii_phy_if.v]]]
+    [file normalize [file join $project_root third_party FPGA-RMII-SMII RTL rmii_phy_if.v]]]
 
 set xdc_file [file normalize [file join $project_root prg_cam.srcs constrs_1 new nexys_a7_ethernet.xdc]]
 set clk_xci  [file normalize [file join $project_root prg_cam.srcs sources_1 ip ethernet_clk_wiz ethernet_clk_wiz.xci]]

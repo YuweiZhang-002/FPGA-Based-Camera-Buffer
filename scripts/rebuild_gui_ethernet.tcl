@@ -3,7 +3,16 @@ set project_root [file dirname $script_dir]
 set report_dir [file normalize [file join $project_root build gui_ethernet_rebuild]]
 file mkdir $report_dir
 
-open_project [file join $project_root prg_cam.xpr]
+set active_project_xpr [file normalize [file join \
+    $project_root build project_recreate_validation prg_cam.xpr]]
+if {![file exists $active_project_xpr]} {
+    puts "PLAIN_BIT_PRECHECK: isolated project is missing; recreating it"
+    source [file join $script_dir recreate_project.tcl]
+}
+if {![file exists $active_project_xpr]} {
+    error "Recreated project was not generated: $active_project_xpr"
+}
+open_project $active_project_xpr
 set_property top Camera_Ethernet_Top [current_fileset]
 update_compile_order -fileset sources_1
 

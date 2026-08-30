@@ -35,6 +35,7 @@ foreach ila $ilas {
         puts "HW_PROBE=$probe WIDTH=[get_property WIDTH $probe]"
     }
 }
+puts "HW_ILA_PROGRAM_RESULT=PASS"
 
 close_hw_target
 disconnect_hw_server

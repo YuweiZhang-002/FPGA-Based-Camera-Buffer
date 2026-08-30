@@ -29,7 +29,16 @@ proc connect_probe {core index width nets} {
     connect_debug_port $port $nets
 }
 
-open_project [file join $project_root prg_cam.xpr]
+set active_project_xpr [file normalize [file join \
+    $project_root build project_recreate_validation prg_cam.xpr]]
+if {![file exists $active_project_xpr]} {
+    puts "ILA_PRECHECK: isolated project is absent; recreating it from authored sources"
+    source [file join $script_dir recreate_project.tcl]
+}
+if {![file exists $active_project_xpr]} {
+    error "Isolated project was not generated: $active_project_xpr"
+}
+open_project $active_project_xpr
 # The diagnostic copy only needs the exact device and the project's XDC.  Do not
 # retain a board_part revision that is unavailable in this Vivado installation;
 # implement_debug_core otherwise tries to resolve the board before inserting ILA.
@@ -142,8 +151,10 @@ connect_probe $ila_name 61 1 [exact_net tx_fifo_overflow]
 connect_probe $ila_name 62 1 [exact_net rmii_tx_en_dbg]
 connect_probe $ila_name 63 2 [exact_bus rmii_txd_dbg 2]
 
-# implement_debug_core requires the debug-net constraints to have been persisted
-# in a saved project.  This modifies only build/ethernet_ila/prg_cam_ila.xpr.
+# implement_debug_core requires the connected debug ports to be persisted in
+# the active constraints set.  recreate_project.tcl deliberately makes that
+# active XDC a build/project_recreate_validation/constraints copy, so this
+# save cannot rewrite the authored board constraint under prg_cam.srcs/.
 save_constraints
 write_checkpoint -force [file join $output_dir Camera_Ethernet_Top_ila_synth.dcp]
 implement_debug_core

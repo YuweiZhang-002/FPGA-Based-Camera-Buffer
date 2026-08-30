@@ -1,17 +1,26 @@
 set project_root [file normalize [file join [file dirname [info script]] ..]]
 set project_xpr [file join $project_root prg_cam.xpr]
 set ip_dir [file normalize [file join $project_root prg_cam.srcs sources_1 ip]]
+set ip_xci [file join $ip_dir ethernet_clk_wiz ethernet_clk_wiz.xci]
+file mkdir $ip_dir
 
 if {[llength [get_projects -quiet]] == 0} {
     open_project $project_xpr
 }
 
 if {[llength [get_ips -quiet ethernet_clk_wiz]] == 0} {
-    create_ip -name clk_wiz -vendor xilinx.com -library ip -version 6.0 \
-        -module_name ethernet_clk_wiz -dir $ip_dir
+    if {[file exists $ip_xci]} {
+        add_files -fileset sources_1 -norecurse $ip_xci
+    } else {
+        create_ip -name clk_wiz -vendor xilinx.com -library ip -version 6.0 \
+            -module_name ethernet_clk_wiz -dir $ip_dir
+    }
 }
 
-set ip [get_ips ethernet_clk_wiz]
+set ip [get_ips -quiet ethernet_clk_wiz]
+if {[llength $ip] != 1} {
+    error "Expected exactly one ethernet_clk_wiz IP, found [llength $ip]"
+}
 set_property -dict [list \
     CONFIG.PRIM_IN_FREQ {100.000} \
     CONFIG.PRIMARY_PORT {sys_clk} \
