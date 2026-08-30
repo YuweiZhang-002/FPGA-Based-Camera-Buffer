@@ -41,7 +41,7 @@ The PowerShell wrapper creates `build/ila_runs/<timestamp>_<action>/run_manifest
 - execution log and exported ILA CSV;
 - final machine-readable status.
 
-For a complete experiment manifest, also record MCU firmware SHA, Host receiver SHA, Npcap interface GUID, camera IDs, capture root, intrinsic hashes when calibration follows, and the final result. The repositories currently produce parts of this identity in separate wrappers; the combined cross-repository manifest remains a documented integration requirement, not a claim that one script already owns every field.
+For a complete experiment manifest, also record MCU firmware SHA, Host receiver SHA, Npcap interface GUID, camera IDs, capture root, intrinsic hashes when calibration follows, and the final result. `scripts_ps/new_run_manifest.ps1` is the cross-repository identity entry: run it before physical capture, then preserve validation summaries beside the frozen identity and hash them in the independent report. It complements rather than replaces this Vivado action manifest. Chapter 08 gives the exact cold-start order and prevents an FPGA PASS from being promoted to a Host or system PASS.
 
 ## PRECHECK
 

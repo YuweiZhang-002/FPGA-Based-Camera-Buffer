@@ -38,7 +38,9 @@ A Host run needs at least:
 - image/archive roots;
 - FPGA bit/LTX hashes and MCU SHA supplied by the cross-repository experiment manifest.
 
-`run_intrinsic_calibration.ps1` and `run_extrinsic_calibration.ps1` already emit `run_manifest.json`. The live receiver prints its complete configuration and final counters but does not yet own the combined FPGA/MCU identity. Therefore preserve its terminal log beside the top-level experiment manifest rather than claiming the receiver alone proves hardware identity.
+`run_intrinsic_calibration.ps1` and `run_extrinsic_calibration.ps1` already emit `run_manifest.json`. The live receiver prints its complete configuration and final counters but does not own the combined FPGA/MCU identity. Use the FPGA repository's `scripts_ps/new_run_manifest.ps1` before the run and preserve the receiver terminal log beside it; neither document alone proves the hardware identity.
+
+Before opening Npcap, run the public known-input gate from chapter 08. `docs/fixtures/golden_dual_camera_small` contains one complete 480-row frame for cam0 and cam1 plus a one-packet CRC fault. `scripts_ps/validate_golden_host_fixture.ps1` checks SHA-256, replays both files, and requires 960 positive valid packets, zero positive CRC errors, one PGM and 480 CSV rows per camera, followed by one detected negative CRC error. A PASS isolates Host parsing/reassembly/publication; it is not evidence for MCU, FPGA, RMII or NIC.
 
 ## PRECHECK
 

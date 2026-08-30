@@ -12,6 +12,8 @@ The public system is split deliberately:
 
 Each repository keeps `main` as the public default branch. Work is prepared on a named candidate branch, reviewed as a PR, then merged into `main`.
 
+Source publication is not system validation. Before a release is described as independently reproducible, execute `08_independent_cold_start_acceptance.md` and attach its manifests or explicitly retain the `UNVERIFIED` physical limitations. A merged PR and exit code 0 do not promote evidence across layers.
+
 ## INPUTS / DEPENDENCIES
 
 ```powershell

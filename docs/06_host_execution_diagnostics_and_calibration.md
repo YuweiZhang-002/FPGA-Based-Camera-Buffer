@@ -32,7 +32,7 @@ $runBase = Join-Path $host "runs\$stamp"
 New-Item -ItemType Directory -Force -Path $runBase | Out-Null
 ```
 
-The calibration wrappers reject non-empty output roots and generate `run_manifest.json` with repository HEAD/dirty state, input paths/counts, Python/NumPy/OpenCV versions, algorithm policy, outputs and final status. Add the FPGA bit/LTX hash, MCU firmware SHA and capture interface to the cross-repository manifest before promoting evidence.
+The calibration wrappers reject non-empty output roots and generate `run_manifest.json` with repository HEAD/dirty state, input paths/counts, Python/NumPy/OpenCV versions, algorithm policy, outputs and final status. Use `scripts_ps/new_run_manifest.ps1` in the FPGA repository to freeze the FPGA bit/LTX hash, MCU firmware SHA, Host HEAD, capture interface and camera IDs before acquisition. Chapter 08 requires the public Host golden replay before live capture and defines the independent sign-off boundary.
 
 ## PRECHECK
 

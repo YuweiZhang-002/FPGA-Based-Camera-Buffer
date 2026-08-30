@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+> 独立复刻发布门：[08 独立冷启动复刻验收](docs/ZH/08_independent_cold_start_acceptance.zh-CN.md)。应在完成 01-06 后执行，再按 07 进行 Git 发布。
+
 这是一个可复刻的 Vivado 四相机固定 128-byte 数据链路工程。当前架构使用片内 SRAM/FIFO、按完整包仲裁、FPGA 诊断状态、出口 CRC 重算、Ethernet/RMII 输出和可选 ILA 调试。Host 接收机位于独立仓库 [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver)。
 
 ## 冷启动阅读顺序

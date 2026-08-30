@@ -18,6 +18,7 @@
 !/docs/
 !/scripts/
 !/scripts_ps/
+!/scripts_py/
 
 # Authored Vivado sources: legacy and current.
 !/project_camera.srcs/
@@ -57,3 +58,11 @@
 *.csv
 __pycache__/
 .pytest_cache/
+
+# Public synthetic fixtures are deterministic regression inputs, not private
+# captures.  Keep the exception narrow so real PCAP/image evidence stays local.
+!/docs/fixtures/
+!/docs/fixtures/golden_dual_camera_small/
+!/docs/fixtures/golden_dual_camera_small/*.pcap
+!/docs/fixtures/golden_dual_camera_small/*.json
+!/docs/fixtures/golden_dual_camera_small/*.md

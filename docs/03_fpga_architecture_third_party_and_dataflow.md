@@ -188,7 +188,7 @@ Protocol invariants should also be checked in simulation or ILA:
 
 ## EXPORT
 
-Preserve the recreated XPR, synthesis DCP, utilization, timing, CDC report, Tcl log, and source manifest under a unique run directory. A future automation wrapper should emit `run_manifest.json` containing the first-party Git hash, dirty state, third-party hashes, Vivado version, top/generics, artifact SHA-256 values, and status. Historical runs are immutable evidence; do not reuse a non-empty output root.
+Preserve the recreated XPR, synthesis DCP, utilization, timing, CDC report, Tcl log, and source manifest under a unique run directory. `scripts_ps/new_run_manifest.ps1` now freezes the MCU/FPGA/Host HEAD and dirty state together with supplied UF2, bit/LTX and calibration hashes. The Vivado wrapper retains its more detailed tool/action manifest. Historical runs are immutable evidence; do not reuse a non-empty output root. The end-to-end acceptance order is defined by chapter 08.
 
 ## FAILURE HANDLING
 

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "fixture_kind": "synthetic_public_regression",
+  "fixture_timestamp_utc": "2023-11-14T22:13:20Z",
+  "generator": "scripts_py/generate_golden_host_fixture.py",
+  "host_repository_commit": "3910249e22d7d7b384eac11f141d0d1dedb139d5",
+  "wire_contract": {
+    "ether_type": "0x88B5",
+    "packet_bytes": 128,
+    "ethernet_frame_bytes_without_fcs": 142,
+    "sync_bytes": "A5 A0 5A 50",
+    "metadata_byte_order": "big_endian",
+    "pixel_bit_order": "msb_first",
+    "crc": "CRC-16/CCITT-FALSE over payload offsets 0..125"
+  },
+  "positive_fixture": {
+    "file": "golden_dual_camera_480rows.pcap",
+    "sha256": "bb49360f10b33eff8fab32e2146c878111882ef334a19c4a59f654e726a7ca12",
+    "packet_count": 960,
+    "matching_ethernet": 960,
+    "valid_packets": 960,
+    "bad_packets": 0,
+    "crc_errors": 0,
+    "camera_ids": [
+      0,
+      1
+    ],
+    "packets_per_camera": 480,
+    "complete_frames_per_camera": 1,
+    "frame_ids": {
+      "cam0": 100,
+      "cam1": 101
+    },
+    "image_shape": [
+      480,
+      640
+    ],
+    "first_row_crc": {
+      "cam0": "0xD17D",
+      "cam1": "0xF521"
+    },
+    "last_row_crc": {
+      "cam0": "0xBF17",
+      "cam1": "0x342E"
+    }
+  },
+  "negative_fixture": {
+    "file": "golden_crc_error_single_packet.pcap",
+    "sha256": "9b6b1df5c79a3389c648c29d9172a7a63a04aedfb5f35c8a04be0370bc805179",
+    "packet_count": 1,
+    "expected_first_error": "crc_error",
+    "valid_packets": 0,
+    "bad_packets": 1,
+    "crc_errors": 1
+  },
+  "limitations": [
+    "Synthetic evidence validates Host parsing and reassembly only.",
+    "It does not validate MCU GPIO, FPGA capture, RMII, PHY, NIC, or Npcap.",
+    "A physical cold-start run remains an independent acceptance step."
+  ]
+}

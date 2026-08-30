@@ -12,7 +12,8 @@ A reproducible Vivado project for a four-camera, fixed 128-byte packet pipeline.
 4. [Vivado, Tcl, reports and ILA](docs/04_fpga_vivado_tcl_ila_build_and_debug.md)
 5. [Host receiver and publisher isolation](docs/05_host_receiver_architecture_and_reconstruction.md)
 6. [Host diagnostics and calibration](docs/06_host_execution_diagnostics_and_calibration.md)
-7. [Git and public release workflow](docs/07_git_clone_branch_commit_pr_and_release.md)
+7. [Independent cold-start acceptance](docs/08_independent_cold_start_acceptance.md)
+8. [Git and public release workflow](docs/07_git_clone_branch_commit_pr_and_release.md)
 
 Read each architecture chapter before its execution chapter. The Chinese set is
 under [`docs/ZH`](docs/ZH/).
@@ -165,10 +166,11 @@ Third-party TAXI and RMII source trees are deliberately not vendored. Before run
 ```text
 prg_cam.srcs/                 active RTL, simulation, constraints
 project_camera.srcs/          legacy AXI4/DDR reference sources
-docs/                         seven English cold-start guides
-docs/ZH/                      seven matching Chinese guides
+docs/                         eight English cold-start guides
+docs/ZH/                      matching Chinese guides
 scripts/                      Vivado Tcl build and debug entry points
 scripts_ps/                   preflight-capable PowerShell runtime drivers
+scripts_py/                   deterministic public fixture generator
 ```
 
 Generated Vivado output, logs, caches, runs, bitstreams, PCAP/PCAPNG, image datasets, Python caches, and locally fetched third-party source trees are excluded by `.gitignore` and are not release inputs.
