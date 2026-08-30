@@ -29,7 +29,7 @@ The bootstrap pins these public source identities:
 | Domain | Repository/ref used by the script |
 |---|---|
 | MCU | `-RP2354A-OV5640-Camera-Module` at `6c4157b` |
-| FPGA | `FPGA-Based-Camera-Buffer` at the evidence-package commit configured by `FpgaRef` |
+| FPGA | `FPGA-Based-Camera-Buffer` at evidence-package commit `c52041d` |
 | Host | `Host_Camera_Packet_Receiver` at `3910249` |
 | TAXI | `bc4a6d3f2aa30156267ad279682e66d99558a633` |
 | RMII bridge | `5fef5b5641029777655c5fc34228c3a8b13e4ac9` |

@@ -18,8 +18,8 @@ golden fixture 和本地镜像 bootstrap；GitHub 网络 clone、全新 120+120 
 - RP2350A/OV5640、FPGA、PHY、已核实接线；
 - 一名非项目实现者作为最终独立测试人。
 
-bootstrap 固定 MCU `6c4157b`、Host `3910249`、脚本中 `FpgaRef` 指向的
-FPGA evidence commit、TAXI `bc4a6d3...633` 和 RMII
+bootstrap 固定 MCU `6c4157b`、Host `3910249`、FPGA evidence commit
+`c52041d`、TAXI `bc4a6d3...633` 和 RMII
 `5fef5b5...ac9`。不能把 `main` 当作永远不变的兼容版本。
 
 ## Run Identity

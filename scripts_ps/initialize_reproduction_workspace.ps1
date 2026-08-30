@@ -17,7 +17,7 @@ param(
       'https://github.com/WangXuan95/FPGA-RMII-SMII.git',
 
     [string]$McuRef = '6c4157b',
-    [string]$FpgaRef = '107a8e8',
+    [string]$FpgaRef = 'c52041d',
     [string]$HostRef = '3910249',
     [string]$TaxiRef = 'bc4a6d3f2aa30156267ad279682e66d99558a633',
     [string]$RmiiRef = '5fef5b5641029777655c5fc34228c3a8b13e4ac9'
