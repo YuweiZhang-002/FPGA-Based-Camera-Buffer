@@ -2,7 +2,13 @@ set project_root [file normalize [file join [file dirname [info script]] ..]]
 set report_dir  [file normalize [file join $project_root docs reports ethernet_bringup]]
 file mkdir $report_dir
 
-open_project [file join $project_root prg_cam.xpr]
+set active_project_xpr [file normalize [file join \
+    $project_root build project_recreate_validation prg_cam.xpr]]
+if {![file exists $active_project_xpr]} {
+    puts "SYNTH_PRECHECK: isolated project is missing; recreating it"
+    source [file join $project_root scripts recreate_project.tcl]
+}
+open_project $active_project_xpr
 set_property top Camera_Ethernet_Top [get_filesets sources_1]
 update_compile_order -fileset sources_1
 

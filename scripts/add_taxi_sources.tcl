@@ -2,11 +2,12 @@
 # This script never accesses the network and never removes project files.
 
 set project_root [file normalize [file join [file dirname [info script]] ..]]
-set lib_root [file normalize [file join $project_root prg_cam.srcs sources_1 lib]]
-set entry_f [file normalize [file join $lib_root taxi-master eth rtl taxi_eth_mac_mii_fifo.f]]
-set manifest_file [file normalize [file join $project_root docs taxi_compile_manifest.txt]]
-set compile_order_report [file normalize [file join $project_root docs taxi_compile_order.rpt]]
-set unresolved_report [file normalize [file join $project_root docs taxi_unresolved_references.rpt]]
+set lib_root [file normalize [file join $project_root third_party taxi src]]
+set entry_f [file normalize [file join $lib_root eth rtl taxi_eth_mac_mii_fifo.f]]
+set report_root [file normalize [file join $project_root build source_closure_reports]]
+set manifest_file [file join $report_root taxi_compile_manifest.txt]
+set compile_order_report [file join $report_root taxi_compile_order.rpt]
+set unresolved_report [file join $report_root taxi_unresolved_references.rpt]
 
 if {![file isdirectory $lib_root]} {
     error "Local Taxi root does not exist: $lib_root"
@@ -208,7 +209,12 @@ if {[llength $missing] != 0} {
 
 set project_xpr [file join $project_root prg_cam.xpr]
 if {[llength [get_projects -quiet]] == 0} {
-    open_project $project_xpr
+    set isolated_xpr [file normalize [file join \
+        $project_root build project_recreate_validation prg_cam.xpr]]
+    if {![file exists $isolated_xpr]} {
+        error "No project is open and the isolated project is missing; run scripts/recreate_project.tcl first"
+    }
+    open_project $isolated_xpr
 }
 
 # Check collisions between the resolved Taxi closure and the current active
@@ -250,8 +256,16 @@ report_compile_order -of_objects [get_filesets sources_1] -used_in synthesis -mi
 set ur [open $unresolved_report r]
 set unresolved_text [read $ur]
 close $ur
-if {![regexp -nocase {<\s*empty\s*>} $unresolved_text]} {
+set defer_missing_check [expr {
+    [info exists ::env(TAXI_DEFER_MISSING_INSTANCE_CHECK)] &&
+    $::env(TAXI_DEFER_MISSING_INSTANCE_CHECK) eq "1"
+}]
+if {!$defer_missing_check &&
+    ![regexp -nocase {<\s*empty\s*>} $unresolved_text]} {
     error "Unresolved references reported; see $unresolved_report"
+}
+if {$defer_missing_check} {
+    puts "TAXI_MISSING_INSTANCE_CHECK=DEFERRED"
 }
 
 puts "TAXI_SOURCE_ADD_PASS: [llength $resolved_rtl] unique RTL files"

@@ -4,15 +4,29 @@
 
 这是一个可复刻的 Vivado 四相机固定 128-byte 数据链路工程。当前架构使用片内 SRAM/FIFO、按完整包仲裁、FPGA 诊断状态、出口 CRC 重算、Ethernet/RMII 输出和可选 ILA 调试。Host 接收机位于独立仓库 [Host_Camera_Packet_Receiver](https://github.com/YuweiZhang-002/Host_Camera_Packet_Receiver)。
 
+## 冷启动阅读顺序
+
+1. [MCU 架构与代码](docs/ZH/01_mcu_architecture_and_code_guide.zh-CN.md)
+2. [MCU 构建、运行与调试](docs/ZH/02_mcu_build_run_and_debug_guide.zh-CN.md)
+3. [FPGA 架构与第三方源闭包](docs/ZH/03_fpga_architecture_third_party_and_dataflow.zh-CN.md)
+4. [Vivado、Tcl、Report 与 ILA](docs/ZH/04_fpga_vivado_tcl_ila_build_and_debug.zh-CN.md)
+5. [Host 接收机与发布器隔离](docs/ZH/05_host_receiver_architecture_and_reconstruction.zh-CN.md)
+6. [Host 诊断与内外参标定](docs/ZH/06_host_execution_diagnostics_and_calibration.zh-CN.md)
+7. [Git 与公开发布流程](docs/ZH/07_git_clone_branch_commit_pr_and_release.zh-CN.md)
+
+每个域都应先读架构篇，再执行操作篇；英文对应文档位于 [`docs/`](docs/)。
+
 ## 1. 项目范围与数据流
 
 仓库包含 FPGA RTL、仿真、约束、Vivado Tcl、调试辅助脚本和架构文档。`prg_cam.srcs/` 是 active tree；`project_camera.srcs/` 保留为旧 AXI4/DDR 工程；`prg_cam.srcs/sources_1/new/deprecated/` 是废弃 RTL，不属于 active synthesis source set。
 
-带 ILA 的 bit/LTX 构建、FPGA 编程、有界 trigger 观察、CSV 抓取和 plain bit 生成的当前入口见 [Vivado Tcl、ILA 抓取与 bitstream 自动化](docs/ILA_TCL_AUTOMATION.md)。
+带 ILA 的 bit/LTX 构建、FPGA 编程、有界 trigger 观察、CSV 抓取、Report
+判读和 plain bit 生成的当前入口见
+[Vivado 构建、Tcl、ILA 与调试](docs/ZH/04_fpga_vivado_tcl_ila_build_and_debug.zh-CN.md)。
 
 ```mermaid
 flowchart LR
-    GPIO[Camera GPIO] --> CC[Camera_Capture]
+    GPIO[RP2350 行包 GPIO<br/>D7:0/PCLK/HREF] --> CC[Camera_Capture]
     CC --> LB[Line_Buffer]
     LB --> ARB[四路 Arbitration]
     ARB --> BR[Byte_Replacer]
@@ -112,15 +126,17 @@ flowchart LR
 [仿真目录](prg_cam.srcs/sim_1/new/) 包含 Camera_Capture HREF/PCLK 边界、窄 PCLK 毛刺/短脉冲、127/128/129-byte、入口 CRC、Byte_Replacer 状态隔离、错误包后下一包、四路仲裁、Line_Buffer 满/空、Byte_FIFO 背压、Ethernet handshake 和 Taxi MII/RMII elaboration 测试。真实硬件测试需要目标板、相机、PHY、Vivado 和 Host Npcap。
 
 ```powershell
-$vivado = '<VIVADO_BIN>'
-& $vivado -mode batch -source .\scripts\check_project.tcl
-& $vivado -mode batch -source .\scripts\synth_fifo_pipeline.tcl
-& $vivado -mode batch -source .\scripts\build_ethernet_ila.tcl
-& $vivado -mode batch -source .\scripts\program_ethernet_ila.tcl
-& $vivado -mode batch -source .\scripts\capture_ethernet_ila.tcl
+$vivado = '<VIVADO_BIN>' # 替换为 vivado.bat
+$env:XILINX_LOCAL_USER_DATA = 'no'
+& $vivado -mode batch -nolog -nojournal -source .\scripts\recreate_project.tcl
+if ($LASTEXITCODE -ne 0) { throw '工程重建失败' }
+& $vivado -mode batch -nolog -nojournal -source .\scripts\validate_recreated_project.tcl
+if ($LASTEXITCODE -ne 0) { throw '隔离综合失败' }
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts_ps\run_ethernet_ila.ps1 -Action Build -VivadoBin $vivado
 ```
 
-主要脚本为 `check_project.tcl`、`synth_fifo_pipeline.tcl`、`build_ethernet_ila.tcl`、`program_ethernet_ila.tcl`、`rebuild_gui_ethernet.tcl` 和 `capture_ethernet_ila.tcl`。输出包括 `Camera_Ethernet_Top.bit`、`Camera_Ethernet_Top_ila.bit`、`Camera_Ethernet_Top_ila.ltx`、routed DCP、timing summary、DRC report 和 utilization report。Vivado 绝对路径必须由用户替换。
+冷启动权威工程位于 `build/project_recreate_validation`；根目录历史 XPR 不参与这条流程。`run_ethernet_ila.ps1` 统一分派 build/program/observe/capture，并归档不可覆盖的 run 证据。输出包括配对的 `Camera_Ethernet_Top_ila.bit`/`.ltx`、routed DCP、timing summary、DRC、utilization、日志和 manifest。Vivado 绝对路径必须由用户替换。
 
 ### 外部 Ethernet 依赖
 
@@ -131,7 +147,8 @@ $vivado = '<VIVADO_BIN>'
 ```text
 prg_cam.srcs/                 active RTL、仿真、约束
 project_camera.srcs/          legacy AXI4/DDR 工程
- docs/                        架构、报告和复刻说明
+ docs/                        七份英文冷启动指南
+ docs/ZH/                     七份对应中文指南
 scripts/                      Vivado Tcl 与调试 PowerShell
 scripts_ps/                   FPGA 运行辅助脚本
 ```

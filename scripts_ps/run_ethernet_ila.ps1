@@ -71,24 +71,24 @@ $runPath = [System.IO.Path]::GetFullPath($RunRoot)
 $requiredPaths = @($vivadoPath, $tclPath)
 switch ($Action) {
     'Build' {
-        $requiredPaths += Join-Path $repoRoot 'prg_cam.xpr'
+        $requiredPaths += Join-Path $repoRoot 'scripts\recreate_project.tcl'
         $requiredPaths += Join-Path $repoRoot (
-            'prg_cam.srcs\sources_1\lib\taxi-master\eth\rtl\' +
+            'third_party\taxi\src\eth\rtl\' +
             'taxi_eth_mac_mii_fifo.f'
         )
         $requiredPaths += Join-Path $repoRoot (
-            'prg_cam.srcs\sources_1\lib\FPGA-RMII-SMII-main\RTL\' +
+            'third_party\FPGA-RMII-SMII\RTL\' +
             'rmii_phy_if.v'
         )
     }
     'PlainBit' {
-        $requiredPaths += Join-Path $repoRoot 'prg_cam.xpr'
+        $requiredPaths += Join-Path $repoRoot 'scripts\recreate_project.tcl'
         $requiredPaths += Join-Path $repoRoot (
-            'prg_cam.srcs\sources_1\lib\taxi-master\eth\rtl\' +
+            'third_party\taxi\src\eth\rtl\' +
             'taxi_eth_mac_mii_fifo.f'
         )
         $requiredPaths += Join-Path $repoRoot (
-            'prg_cam.srcs\sources_1\lib\FPGA-RMII-SMII-main\RTL\' +
+            'third_party\FPGA-RMII-SMII\RTL\' +
             'rmii_phy_if.v'
         )
     }
@@ -157,6 +157,10 @@ $gitDirty = @(& git -C $repoRoot status --porcelain 2>$null).Count -gt 0
 $startedAt = Get-Date
 
 $environmentValues = @{
+    # This workstation's per-user Tcl app manifest makes Vivado fail during
+    # load_features ([Common 17-356]).  Built-in synthesis, implementation,
+    # Chipscope, and hw_manager features remain available with local apps off.
+    XILINX_LOCAL_USER_DATA = 'no'
     ILA_TRIGGER_NAME     = $TriggerName
     ILA_TRIGGER_POSITION = [string]$TriggerPosition
     ILA_CAPTURE_CSV      = $captureCsv
@@ -178,27 +182,41 @@ foreach ($name in $environmentValues.Keys) {
 }
 
 $exitCode = 5
+$toolExitCode = $null
 $status = 'internal_error'
 try {
     Push-Location $repoRoot
     try {
-        & $vivadoPath `
-            -mode batch `
-            -nolog `
-            -nojournal `
-            -source $tclPath `
-            2>&1 |
-            Tee-Object -FilePath $logPath
-        $exitCode = $LASTEXITCODE
+        # Windows PowerShell 5 can promote native stderr records to terminating
+        # errors when the outer preference is Stop.  Vivado uses stderr for a
+        # normal nonzero diagnostic, so preserve its real process exit code
+        # before applying the wrapper status contract.
+        $savedErrorPreference = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            & $vivadoPath `
+                -mode batch `
+                -nolog `
+                -nojournal `
+                -source $tclPath `
+                2>&1 |
+                Tee-Object -FilePath $logPath
+            $toolExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedErrorPreference
+        }
     }
     finally {
         Pop-Location
     }
 
-    if ($exitCode -ne 0) {
+    if ($toolExitCode -ne 0) {
+        $exitCode = 5
         $status = 'vivado_failed'
-        throw "Vivado exited with code $exitCode. See $logPath"
+        throw "Vivado exited with code $toolExitCode. See $logPath"
     }
+    $exitCode = 0
 
     $marker = $markerMap[$Action]
     $markerSeen = Select-String `
@@ -282,13 +300,27 @@ finally {
     $artifactRows = @(
         foreach ($spec in $artifactSpecs) {
             if (Test-Path -LiteralPath $spec.Path -PathType Leaf) {
-                $item = Get-Item -LiteralPath $spec.Path
+                $evidencePath = $spec.Path
+                if ($spec.Role -like 'generated_*' -and
+                    !([IO.Path]::GetFullPath($spec.Path).StartsWith(
+                        $runPath,
+                        [StringComparison]::OrdinalIgnoreCase
+                    ))) {
+                    $artifactArchive = Join-Path $runPath 'artifacts'
+                    New-Item -ItemType Directory -Force -Path $artifactArchive |
+                        Out-Null
+                    $evidencePath = Join-Path $artifactArchive (
+                        Split-Path -Leaf $spec.Path
+                    )
+                    Copy-Item -LiteralPath $spec.Path -Destination $evidencePath
+                }
+                $item = Get-Item -LiteralPath $evidencePath
                 [ordered]@{
                     path   = $item.FullName
                     role   = $spec.Role
                     bytes  = $item.Length
                     sha256 = (
-                        Get-FileHash -LiteralPath $spec.Path -Algorithm SHA256
+                        Get-FileHash -LiteralPath $evidencePath -Algorithm SHA256
                     ).Hash
                 }
             }
@@ -300,6 +332,7 @@ finally {
         action           = $Action
         status           = $status
         exit_code        = $exitCode
+        tool_exit_code   = $toolExitCode
         started_at       = $startedAt.ToString('o')
         completed_at     = (Get-Date).ToString('o')
         git_head         = [string]$gitHead

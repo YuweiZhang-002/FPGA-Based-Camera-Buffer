@@ -23,10 +23,13 @@
 !/project_camera.srcs/
 !/prg_cam.srcs/
 
-# Local dependency closure. Build scripts expect these paths, but the source
-# trees are fetched separately and must never be staged into this repository.
+# Local dependency closure.  Only the pin/install manifest is tracked; cloned
+# source trees remain owned and licensed by their upstream repositories.
 /prg_cam.srcs/sources_1/lib/
-/third_party/
+/prg_cam.srcs/sources_1/ip/
+!/third_party/
+/third_party/*
+!/third_party/README.md
 
 # Safety net for common Vivado-generated artifacts.
 *.jou
